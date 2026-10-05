@@ -173,6 +173,10 @@ class AdaptedMap implements MapLike {
     const p = this.inner.project(lngLat);
     return { x: p.x, y: p.y };
   }
+  unproject(point: [number, number]): { lng: number; lat: number } {
+    const l = this.inner.unproject(point);
+    return { lng: l.lng, lat: l.lat };
+  }
   addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): void {
     this.inner.addControl(asControl(control), position);
   }

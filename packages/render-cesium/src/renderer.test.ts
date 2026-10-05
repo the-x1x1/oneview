@@ -1,12 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ManualScheduler, type PickResult, type RenderFeature } from '@worldview/render-core';
+import type { RasterOverlay } from '@worldview/world-model';
+import { ManualScheduler, type PickResult, type RenderFeature, type RendererEvents } from '@worldview/render-core';
 import { ALWAYS_VISIBLE, type HorizonTest, type Vec3 } from './horizon.js';
 import { CesiumWorldRenderer, type VisibilityTarget } from './renderer.js';
 import {
   createFakeCesium,
   fakeCanvasFactory,
   fakeTerrainProvider,
+  toCartesian,
   type FakeCesium,
   type FakeDataSource,
   type FakeViewer,
@@ -308,6 +310,17 @@ test('CesiumWorldRenderer: selection restyles in place, picks resolve to feature
   viewer.scene.pickResult = undefined;
   handler.fire(cesium.ScreenSpaceEventType.LEFT_CLICK, { position: { x: 1, y: 1 } });
   assert.equal(events.filter((e) => e.type === 'pick').at(-1)!.payload, null);
+  // A right-click says where on the ground it was, and picks nothing ("What's here").
+  const menus: Array<RendererEvents['contextMenu']> = [];
+  renderer.on('contextMenu', (m) => menus.push(m));
+  const picksBefore = events.filter((e) => e.type === 'pick').length;
+  viewer.scene.pickResult = { id: 'obj:a' };
+  handler.fire(cesium.ScreenSpaceEventType.RIGHT_CLICK, { position: { x: 100, y: 200 } });
+  assert.equal(menus.length, 1);
+  assert.deepEqual(menus[0]!.screen, { x: 100, y: 200 });
+  assert.ok(Number.isFinite(menus[0]!.position.latitude) && Number.isFinite(menus[0]!.position.longitude));
+  assert.equal(events.filter((e) => e.type === 'pick').length, picksBefore);
+  viewer.scene.pickResult = undefined;
   // Non-interactive features never pick.
   renderer.update({ upsert: [{ ...pt('obj:n', 0, 0), interactive: false }], remove: [] });
   viewer.scene.pickResult = { id: 'obj:n' };
@@ -372,6 +385,81 @@ test('CesiumWorldRenderer: no hover picking while the camera moves; the resting 
   scheduler.flush();
   assert.equal(picks, 2);
   renderer.dispose();
+});
+
+test('CesiumWorldRenderer: the ground under the pointer, once a frame, null off the globe or off the canvas, again as the globe turns', async () => {
+  const cesium = createFakeCesium();
+  const scheduler = new ManualScheduler();
+  const renderer = new CesiumWorldRenderer({
+    cesium,
+    createCanvas: fakeCanvasFactory(),
+    scheduler,
+    now: () => scheduler.now(),
+    horizon: () => ALWAYS_VISIBLE,
+  });
+  // Degrees go through radians and back: rounded to a micro-degree for comparison.
+  const round = (v: number) => Math.round(v * 1e6) / 1e6;
+  const pointers: Array<RendererEvents['pointer']> = [];
+  renderer.on('pointer', (p) =>
+    pointers.push(
+      p && { ...p, position: { latitude: round(p.position.latitude), longitude: round(p.position.longitude) } },
+    ),
+  );
+  await renderer.mount(container());
+  const viewer = cesium.viewers[0]!;
+  const handler = cesium.handlers[0]!;
+  // The fake's Cartesian is lon/lat/height in degrees; x past 900 is space beside the globe.
+  let lonOffset = 0;
+  let ellipsoidPicks = 0;
+  viewer.camera.pickEllipsoid = (p) => {
+    ellipsoidPicks++;
+    return p.x > 900 ? undefined : toCartesian(p.x / 10 + lonOffset, -p.y / 10, 0);
+  };
+  const scene = viewer.scene as unknown as { pickPosition: (p: unknown) => unknown };
+  let depthReads = 0;
+  const pickPosition = scene.pickPosition.bind(scene);
+  scene.pickPosition = (p) => {
+    depthReads++;
+    return pickPosition(p);
+  };
+
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 100, y: 200 } });
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 150, y: 250 } });
+  assert.equal(pointers.length, 0, 'waits for the frame');
+  scheduler.flush();
+  assert.equal(pointers.length, 1, 'two moves in a frame are one readout');
+  assert.deepEqual(pointers[0], { position: { latitude: -25, longitude: 15 }, screen: { x: 150, y: 250 } });
+  assert.equal(ellipsoidPicks, 1);
+  assert.equal(depthReads, 0, 'the readout never reads the depth buffer back');
+
+  // The globe turns under a pointer held still: the readout follows without a move.
+  lonOffset = 30;
+  viewer.camera.changed.raise(1);
+  scheduler.flush();
+  assert.deepEqual(pointers.at(-1), { position: { latitude: -25, longitude: 45 }, screen: { x: 150, y: 250 } });
+
+  // Past the edge of the globe: one null, not one per move.
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 950, y: 10 } });
+  scheduler.flush();
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 960, y: 10 } });
+  scheduler.flush();
+  assert.deepEqual(pointers.slice(-2), [pointers[1], null]);
+
+  // Back on the globe, then off the canvas altogether.
+  handler.fire(cesium.ScreenSpaceEventType.MOUSE_MOVE, { endPosition: { x: 10, y: 10 } });
+  scheduler.flush();
+  assert.deepEqual(pointers.at(-1)!.position, { latitude: -1, longitude: 31 });
+  viewer.scene.fireCanvas('mouseleave');
+  scheduler.flush();
+  assert.equal(pointers.at(-1), null);
+  const count = pointers.length;
+  // With the pointer gone, a turning globe has nothing to report.
+  viewer.camera.changed.raise(1);
+  scheduler.flush();
+  assert.equal(pointers.length, count);
+
+  renderer.dispose();
+  assert.equal(viewer.scene.canvasListeners.get('mouseleave')?.size ?? 0, 0, 'the leave listener is removed');
 });
 
 test('CesiumWorldRenderer: view state round-trips through the camera, flyTo resolves, suspend stops the render loop', async () => {
@@ -804,6 +892,42 @@ test('CesiumWorldRenderer: an imagery comparison set before mounting applies onc
   assert.ok(overlay, 'the source is drawn right of the divider');
   renderer.setImagerySplit(null);
   assert.equal(overlay.splitDirection, cesium.SplitDirection.NONE);
+  renderer.dispose();
+});
+
+test('CesiumWorldRenderer: a cross-faded slice that ends on 180° is drawn past it by a second layer', async () => {
+  const { renderer, viewer } = await mounted();
+  const slice = (id: string, west: number, east: number): RasterOverlay => ({
+    kind: 'wmts',
+    id,
+    providerId: id,
+    name: id,
+    attribution: 'test',
+    url: `https://gibs.example/${id}/{TileMatrix}/{TileRow}/{TileCol}.png`,
+    layer: id,
+    style: 'default',
+    format: 'image/png',
+    tileMatrixSet: 'GoogleMapsCompatible_Level6',
+    webMercator: true,
+    bounds: { west, south: -60, east, north: 60 },
+    featherDeg: 5,
+    fadeBelow: { from: 135, to: 195, monochrome: true },
+  });
+  renderer.setOverlays([slice('goes-west', -180, -106), slice('himawari', 93, 180)]);
+  await new Promise(setImmediate);
+  const drawn = viewer.imageryLayers.layers
+    .slice(1)
+    .map((l) => (l as { provider?: { layer?: string; rectangle?: { west: number; east: number } } }).provider)
+    .map(
+      (p) =>
+        `${p?.layer} ${Math.round(((p!.rectangle!.west * 180) / Math.PI) * 10) / 10}..${Math.round(((p!.rectangle!.east * 180) / Math.PI) * 10) / 10}`,
+    );
+  assert.deepEqual(drawn, [
+    'goes-west -180..-103.5',
+    'goes-west 177.5..180',
+    'himawari 90.5..180',
+    'himawari -180..-177.5',
+  ]);
   renderer.dispose();
 });
 

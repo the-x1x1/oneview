@@ -212,6 +212,28 @@ test('2D day/night: the night bands under the reference and markers, over the ov
   assert.ok(![...timers.pending.values()].some((t) => t.ms === 60_000), 'no timer left');
 });
 
+test("2D day/night: at the timeline's time when given, without the minute's redraw, and back to the clock", async () => {
+  const { renderer, map, timers, wall } = await mounted();
+  const solstice = Date.parse('2026-06-21T12:00:00Z');
+  renderer.setDayNight(true, solstice);
+  const source = map.getSource(NIGHT_SOURCE)!;
+  assert.deepEqual((source.spec as { data: unknown }).data, nightCollection(solstice), 'shaded for that time');
+  assert.ok(![...timers.pending.values()].some((t) => t.ms === 60_000), 'a fixed time needs no redraw');
+  const later = solstice + 6 * 3600_000;
+  renderer.setDayNight(true, later);
+  assert.equal(map.getSource(NIGHT_SOURCE), source, 'the same source and bands');
+  assert.deepEqual(source.data, nightCollection(later));
+  const calls = source.setDataCalls;
+  renderer.setDayNight(true, later);
+  assert.equal(source.setDataCalls, calls, 'the same time again: nothing');
+  renderer.setDayNight(true);
+  assert.deepEqual(source.data, nightCollection(wall.now), 'live again: now');
+  assert.ok(
+    [...timers.pending.values()].some((t) => t.ms === 60_000),
+    'and kept to the minute',
+  );
+});
+
 test('2D day/night: survives a basemap change', async () => {
   const { renderer, map } = await mounted();
   renderer.setDayNight(true);

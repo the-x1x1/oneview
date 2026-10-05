@@ -6,6 +6,9 @@
 export const GLYPHS = {
   search: ['M10.5 4a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z', 'M15.5 15.5 20 20'],
   close: ['M6 6l12 12', 'M18 6 6 18'],
+  // A ruler laid on its side, with ticks: the measure tool.
+  ruler: ['M3 9h18v6H3z', 'M7 9v3', 'M11 9v2', 'M15 9v3', 'M19 9v2'],
+  grid: ['M4 8.5h16', 'M4 15.5h16', 'M8.5 4v16', 'M15.5 4v16'],
   play: ['M8 5.5v13l10-6.5z'],
   pause: ['M7 5.5h3.5v13H7z', 'M13.5 5.5H17v13h-3.5z'],
   live: [

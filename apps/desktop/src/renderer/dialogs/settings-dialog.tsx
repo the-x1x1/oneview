@@ -158,9 +158,31 @@ export function SettingsDialog() {
           </label>
           <Toggle
             label="HUD"
-            description="Coordinates of the view centre, altitude, heading and UTC time in the corners (H)."
+            description="Coordinates of the view centre and of the point under the pointer, altitude, heading and UTC time in the corners (H)."
             checked={display.hud}
             onChange={(v) => setDisplay({ hud: v })}
+          />
+          <label className="wv-field">
+            Grid reference in the HUD
+            <select
+              className="wv-select"
+              value={display.hudGrid ?? 'none'}
+              onChange={(e) => setDisplay({ hudGrid: e.target.value as 'none' | 'mgrs' | 'utm' })}
+            >
+              <option value="none">None (degrees only)</option>
+              <option value="mgrs">MGRS</option>
+              <option value="utm">UTM</option>
+            </select>
+            <span className="wv-field__hint">
+              Adds the view centre's MGRS or UTM reference to the HUD, and gives the point under the pointer and the
+              selection's position in it too (WGS84; UPS beyond 84° N and 80° S). The search box reads both.
+            </span>
+          </label>
+          <Toggle
+            label="Latitude and longitude grid"
+            description="Lines every so many degrees, closer together as you zoom in, each named near the middle of the view (G)."
+            checked={display.grid ?? false}
+            onChange={(v) => setDisplay({ grid: v })}
           />
           <Toggle
             label="Day and night"
@@ -177,7 +199,7 @@ export function SettingsDialog() {
           />
         </Section>
         <Section title="History">
-          <HistorySettings maxMB={s.history.maxMB} />
+          <HistorySettings history={s.history} />
         </Section>
         <Section title="Display">
           <label className="wv-field">
@@ -224,6 +246,33 @@ export function SettingsDialog() {
             description="Once the map has drawn, at every start."
             checked={s.home?.flyOnStart ?? false}
             onChange={(v) => void actions.setHomeFlyOnStart(v)}
+          />
+          {s.passAlerts?.satellites.length ? (
+            <div className="wv-ctx-stack">
+              <p className="wv-field__hint">
+                Pass alerts over home ({s.passAlerts.leadMinutes} min ahead
+                {s.passAlerts.visibleOnly ? ', visible passes' : ''}
+                {s.passAlerts.desktop ? ', with a Windows notification' : ''}) — set on a satellite's panel:
+              </p>
+              <ul className="wv-ctx-related">
+                {s.passAlerts.satellites.map((sat) => (
+                  <li key={sat.objectId}>
+                    {sat.name}{' '}
+                    <Button size="sm" variant="ghost" onClick={() => void actions.setPassAlert(sat, false)}>
+                      Stop
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </Section>
+        <Section title="Network">
+          <Toggle
+            label="Work offline"
+            description="WORLDVIEW asks nothing of the internet: sources on the internet pause, the map draws from the tile cache, your packs and the bundled world, search uses the built-in places, and update checks wait. History, the timeline and sources on this computer or your own network keep working. Turn it off to go back online."
+            checked={s.network?.workOffline === true}
+            onChange={(v) => void actions.updateSettings({ network: { workOffline: v } })}
           />
         </Section>
         <Section title="Search">
@@ -533,7 +582,8 @@ const TYPE_NAMES: Record<string, string> = {
  * cap costs old movement tracks, never earthquakes, infrastructure or the operator's own
  * records.
  */
-function HistorySettings({ maxMB }: { maxMB: number }) {
+function HistorySettings({ history }: { history: AppSettings['history'] }) {
+  const { maxMB } = history;
   const actions = useActions();
   const client = useClient();
   const [usage, setUsage] = useState<HistoryUsage | null>(null);
@@ -559,7 +609,7 @@ function HistorySettings({ maxMB }: { maxMB: number }) {
     const gb = Number(draftGB);
     if (!Number.isFinite(gb)) return;
     const mb = Math.round(Math.min(1024, Math.max(1, gb)) * 1024);
-    if (mb !== maxMB) void actions.updateSettings({ history: { maxMB: mb } });
+    if (mb !== maxMB) void actions.updateSettings({ history: { ...history, maxMB: mb } });
     else setDraftGB(String(maxMB / 1024));
   };
   const top = usage?.byType.filter((t) => t.bytes > 0).slice(0, 4) ?? [];
@@ -619,6 +669,26 @@ function HistorySettings({ maxMB }: { maxMB: number }) {
           GB
         </label>
       </div>
+      <label className="wv-field">
+        Storage
+        <select
+          className="wv-select"
+          value={history.backend ?? 'duckdb-parquet'}
+          onChange={(e) =>
+            void actions.updateSettings({
+              history: { ...history, backend: e.target.value as 'duckdb-parquet' | 'ndjson' },
+            })
+          }
+        >
+          <option value="duckdb-parquet">DuckDB / Parquet (fast timeline, compact)</option>
+          <option value="ndjson">NDJSON (plain text files)</option>
+        </select>
+        <span className="wv-field__hint">
+          Takes effect at the next start; Help → Diagnostics shows which one is running. History written by the other is
+          kept: DuckDB reads NDJSON files beside its own and the switch converts nothing; routine upkeep (removing
+          repeats, thinning old tracks) writes what it rewrites in the running format.
+        </span>
+      </label>
     </div>
   );
 }

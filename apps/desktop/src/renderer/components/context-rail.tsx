@@ -11,9 +11,10 @@ import { FeedPanel } from '../panels/feed-panel.js';
 import { ChangesPanel } from '../panels/changes-panel.js';
 import { CollectionsPanel } from '../panels/collections-panel.js';
 import { WatchZonesPanel } from '../panels/watchzones-panel.js';
+import { SkyPanel } from '../panels/sky-panel.js';
 
 const BASE_TABS: ContextTab[] = ['selection', 'sources', 'timeline', 'related'];
-const OPTIONAL_TABS: ContextTab[] = ['feed', 'changes', 'collections', 'watchzones'];
+const OPTIONAL_TABS: ContextTab[] = ['feed', 'changes', 'collections', 'watchzones', 'sky'];
 
 /** Tabs shown = the four fixed tabs + lens-visible panels + tabs the user opened explicitly. Exported for tests. */
 export function visibleTabs(lensPanels: ReadonlyArray<string>, pinned: ReadonlyArray<ContextTab>): ContextTab[] {
@@ -56,6 +57,8 @@ export function ContextRail() {
         return { id: t, label: 'Collections', icon: 'bookmark', badge: collections.collections.length || undefined };
       case 'watchzones':
         return { id: t, label: 'Watch zones', icon: 'target', badge: watchzones.zones.length || undefined };
+      case 'sky':
+        return { id: t, label: 'Sky', icon: 'satellite' };
     }
   });
 
@@ -76,6 +79,7 @@ export function ContextRail() {
         {active === 'changes' ? <ChangesPanel /> : null}
         {active === 'collections' ? <CollectionsPanel /> : null}
         {active === 'watchzones' ? <WatchZonesPanel /> : null}
+        {active === 'sky' ? <SkyPanel /> : null}
       </Tabs>
     </aside>
   );

@@ -52,3 +52,15 @@ test('flagFields matches the AISStream provider: kind only for non-ships, nothin
   assert.deepEqual(flagFields('974123456'), { mmsiKind: 'emergency-device' });
   assert.deepEqual(flagFields('200000001'), {});
 });
+
+test("navigational status 15 is kept: a distress beacon's test transmissions must replace its 'active'", () => {
+  const out = messageToDraft(
+    { type: 1, mmsi: 970123456, navStatus: 15, accuracy: true, latitude: 21.3, longitude: -157.9, second: 5 },
+    new StaticStore(),
+    { receivedMs: Date.parse('2026-10-05T12:00:10Z') },
+  );
+  assert.ok(out.kind === 'position');
+  assert.equal(out.draft.payload['navStatus'], 15);
+  assert.equal(out.draft.payload['navStatusText'], 'not defined');
+  assert.equal(out.draft.payload['mmsiKind'], 'emergency-device');
+});

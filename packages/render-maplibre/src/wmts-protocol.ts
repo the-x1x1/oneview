@@ -1,5 +1,11 @@
 import { wmtsTileUrl, type WmtsOverlay } from '@worldview/world-model';
-import { applyBrightnessFade, featherWeights, latitudeWeights, type FadeRamp } from '@worldview/render-core';
+import {
+  applyBrightnessFade,
+  featherWeights,
+  latitudeWeights,
+  mendAntimeridianColumn,
+  type FadeRamp,
+} from '@worldview/render-core';
 import type { MapLibreLike, ProtocolLoader } from './maplibre-like.js';
 
 /**
@@ -62,6 +68,7 @@ export async function fadeTileBytes(bytes: ArrayBuffer, ramp: FadeRamp, feather?
   ctx.drawImage(bitmap, 0, 0);
   bitmap.close();
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  if (feather) mendAntimeridianColumn(data.data, canvas.width, { z: feather.z, x: feather.x });
   const weights = feather
     ? featherWeights({ z: feather.z, x: feather.x }, canvas.width, feather.slice, feather.deg)
     : undefined;

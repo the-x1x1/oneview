@@ -56,6 +56,44 @@ export class RateLimiter {
   }
 }
 
+/**
+ * A per-host request budget shared by several HTTP clients (ADR-013 amendment 2026-10-05):
+ * connector definitions that call the same host each have their own limiter, so three of
+ * them against one service sent three times what it allows. Each client that declares a
+ * budget for a host counts against the one bucket for that host over a 60-second window;
+ * where they declare different budgets the smallest holds, since it is the host's limit.
+ */
+export class SharedHostBudget {
+  private readonly buckets = new Map<string, number[]>();
+  private readonly limits = new Map<string, number>();
+  constructor(
+    private readonly clock: Clock,
+    private readonly windowMs = 60_000,
+  ) {}
+
+  /** Try to take one request for `host` under a budget of `perWindow`. Returns ms to wait (0 = now). */
+  tryAcquire(host: string, perWindow: number): number {
+    const declared = this.limits.get(host);
+    const max = declared === undefined ? perWindow : Math.min(declared, perWindow);
+    this.limits.set(host, max);
+    const now = this.clock.now();
+    let bucket = this.buckets.get(host);
+    if (!bucket) {
+      bucket = [];
+      this.buckets.set(host, bucket);
+    }
+    prune(bucket, now - this.windowMs);
+    if (bucket.length >= max) return Math.max(1, bucket[0]! + this.windowMs - now);
+    bucket.push(now);
+    return 0;
+  }
+
+  /** The budget in force for a host, once anything has declared one. */
+  limitFor(host: string): number | undefined {
+    return this.limits.get(host);
+  }
+}
+
 function prune(list: number[], cutoff: number): void {
   let i = 0;
   while (i < list.length && list[i]! <= cutoff) i++;

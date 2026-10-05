@@ -3,6 +3,7 @@ import {
   PollingProvider,
   ProviderError,
   assertAtomicAdmission,
+  type FetchResult,
   type ObjectDetailsAnswer,
   type ObjectDetailsRequest,
   type ObjectDetailsSource,
@@ -30,7 +31,7 @@ import { CATEGORY_GROUPS, satelliteCategory, type CategoryGroup } from './catego
 import { orbitPath } from './orbit-path.js';
 import { elementsFromProperties } from './reproject.js';
 import { ORBIT_CLASS_TEXT, isGeostationary, orbitClass } from './orbit-class.js';
-import { nextPasses, type SatellitePass } from './passes.js';
+import { DARK_SKY_SUN_DEG, nextPasses, type SatellitePass } from './passes.js';
 import {
   parseSatcatRecords,
   restoreSatcatEntry,
@@ -106,10 +107,27 @@ export interface CelestrakProviderOptions {
    * settings cannot lower it.
    */
   catalogMaxAgeMs?: number;
-  /** After the network layer served a stale body, wait this long before trying upstream again (default 10 min). */
+  /**
+   * After a stale catalog was served (the network layer's copy, or the kept one when CelesTrak
+   * failed), wait this long before trying upstream again (default 10 min).
+   */
   retryAfterStaleMs?: number;
-  /** Never propagate from a catalog older than this (default 24 h); fetch instead. */
+  /** The least `catalogMaxOfflineMs` can be (default 24 h). */
   catalogMaxStaleMs?: number;
+  /**
+   * Wait out a refusal's stated retry time (CelesTrak's 403: two hours) before asking again,
+   * when it is longer than `retryAfterStaleMs` (default true). The contract checklist turns it
+   * off so that each of its scenarios reaches the upstream path.
+   */
+  honourRetryAfter?: boolean;
+  /**
+   * While the application is offline (the network refused as OFFLINE), or CelesTrak fails
+   * (an error status, a timeout, a refusal), propagate from a kept catalog up to this old
+   * (default 7 days, the satellites' own expiry) rather than stop. Positions from week-old
+   * elements are off by kilometres for low orbits; they are labelled cached, with the
+   * elements' epoch in the panel.
+   */
+  catalogMaxOfflineMs?: number;
   /**
    * The CelesTrak groups whose membership decides a category (categories.ts; default
    * CATEGORY_GROUPS, `military` and `gnss`). Fetched on the catalogue cadence, best effort.
@@ -129,6 +147,8 @@ export interface CatalogEntry {
 interface CatalogState {
   entry: CatalogEntry;
   staleServedAt?: number;
+  /** Why the kept entry is being served: CelesTrak's last failure, until a fetch succeeds. */
+  unavailable?: ProviderError;
 }
 
 // Every active satellite, not the first 5,000 of 16,587 in catalog order (which left out most
@@ -166,6 +186,8 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
   private readonly catalogMaxAgeMs: number;
   private readonly retryAfterStaleMs: number;
   private readonly catalogMaxStaleMs: number;
+  private readonly catalogMaxOfflineMs: number;
+  private readonly honourRetryAfter: boolean;
   private readonly catalogs = new Map<string, CatalogState>();
   private prepared: Promise<void> | undefined;
   private readonly categoryGroups: readonly CategoryGroup[];
@@ -186,6 +208,8 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     this.catalogMaxAgeMs = options.catalogMaxAgeMs ?? CATALOG_MAX_AGE_MS;
     this.retryAfterStaleMs = options.retryAfterStaleMs ?? 10 * 60_000;
     this.catalogMaxStaleMs = options.catalogMaxStaleMs ?? 24 * 3600_000;
+    this.catalogMaxOfflineMs = Math.max(this.catalogMaxStaleMs, options.catalogMaxOfflineMs ?? 7 * 24 * 3600_000);
+    this.honourRetryAfter = options.honourRetryAfter ?? true;
     this.categoryGroups = options.categoryGroups ?? CATEGORY_GROUPS;
   }
 
@@ -196,7 +220,7 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     });
   }
 
-  protected async fetchOnce(request: ProviderQuery): Promise<{ observations: Observation[]; cacheAgeMs?: number }> {
+  protected async fetchOnce(request: ProviderQuery): Promise<FetchResult> {
     if (request.signal.aborted) throw new ProviderError('CANCELLED', 'cancelled before catalog access');
     await this.ensurePropagator();
     const groups = this.settings.groups ?? ['active'];
@@ -206,11 +230,13 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     const seen = new Set<number>();
     let oldestServedMs = 0;
     let anyStale = false;
+    let unavailable: ProviderError | undefined;
     await this.loadMemberships(groups, format, request);
     const memberOf = (g: CategoryGroup, id: number) => this.members.get(g)?.ids.has(id) ?? false;
 
     for (const group of groups) {
-      const { entry, stale, ageMs } = await this.catalog(group, format, maxObjects, request);
+      const { entry, stale, ageMs, failure } = await this.catalog(group, format, maxObjects, request);
+      unavailable ??= failure;
       if (stale) {
         anyStale = true;
         oldestServedMs = Math.max(oldestServedMs, ageMs);
@@ -241,7 +267,7 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
       this.lastSkipped.set(group, skippedKey);
       observations.push(...result.observations);
     }
-    return { observations, cacheAgeMs: anyStale ? oldestServedMs : 0 };
+    return { observations, cacheAgeMs: anyStale ? oldestServedMs : 0, ...(unavailable ? { unavailable } : {}) };
   }
 
   /**
@@ -336,6 +362,8 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
           longitude: Math.round(request.observer.longitude * 1000) / 1000,
         };
         properties['passMinElevationDeg'] = PASS_MIN_ELEVATION_DEG;
+        // Each pass says which part of it can be seen (sunlit, Sun this far below the horizon).
+        properties['passDarkSkySunDeg'] = DARK_SKY_SUN_DEG;
         properties['passesFrom'] = new Date(request.nowMs).toISOString();
         properties['passesSearchedUntil'] = new Date(search.searchedUntil).toISOString();
         properties['passElementsEpoch'] = elements.epoch;
@@ -440,7 +468,7 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     format: CelestrakFormat,
     maxObjects: number,
     request: ProviderQuery,
-  ): Promise<{ entry: CatalogEntry; stale: boolean; ageMs: number }> {
+  ): Promise<{ entry: CatalogEntry; stale: boolean; ageMs: number; failure?: ProviderError }> {
     const now = this.context.clock.now();
     const key = cacheKey(group, format);
     let state = this.catalogs.get(group);
@@ -453,12 +481,12 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     if (state) {
       const ageMs = now - Date.parse(state.entry.fetchedAt);
       if (ageMs >= 0 && ageMs < this.catalogMaxAgeMs) return { entry: state.entry, stale: false, ageMs };
-      if (
-        state.staleServedAt !== undefined &&
-        now - state.staleServedAt < this.retryAfterStaleMs &&
-        ageMs <= this.catalogMaxStaleMs
-      )
-        return { entry: state.entry, stale: true, ageMs };
+      // Served stale a moment ago (the network layer's copy, or the kept one after CelesTrak
+      // failed): keep using it without asking again until `retryAfterStaleMs` has passed.
+      // A refusal that says how long to wait (CelesTrak's 403: two hours) is waited out.
+      const wait = Math.max(this.retryAfterStaleMs, this.honourRetryAfter ? (state.unavailable?.retryAfterMs ?? 0) : 0);
+      if (state.staleServedAt !== undefined && now - state.staleServedAt < wait && ageMs <= this.catalogMaxOfflineMs)
+        return { entry: state.entry, stale: true, ageMs, ...(state.unavailable ? { failure: state.unavailable } : {}) };
     }
 
     const url = gpUrl(group, format);
@@ -471,6 +499,33 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
         headers: { Accept: format === 'json' ? 'application/json' : 'text/plain' },
       });
     } catch (err) {
+      // Offline (Work offline, or no network), or CelesTrak down, slow or refusing: keep moving
+      // the satellites from what is kept rather than drop them all, labelled cached, and ask
+      // CelesTrak again after `retryAfterStaleMs`. On 2026-10-05 it answered 503 and then
+      // timed out after a restart, and the map had no satellites although the elements kept
+      // from a few hours before were on disk.
+      const cancelled = request.signal.aborted || (err instanceof ProviderError && err.code === 'CANCELLED');
+      if (state && !cancelled) {
+        const ageMs = now - Date.parse(state.entry.fetchedAt);
+        if (ageMs >= 0 && ageMs <= this.catalogMaxOfflineMs) {
+          state.staleServedAt = now;
+          if (err instanceof ProviderError && err.code === 'OFFLINE') return { entry: state.entry, stale: true, ageMs };
+          // The failure stays the provider's last error while the kept elements are used
+          // (ADR-003 amendment 2026-10-05, `answersFromCacheWhenUnavailable`) — except a
+          // credential refusal, which CelesTrak (keyless) should never give and which needs
+          // looking at rather than hiding.
+          const failure = mapUpstreamError(err);
+          if (failure.code === 'AUTH') throw failure;
+          if (state.unavailable?.message !== failure.message)
+            this.context.logger.warn('CelesTrak unavailable; propagating from kept elements', {
+              group,
+              keptForMs: ageMs,
+              error: failure.message,
+            });
+          state.unavailable = failure;
+          return { entry: state.entry, stale: true, ageMs, failure };
+        }
+      }
       throw mapUpstreamError(err);
     }
     const parsed = parseCatalog(res.text(), format);
@@ -501,7 +556,8 @@ export class CelestrakProvider extends PollingProvider implements ObjectTrackSou
     };
     const next: CatalogState = res.stale ? { entry, staleServedAt: now } : { entry };
     this.catalogs.set(group, next);
-    if (!res.stale) await this.context.cache.set(key, entryToJson(entry), this.catalogMaxStaleMs);
+    // Kept as long as it can be used offline, so a restart without a network still has it.
+    if (!res.stale) await this.context.cache.set(key, entryToJson(entry), this.catalogMaxOfflineMs);
     return { entry, stale: res.stale, ageMs: res.stale ? res.ageMs : 0 };
   }
 }
@@ -516,6 +572,10 @@ function passToJson(p: SatellitePass): JsonValue {
   if (p.riseAzimuthDeg !== undefined) out['riseAzimuthDeg'] = p.riseAzimuthDeg;
   if (p.setAt !== undefined) out['setAt'] = new Date(p.setAt).toISOString();
   if (p.setAzimuthDeg !== undefined) out['setAzimuthDeg'] = p.setAzimuthDeg;
+  if (p.visibleFrom !== undefined && p.visibleUntil !== undefined) {
+    out['visibleFrom'] = new Date(p.visibleFrom).toISOString();
+    out['visibleUntil'] = new Date(p.visibleUntil).toISOString();
+  }
   return out;
 }
 

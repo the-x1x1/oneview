@@ -48,6 +48,7 @@ export function WatchZonesPanel() {
   const [polyText, setPolyText] = useState('');
   const [polyError, setPolyError] = useState<string | null>(null);
   const [polyName, setPolyName] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   const createPolygon = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -71,7 +72,54 @@ export function WatchZonesPanel() {
   };
 
   return (
-    <Panel title="Watch zones" subtitle={`${watchzones.zones.length} zones`}>
+    <Panel
+      title="Watch zones"
+      subtitle={`${watchzones.zones.length} zones`}
+      actions={
+        <>
+          <IconButton
+            icon="upload"
+            label="Import zones from KML or GeoJSON"
+            size="sm"
+            onClick={() => void actions.importWatchZones()}
+          />
+          <IconButton
+            icon="download"
+            label="Export zones"
+            size="sm"
+            aria-expanded={exporting}
+            disabled={watchzones.zones.length === 0}
+            onClick={() => setExporting((v) => !v)}
+          />
+        </>
+      }
+    >
+      {exporting && watchzones.zones.length ? (
+        <div className="wv-ctx-actions" role="group" aria-label="Export zones as">
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Google Earth, ATAK"
+            onClick={() => {
+              setExporting(false);
+              void actions.exportWatchZones('kml');
+            }}
+          >
+            KML
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="QGIS and the web"
+            onClick={() => {
+              setExporting(false);
+              void actions.exportWatchZones('geojson');
+            }}
+          >
+            GeoJSON
+          </Button>
+        </div>
+      ) : null}
       <Section title="Create">
         <form
           className="wv-inline-form"

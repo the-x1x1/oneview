@@ -43,6 +43,17 @@ export interface LoadOptions {
 
 export const MAX_DEFINITION_BYTES = 256 * 1024;
 
+/** The definition files a folder holds (`*.json`, not `*.test.json` or hidden), sorted; none when unreadable. */
+export function listDefinitionFiles(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+      .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json') && !f.startsWith('.'))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 export function loadDefinitionsFrom(dir: string, opts: LoadOptions = {}): LoadedDefinitions {
   const registry = opts.registry ?? defaultConnectorRegistry;
   const out: LoadedDefinitions = { definitions: [], problems: [], warnings: [], files: [] };
@@ -50,14 +61,7 @@ export function loadDefinitionsFrom(dir: string, opts: LoadOptions = {}): Loaded
     out.problems.push({ file, errors });
     out.files.push({ file, problems: errors, warnings: [] });
   };
-  let files: string[];
-  try {
-    files = readdirSync(dir)
-      .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json') && !f.startsWith('.'))
-      .sort();
-  } catch {
-    return out;
-  }
+  const files = listDefinitionFiles(dir);
   const taken = new Set(opts.reservedIds ?? []);
   for (const file of files) {
     const abs = path.join(dir, file);

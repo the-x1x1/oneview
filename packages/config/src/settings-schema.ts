@@ -63,7 +63,10 @@ const settingsShape = {
   // 64 MB to 1 TB: below that the cache holds less than one screen of every zoom level.
   tileCache: s.object({ maxMB: s.number({ min: 64, max: 1_048_576, integer: true }), preloadWorld: s.boolean() }),
   // 1 GB to 1 TB. Over the cap the oldest movement history goes first (history-store `enforceSizeCap`).
-  history: s.object({ maxMB: s.number({ min: 1024, max: 1_048_576, integer: true }) }),
+  history: s.object({
+    maxMB: s.number({ min: 1024, max: 1_048_576, integer: true }),
+    backend: s.optional(s.enum(['duckdb-parquet', 'ndjson'] as const)),
+  }),
   reference: s.object({ borders: s.boolean(), labels: s.boolean() }),
   display: s.object({
     graphics: s.enum(['auto', 'high', 'balanced', 'low'] as const),
@@ -76,6 +79,10 @@ const settingsShape = {
     models3d: s.optional(s.boolean()),
     // Optional (additive): the one full-cover imagery overlay drawn, by provider id; absent, none.
     imagery: s.optional(s.string({ min: 1, max: 128 })),
+    // Optional (additive): the latitude/longitude grid; absent, off.
+    grid: s.optional(s.boolean()),
+    // Optional (additive): an MGRS or UTM row in the HUD; absent, none.
+    hudGrid: s.optional(s.enum(['none', 'mgrs', 'utm'] as const)),
   }),
   // Optional (additive): a Martin source as a 2D basemap; absent or an empty url, none.
   martin: s.optional(
@@ -87,6 +94,8 @@ const settingsShape = {
   ),
   // Optional (additive): absent means online place search on, and no home view set.
   search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),
+  // Optional (additive): absent means not working offline.
+  network: s.optional(s.object({ workOffline: s.boolean() })),
   home: s.optional(
     s.object({
       view: s.nullable(
@@ -100,6 +109,18 @@ const settingsShape = {
         }),
       ),
       flyOnStart: s.boolean(),
+    }),
+  ),
+  // Optional (additive, 2026-10-05): satellite pass alerts; absent, none.
+  passAlerts: s.optional(
+    s.object({
+      satellites: s.array(
+        s.object({ objectId: s.string({ min: 1, max: 256 }), name: s.string({ min: 1, max: 200 }) }),
+        { max: 20 },
+      ),
+      leadMinutes: s.number({ min: 1, max: 60, integer: true }),
+      visibleOnly: s.boolean(),
+      desktop: s.boolean(),
     }),
   ),
 };
@@ -127,8 +148,10 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     reference: s.optional(settingsShape.reference),
     display: s.optional(settingsShape.display),
     search: settingsShape.search,
+    network: settingsShape.network,
     home: settingsShape.home,
     martin: settingsShape.martin,
+    passAlerts: settingsShape.passAlerts,
   },
   { strict: true },
 ) as unknown as Schema<Partial<AppSettings>>;
@@ -147,9 +170,18 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     reference: { ...settings.reference },
     display: { ...settings.display },
     ...(settings.search ? { search: { ...settings.search } } : {}),
+    ...(settings.network ? { network: { ...settings.network } } : {}),
     ...(settings.martin ? { martin: { ...settings.martin } } : {}),
     ...(settings.home
       ? { home: { ...settings.home, view: settings.home.view ? { ...settings.home.view } : null } }
+      : {}),
+    ...(settings.passAlerts
+      ? {
+          passAlerts: {
+            ...settings.passAlerts,
+            satellites: settings.passAlerts.satellites.map((sat) => ({ ...sat })),
+          },
+        }
       : {}),
   };
 }
@@ -177,8 +209,11 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.reference !== undefined) next.reference = { ...patch.reference };
   if (patch.display !== undefined) next.display = { ...patch.display };
   if (patch.search !== undefined) next.search = { ...patch.search };
+  if (patch.network !== undefined) next.network = { ...patch.network };
   if (patch.martin !== undefined) next.martin = { ...patch.martin };
   if (patch.home !== undefined) next.home = { ...patch.home, view: patch.home.view ? { ...patch.home.view } : null };
+  if (patch.passAlerts !== undefined)
+    next.passAlerts = { ...patch.passAlerts, satellites: patch.passAlerts.satellites.map((sat) => ({ ...sat })) };
   if (patch.providers !== undefined) {
     for (const [id, cfg] of Object.entries(patch.providers)) next.providers[id] = { ...cfg };
   }

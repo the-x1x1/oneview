@@ -376,6 +376,9 @@ importers:
       '@worldview/config':
         specifier: workspace:*
         version: link:../config
+      '@worldview/connector-runtime':
+        specifier: workspace:*
+        version: link:../connector-runtime
       '@worldview/core':
         specifier: workspace:*
         version: link:../core
@@ -570,7 +573,25 @@ importers:
         specifier: workspace:*
         version: link:../../packages/world-model
 
+  providers/meshtastic-local:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
   providers/nhc:
+    dependencies:
+      '@worldview/provider-sdk':
+        specifier: workspace:*
+        version: link:../../packages/provider-sdk
+      '@worldview/world-model':
+        specifier: workspace:*
+        version: link:../../packages/world-model
+
+  providers/nmea2000-local:
     dependencies:
       '@worldview/provider-sdk':
         specifier: workspace:*
@@ -629,9 +650,15 @@ importers:
       '@worldview/provider-infrastructure':
         specifier: workspace:*
         version: link:../infrastructure
+      '@worldview/provider-meshtastic-local':
+        specifier: workspace:*
+        version: link:../meshtastic-local
       '@worldview/provider-nhc':
         specifier: workspace:*
         version: link:../nhc
+      '@worldview/provider-nmea2000-local':
+        specifier: workspace:*
+        version: link:../nmea2000-local
       '@worldview/provider-purpleair-local':
         specifier: workspace:*
         version: link:../purpleair-local
@@ -723,6 +750,9 @@ importers:
 
   tools/perf-budget:
     dependencies:
+      '@worldview/history-store':
+        specifier: workspace:*
+        version: link:../../packages/history-store
       '@worldview/offline':
         specifier: workspace:*
         version: link:../../packages/offline

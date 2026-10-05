@@ -16,6 +16,8 @@ import type {
   ProviderLocalAccess,
   LineStreamEvents,
   LineStreamHandle,
+  ByteStreamEvents,
+  ByteStreamHandle,
   ProviderMqtt,
   ProviderMqttOptions,
   ProviderMqttEvents,
@@ -350,6 +352,40 @@ export class FixtureLineStream implements LineStreamHandle {
 }
 
 /**
+ * A byte stream a test drives: `simulateData`, `simulateClose`, `simulateError`; what the
+ * provider wrote is in `written`. `refuseWrites` makes `write` answer false (the host's caps).
+ */
+export class FixtureByteStream implements ByteStreamHandle {
+  closed = false;
+  dropped = 0;
+  refuseWrites = false;
+  readonly written: Uint8Array[] = [];
+  constructor(
+    readonly target: { host: string; port: number },
+    private readonly events: ByteStreamEvents,
+  ) {}
+  write(bytes: Uint8Array): boolean {
+    if (this.closed || this.refuseWrites) return false;
+    this.written.push(Uint8Array.from(bytes));
+    return true;
+  }
+  simulateData(bytes: Uint8Array): void {
+    if (!this.closed) this.events.onData(bytes);
+  }
+  simulateClose(reason = 'the device closed the connection'): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.events.onClose?.(reason);
+  }
+  simulateError(error: ProviderError): void {
+    if (!this.closed) this.events.onError?.(error);
+  }
+  close(): void {
+    this.closed = true;
+  }
+}
+
+/**
  * A granted folder in memory, answering as the host does: the path rule
  * (`checkRelativePath`) refuses with HOST_NOT_ALLOWED, a file that is not there is
  * UNSUPPORTED, a file over `maxBytes` (or the fixture's own `hostMaxBytes`) is TOO_LARGE
@@ -386,6 +422,14 @@ export class FixtureLocalAccess implements ProviderLocalAccess {
     if (this.refuseStreams) throw this.refuseStreams;
     const stream = new FixtureLineStream(target, events);
     this.streams.push(stream);
+    return stream;
+  }
+  /** Every byte stream opened, in order (`refuseStreams` refuses these too). */
+  readonly byteStreams: FixtureByteStream[] = [];
+  async openByteStream(target: { host: string; port: number }, events: ByteStreamEvents): Promise<ByteStreamHandle> {
+    if (this.refuseStreams) throw this.refuseStreams;
+    const stream = new FixtureByteStream(target, events);
+    this.byteStreams.push(stream);
     return stream;
   }
   /** The file a path names, or the typed refusal. */

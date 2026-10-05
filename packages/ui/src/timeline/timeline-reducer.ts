@@ -8,8 +8,8 @@
  *  - with no availability at all, scrubbing is a no-op and the control reports `canScrub=false`.
  */
 export type TimelineMode = 'LIVE' | 'PAUSED' | 'REPLAY' | 'HISTORICAL';
-export type TimelineSpeed = 0.25 | 1 | 5 | 20 | 60;
-export const TIMELINE_SPEEDS: readonly TimelineSpeed[] = [0.25, 1, 5, 20, 60];
+export type TimelineSpeed = 0.25 | 1 | 5 | 20 | 60 | 600 | 3600;
+export const TIMELINE_SPEEDS: readonly TimelineSpeed[] = [0.25, 1, 5, 20, 60, 600, 3600];
 
 export interface MsRange {
   startMs: number;

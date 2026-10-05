@@ -133,3 +133,63 @@ test('registry: connector definitions become providers beside the hand-written o
   ]);
   assert.ok(clash.problems.some((p) => /already used/.test(p.errors[0] ?? '')));
 });
+
+test('registry: a world pack’s definition set loads only when its signer is one of the operator’s publishers', async () => {
+  const { loadConnectorDefinitions, packDefinitionFile, UNTRUSTED_PACK_DEFINITION } = await import('./connectors.js');
+  const { mkdtempSync, mkdirSync, copyFileSync, readFileSync, writeFileSync } = await import('node:fs');
+  const os = await import('node:os');
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'wv-packdefs-'));
+  const defs = path.join(dir, 'definitions');
+  mkdirSync(defs);
+  copyFileSync(
+    path.join(root, 'connectors', 'examples', 'citibike-stations-rest.json'),
+    path.join(defs, 'citibike-nyc-stations.json'),
+  );
+  // A pack file cannot declare itself reviewed: it loads as user-configured, like the operator's own.
+  const doc = JSON.parse(readFileSync(path.join(defs, 'citibike-nyc-stations.json'), 'utf8')) as Record<
+    string,
+    unknown
+  >;
+  writeFileSync(
+    path.join(defs, 'citibike-nyc-stations.json'),
+    JSON.stringify({ ...doc, review: 'reviewed', enabled: true }),
+  );
+
+  const untrusted = loadConnectorDefinitions(
+    { packSets: [{ packId: 'nyc-sources', dir: defs, trusted: false }] },
+    providerIds(),
+  );
+  assert.deepEqual(untrusted.definitions, []);
+  assert.deepEqual(untrusted.files, [
+    {
+      file: packDefinitionFile('nyc-sources', 'citibike-nyc-stations.json'),
+      problems: [UNTRUSTED_PACK_DEFINITION],
+      warnings: [],
+    },
+  ]);
+
+  const trusted = loadConnectorDefinitions(
+    { packSets: [{ packId: 'nyc-sources', dir: defs, trusted: true }] },
+    providerIds(),
+  );
+  assert.deepEqual(trusted.problems, []);
+  assert.deepEqual(
+    trusted.definitions.map((d) => [d.id, d.review, d.enabled]),
+    [['citibike-nyc-stations', 'user-configured', false]],
+  );
+  assert.equal(trusted.files[0]?.file, 'pack/nyc-sources/citibike-nyc-stations.json');
+
+  // Shipped definitions come first: a pack cannot take a bundled id, and the operator's own
+  // folder cannot take a pack's.
+  const both = loadConnectorDefinitions(
+    {
+      bundledDir: path.join(root, 'connectors', 'examples'),
+      packSets: [{ packId: 'nyc-sources', dir: defs, trusted: true }],
+      userDir: defs,
+    },
+    providerIds(),
+  );
+  const refused = both.problems.map((p) => p.file);
+  assert.ok(refused.includes('pack/nyc-sources/citibike-nyc-stations.json'), 'the bundled one keeps its id');
+  assert.ok(refused.includes('citibike-nyc-stations.json'));
+});

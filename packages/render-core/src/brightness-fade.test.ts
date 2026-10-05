@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyBrightnessFade, featherWeights } from './brightness-fade.js';
+import { applyBrightnessFade, mendAntimeridianColumn, featherWeights } from './brightness-fade.js';
 
 test('applyBrightnessFade: grey background goes, bright and coloured cloud stays, a ramp between', () => {
   const px = new Uint8ClampedArray([
@@ -65,17 +65,38 @@ test('featherWeights: two slices meeting at a seam cross-fade, summing to one', 
   );
 });
 
-test('featherWeights: at the antimeridian Himawari and GOES-West meet edge to edge, unfaded', () => {
-  // Neither is drawn past 180° (world-model drawnBounds), so neither fades towards it.
-  assert.equal(featherWeights({ z: 3, x: 7 }, 128, { west: 93, east: 180 }, 5), undefined, 'Himawari whole to 180°');
-  assert.equal(
-    featherWeights({ z: 3, x: 0 }, 128, { west: -180, east: -106 }, 5),
-    undefined,
-    'GOES-West whole from 180°',
+test('featherWeights: at the antimeridian Himawari and GOES-West cross-fade, each drawn past 180° as a second layer', () => {
+  // Each slice's part beyond 180° is a layer whose bounds lie 360° round (world-model
+  // antimeridianSpill); the weights read it as the same slice.
+  const width = 128;
+  const himawari = { west: 93, east: 180 };
+  const himawariPast = { west: -267, east: -180 };
+  const goesWest = { west: -180, east: -106 };
+  const goesWestPast = { west: 180, east: 254 };
+  // Zoom 3: column 7 spans 135° E to 180°, column 0 180° to 135° W.
+  const eastOf = {
+    him: featherWeights({ z: 3, x: 7 }, width, himawari, 5)!,
+    gw: featherWeights({ z: 3, x: 7 }, width, goesWestPast, 5)!,
+  };
+  const westOf = {
+    him: featherWeights({ z: 3, x: 0 }, width, himawariPast, 5)!,
+    gw: featherWeights({ z: 3, x: 0 }, width, goesWest, 5)!,
+  };
+  assert.ok(eastOf.him && eastOf.gw && westOf.him && westOf.gw);
+  assert.ok(
+    Math.abs(eastOf.him[width - 1]! - 0.5) < 0.04 && Math.abs(westOf.gw[0]! - 0.5) < 0.04,
+    'about half each at 180° (the columns either side of it)',
   );
+  assert.ok(Math.abs(eastOf.gw[width - 1]! - 0.5) < 0.04 && Math.abs(westOf.him[0]! - 0.5) < 0.04);
+  for (let c = 0; c < width; c++) {
+    assert.ok(Math.abs(eastOf.him[c]! + eastOf.gw[c]! - 1) < 1e-6, `west of 180°, column ${c} sums to one`);
+    assert.ok(Math.abs(westOf.him[c]! + westOf.gw[c]! - 1) < 1e-6, `east of 180°, column ${c} sums to one`);
+  }
+  assert.equal(eastOf.him[0], 1, 'whole away from the seam');
+  assert.equal(westOf.him[width - 1], 0, 'nothing of Himawari far past it');
   // Their other edges still cross-fade with their neighbours.
-  const west = featherWeights({ z: 3, x: 6 }, 128, { west: 93, east: 180 }, 5)!;
-  assert.ok(west && west[0] === 0 && west[127] === 1);
+  const west = featherWeights({ z: 3, x: 6 }, width, himawari, 5)!;
+  assert.ok(west && west[0] === 0 && west[width - 1] === 1);
 });
 
 test('applyBrightnessFade: column weights multiply the alpha', () => {
@@ -131,4 +152,34 @@ test('whiteIsNoData: pure white is a gap (GIBS placeholder blocks); the brightes
   const eu = new Uint8ClampedArray([255, 255, 255, 255]);
   applyBrightnessFade(eu, { from: 80, to: 130, monochrome: true });
   assert.equal(eu[3], 255);
+});
+
+test('the antimeridian column: a tile ending on 180° takes its last column from the one beside it', () => {
+  // 3×2 RGBA: the last column is GIBS's darkened edge (58 beside 116, Himawari at zoom 5).
+  const tile = () =>
+    new Uint8ClampedArray([
+      110, 110, 110, 255, 116, 116, 116, 255, 58, 58, 58, 255, 100, 100, 100, 255, 120, 120, 120, 255, 60, 60, 60, 255,
+    ]);
+  const east = tile();
+  assert.equal(mendAntimeridianColumn(east, 3, { z: 5, x: 31 }), true);
+  assert.deepEqual([...east.slice(8, 12)], [116, 116, 116, 255]);
+  assert.deepEqual([...east.slice(20, 24)], [120, 120, 120, 255]);
+  assert.deepEqual([...east.slice(0, 8)], [110, 110, 110, 255, 116, 116, 116, 255], 'the rest is unchanged');
+
+  const ramp = { from: 60, to: 200, monochrome: true };
+  const faded = tile();
+  mendAntimeridianColumn(faded, 3, { z: 5, x: 31 });
+  applyBrightnessFade(faded, ramp);
+  assert.equal(faded[11], faded[7], 'through the fade the edge is as opaque as its neighbour, not a line');
+
+  for (const other of [
+    { z: 5, x: 30 },
+    { z: 5, x: 0 },
+    { z: 0, x: 1 },
+  ]) {
+    const t = tile();
+    assert.equal(mendAntimeridianColumn(t, 3, other), false, JSON.stringify(other));
+    assert.deepEqual([...t], [...tile()]);
+  }
+  assert.equal(mendAntimeridianColumn(tile(), 1, { z: 0, x: 0 }), false, 'a one-column tile has nothing beside it');
 });

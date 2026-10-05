@@ -59,6 +59,27 @@ test('world mirror: the parts of one delta applied together end where applying t
   assert.equal(together.world.objects.get('a')?.position?.latitude, 30);
 });
 
+test("world mirror: the boat's id is kept as it arrives, changes and leaves, without searching the mirror", () => {
+  const boat = { ...obj('vessel:own', 'vessel'), properties: { ownVessel: true } };
+  let s = rootReducer(initialState(NOW), {
+    type: 'world/snapshot',
+    objects: [obj('a'), obj('ship', 'vessel')],
+    count: 2,
+    subscription: {},
+  });
+  assert.equal(s.world.ownVesselId, undefined, 'no boat');
+  s = rootReducer(s, { type: 'world/changed', change: change({ added: ['vessel:own'], objects: [boat] }) });
+  assert.equal(s.world.ownVesselId, 'vessel:own', 'the boat arrives in a delta');
+  s = rootReducer(s, { type: 'world/changed', change: change({ updated: ['a'], objects: [obj('a')] }) });
+  assert.equal(s.world.ownVesselId, 'vessel:own', 'kept through other changes');
+  s = rootReducer(s, { type: 'world/changed', change: change({ removed: ['vessel:own'] }) });
+  assert.equal(s.world.ownVesselId, undefined, 'gone with it');
+  s = rootReducer(s, { type: 'world/snapshot', objects: [obj('a'), boat], count: 2, subscription: {} });
+  assert.equal(s.world.ownVesselId, 'vessel:own', 'found in a snapshot');
+  s = rootReducer(s, { type: 'world/snapshot', objects: [obj('a')], count: 1, subscription: {} });
+  assert.equal(s.world.ownVesselId, undefined, 'a snapshot without it');
+});
+
 test('world mirror: snapshot replaces, deltas upsert/remove/refresh, selection survives removal', () => {
   let s: RootState = initialState(NOW);
   s = rootReducer(s, {
@@ -214,6 +235,20 @@ test('feed: newest first, bounded, dedup, unread counter', () => {
   assert.equal(s.feed.unread, 0);
   for (let i = 0; i < MAX_FEED_ITEMS + 10; i++) s = rootReducer(s, { type: 'feed/item', item: item(`f${i}`, ISO) });
   assert.equal(s.feed.items.length, MAX_FEED_ITEMS);
+  // Full: a severe warning from hours before outlasts a stream of newer INFO items, and an
+  // INFO item with no room is neither listed nor counted.
+  s = rootReducer(s, { type: 'feed/recent', items: [] });
+  const severe = { ...item('severe', '2026-09-21T01:00:00Z'), severity: 'SEVERE' as const };
+  s = rootReducer(s, { type: 'feed/item', item: severe });
+  for (let i = 0; i < MAX_FEED_ITEMS; i++)
+    s = rootReducer(s, { type: 'feed/item', item: item(`n${i}`, '2026-09-21T08:00:00Z') });
+  assert.equal(s.feed.items.length, MAX_FEED_ITEMS);
+  assert.ok(s.feed.items.some((i) => i.id === 'severe'));
+  assert.equal(s.feed.items.at(-1)?.id, 'severe', 'still in time order');
+  const unread = s.feed.unread;
+  s = rootReducer(s, { type: 'feed/item', item: item('stale', '2026-09-20T08:00:00Z') });
+  assert.ok(!s.feed.items.some((i) => i.id === 'stale'));
+  assert.equal(s.feed.unread, unread);
 });
 
 test('session, lenses, sources, ui slices', () => {

@@ -99,7 +99,9 @@ export type PaginationSpec =
     }
   | { strategy: 'offset-limit'; offsetParam: string; limitParam: string; limit: number; maxPages?: number }
   | { strategy: 'cursor'; cursorParam: string; cursorPath: string; maxPages?: number }
-  | { strategy: 'next-link'; nextLinkPath: string; maxPages?: number };
+  | { strategy: 'next-link'; nextLinkPath: string; maxPages?: number }
+  /** RFC 8288: the response's `Link` header, its `rel="next"` target (same origin only). */
+  | { strategy: 'link-header'; maxPages?: number };
 
 export interface ResponseSpec {
   /** Where the records are: a path to an array (or to one object). Default: the body itself. */
@@ -188,6 +190,18 @@ export interface ConnectorProviderDefinition {
   sourceQuality?: 'authoritative' | 'crowdsourced' | 'derived' | 'unknown';
   /** Bounds-driven sources: the runtime passes the viewport, the connector substitutes `{south}` etc. */
   boundsQuery?: boolean;
+  /**
+   * The largest radius a point-and-radius source answers (`{radiusKm}`, `{radiusNm}`,
+   * `{radiusM}`): the radius sent is the view's, capped at this. Kilometres.
+   */
+  boundsMaxRadiusKm?: number;
+  /**
+   * The requests per minute the source's host allows this computer, shared with every other
+   * definition (or provider) that states one for the same host; the smallest stated holds.
+   * For a service several definitions call — layers of one ArcGIS server, endpoints of one
+   * API. Absent: each definition has only its own limit.
+   */
+  hostRequestsPerMinute?: number;
   settings?: ProviderSettingDefinition[];
 }
 
@@ -315,6 +329,10 @@ const paginationSchema = s.union([
     nextLinkPath: s.string({ min: 1, max: 256 }),
     maxPages: s.optional(s.number({ min: 1, max: 200, integer: true })),
   }),
+  s.object({
+    strategy: s.enum(['link-header'] as const),
+    maxPages: s.optional(s.number({ min: 1, max: 200, integer: true })),
+  }),
 ]);
 const dataPolicyPartial = s.object({
   cacheAllowed: s.optional(s.boolean()),
@@ -404,6 +422,8 @@ export const definitionSchema: Schema<ConnectorProviderDefinition> = s.refine(
     enabled: s.optional(s.boolean()),
     sourceQuality: s.optional(s.enum(['authoritative', 'crowdsourced', 'derived', 'unknown'] as const)),
     boundsQuery: s.optional(s.boolean()),
+    boundsMaxRadiusKm: s.optional(s.number({ min: 1, max: 20_040 })),
+    hostRequestsPerMinute: s.optional(s.number({ min: 1, max: 6000, integer: true })),
     settings: s.optional(s.array(settingSchema, { max: 24 })),
   }),
   (d) => {
@@ -608,6 +628,7 @@ export function definitionToManifest(d: ConnectorProviderDefinition, connectorNa
       // The whole poll, not one request: every page may take the request timeout.
       ...(pages > 1 ? { pollBudgetMs: Math.min(600_000, timeoutMs * pages + 5000) } : {}),
       staleWhileErrorMs: 10 * 60_000,
+      ...(d.hostRequestsPerMinute ? { sharedHostRequestsPerMinute: d.hostRequestsPerMinute } : {}),
       ...(freshness ? { freshness } : {}),
     },
     dataPolicy: resolveDataPolicy(d),

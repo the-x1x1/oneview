@@ -5,6 +5,8 @@ import { silentLogger, type Logger } from '@worldview/core';
 import { readJsonFile, writeFileAtomic } from '@worldview/core/node';
 import type { Clock, JsonValue } from '@worldview/world-model';
 import type {
+  ByteStreamEvents,
+  ByteStreamHandle,
   LineStreamEvents,
   LineStreamHandle,
   ProviderCache,
@@ -224,6 +226,12 @@ export interface LocalAccessOptions {
   connect?: (opts: { host: string; port: number }) => net.Socket;
   /** Lines a stream may deliver per second; past it they are dropped (default 500). */
   maxLinesPerSecond?: number;
+  /** Bytes a byte stream may deliver per second; past it they are dropped (default 256 KiB). */
+  maxBytesPerSecond?: number;
+  /** The largest single write to a byte stream (default 1,024 bytes). */
+  maxWriteBytes?: number;
+  /** Writes a byte stream may make per minute (default 60). */
+  maxWritesPerMinute?: number;
 }
 
 const DEFAULT_MAX_FILE_BYTES = 32 * 1024 * 1024;
@@ -243,6 +251,11 @@ export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess
     typeof opts.grantDir === 'function' ? opts.grantDir() : opts.grantDir;
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_FILE_BYTES;
   const allowed = new Set(opts.allowedHosts.map((h) => h.toLowerCase()));
+  // A stream goes to loopback in the manifest, or exactly the host the user named (ADR-003).
+  const streamHostAllowed = (host: string): boolean => {
+    const named = (opts.trustedHosts?.() ?? []).some((t) => t.toLowerCase() === host);
+    return named || (isLoopbackHost(host) && allowed.has(host));
+  };
   return {
     readGrantedFile: (file, readOpts) =>
       readGrantedFile(currentGrant(), file, Math.min(readOpts?.maxBytes ?? maxBytes, maxBytes)),
@@ -257,14 +270,20 @@ export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess
       : {}),
     openLineStream: (target, events, streamOpts) =>
       openLineStream(target, events, {
-        allowed: (host) => {
-          const named = (opts.trustedHosts?.() ?? []).some((t) => t.toLowerCase() === host);
-          return named || (isLoopbackHost(host) && allowed.has(host));
-        },
+        allowed: streamHostAllowed,
         connect: opts.connect ?? ((o) => net.createConnection(o)),
         maxLineBytes: streamOpts?.maxLineBytes ?? 1024,
         connectTimeoutMs: streamOpts?.connectTimeoutMs ?? 5000,
         maxLinesPerSecond: opts.maxLinesPerSecond ?? 500,
+      }),
+    openByteStream: (target, events, streamOpts) =>
+      openByteStream(target, events, {
+        allowed: streamHostAllowed,
+        connect: opts.connect ?? ((o) => net.createConnection(o)),
+        connectTimeoutMs: streamOpts?.connectTimeoutMs ?? 5000,
+        maxBytesPerSecond: opts.maxBytesPerSecond ?? 256 * 1024,
+        maxWriteBytes: opts.maxWriteBytes ?? 1024,
+        maxWritesPerMinute: opts.maxWritesPerMinute ?? 60,
       }),
     async probeLocal(url, probeOpts) {
       let parsed: URL;
@@ -309,24 +328,9 @@ function openLineStream(
     maxLinesPerSecond: number;
   },
 ): Promise<LineStreamHandle> {
-  const host = String(target?.host ?? '')
-    .toLowerCase()
-    .replace(/^\[|\]$/g, '');
-  const port = Number(target?.port);
-  if (!host || !o.allowed(host))
-    return Promise.reject(
-      new ProviderError(
-        'HOST_NOT_ALLOWED',
-        `${host || '(no host)'} is not loopback or the host named for this source`,
-        {
-          retryable: false,
-        },
-      ),
-    );
-  if (!Number.isInteger(port) || port < 1 || port > 65535)
-    return Promise.reject(
-      new ProviderError('HOST_NOT_ALLOWED', `port ${String(target?.port)} is not a TCP port`, { retryable: false }),
-    );
+  const checked = streamTarget(target, o.allowed);
+  if (checked instanceof ProviderError) return Promise.reject(checked);
+  const { host, port } = checked;
   return new Promise((resolve, reject) => {
     const socket = o.connect({ host, port });
     let open = false;
@@ -389,20 +393,136 @@ function openLineStream(
     };
     socket.on('error', (err: NodeJS.ErrnoException) => {
       clearTimeout(timer);
-      const code = err.code ?? '';
-      const pe =
-        code === 'ECONNREFUSED'
-          ? new ProviderError('OFFLINE', `nothing is listening at ${host}:${port}`)
-          : code === 'ENOTFOUND' || code === 'EAI_AGAIN'
-            ? new ProviderError('DNS', `${host} does not resolve`)
-            : code === 'ETIMEDOUT'
-              ? new ProviderError('TIMEOUT', `${host}:${port} timed out`)
-              : new ProviderError('NETWORK', `${host}:${port}: ${err.message}`);
+      const pe = socketFailure(err, host, port);
       if (!open) reject(pe);
       else events.onError?.(pe);
     });
     socket.on('close', () => {
       clearTimeout(timer);
+      if (open) events.onClose?.(closedByUs ? 'closed' : 'the device closed the connection');
+    });
+  });
+}
+
+/** A stream's target, normalised, or why it may not be dialled (HOST_NOT_ALLOWED). */
+function streamTarget(
+  target: { host: string; port: number },
+  allowed: (host: string) => boolean,
+): { host: string; port: number } | ProviderError {
+  const host = String(target?.host ?? '')
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
+  const port = Number(target?.port);
+  if (!host || !allowed(host))
+    return new ProviderError(
+      'HOST_NOT_ALLOWED',
+      `${host || '(no host)'} is not loopback or the host named for this source`,
+      {
+        retryable: false,
+      },
+    );
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    return new ProviderError('HOST_NOT_ALLOWED', `port ${String(target?.port)} is not a TCP port`, {
+      retryable: false,
+    });
+  return { host, port };
+}
+
+/** A socket error as the provider is told it: refused is OFFLINE (nothing listening). */
+function socketFailure(err: NodeJS.ErrnoException, host: string, port: number): ProviderError {
+  const code = err.code ?? '';
+  return code === 'ECONNREFUSED'
+    ? new ProviderError('OFFLINE', `nothing is listening at ${host}:${port}`)
+    : code === 'ENOTFOUND' || code === 'EAI_AGAIN'
+      ? new ProviderError('DNS', `${host} does not resolve`)
+      : code === 'ETIMEDOUT'
+        ? new ProviderError('TIMEOUT', `${host}:${port} timed out`)
+        : new ProviderError('NETWORK', `${host}:${port}: ${err.message}`);
+}
+
+/**
+ * A TCP connection carrying bytes both ways (ADR-003 amendment 2026-10-05,
+ * `ProviderLocalAccess.openByteStream`): the same hosts as a line stream, outbound only. What
+ * the device sends is handed over as read, up to `maxBytesPerSecond` (the rest dropped and
+ * counted — a device on a busy link must not flood the main process; a framed protocol finds
+ * its next frame). What the provider sends is limited to `maxWriteBytes` a write and
+ * `maxWritesPerMinute`: a request now and then (Meshtastic's "send me your node list", a
+ * heartbeat), never a channel for anything bulkier.
+ */
+function openByteStream(
+  target: { host: string; port: number },
+  events: ByteStreamEvents,
+  o: {
+    allowed: (host: string) => boolean;
+    connect: (opts: { host: string; port: number }) => net.Socket;
+    connectTimeoutMs: number;
+    maxBytesPerSecond: number;
+    maxWriteBytes: number;
+    maxWritesPerMinute: number;
+  },
+): Promise<ByteStreamHandle> {
+  const checked = streamTarget(target, o.allowed);
+  if (checked instanceof ProviderError) return Promise.reject(checked);
+  const { host, port } = checked;
+  return new Promise((resolve, reject) => {
+    const socket = o.connect({ host, port });
+    let open = false;
+    let closed = false;
+    let closedByUs = false;
+    let dropped = 0;
+    let readWindowStart = Date.now();
+    let readInWindow = 0;
+    const writes: number[] = [];
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new ProviderError('TIMEOUT', `no answer from ${host}:${port} within ${o.connectTimeoutMs} ms`));
+    }, o.connectTimeoutMs);
+    const handle: ByteStreamHandle = {
+      write: (bytes) => {
+        if (!open || closed || !(bytes instanceof Uint8Array) || bytes.length === 0) return false;
+        if (bytes.length > o.maxWriteBytes) return false;
+        const now = Date.now();
+        while (writes.length && now - writes[0]! >= 60_000) writes.shift();
+        if (writes.length >= o.maxWritesPerMinute) return false;
+        writes.push(now);
+        socket.write(Buffer.from(bytes));
+        return true;
+      },
+      close: () => {
+        closedByUs = true;
+        closed = true;
+        socket.destroy();
+      },
+      get dropped() {
+        return dropped;
+      },
+    };
+    socket.on('connect', () => {
+      clearTimeout(timer);
+      open = true;
+      resolve(handle);
+    });
+    socket.on('data', (chunk: Buffer) => {
+      const now = Date.now();
+      if (now - readWindowStart >= 1000) {
+        readWindowStart = now;
+        readInWindow = 0;
+      }
+      const room = Math.max(0, o.maxBytesPerSecond - readInWindow);
+      const take = Math.min(room, chunk.length);
+      readInWindow += take;
+      dropped += chunk.length - take;
+      if (take > 0) events.onData(new Uint8Array(chunk.buffer, chunk.byteOffset, take).slice());
+    });
+    socket.on('error', (err: NodeJS.ErrnoException) => {
+      clearTimeout(timer);
+      const pe = socketFailure(err, host, port);
+      if (!open) reject(pe);
+      else events.onError?.(pe);
+    });
+    socket.on('close', () => {
+      clearTimeout(timer);
+      closed = true;
       if (open) events.onClose?.(closedByUs ? 'closed' : 'the device closed the connection');
     });
   });

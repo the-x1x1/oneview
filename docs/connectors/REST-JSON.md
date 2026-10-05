@@ -34,7 +34,7 @@ provider host as for any provider.
 
 | Key               | Meaning                                                                                                                                                                                                                                                       |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `url`             | `https://` to a public host. `{south}` `{west}` `{north}` `{east}` are filled from the viewport when `boundsQuery` is set; `{TOKEN}` marks where a `path` credential goes.                                                                                    |
+| `url`             | `https://` to a public host. `{south}` `{west}` `{north}` `{east}`, `{lat}` `{lon}` and `{radiusKm}` `{radiusNm}` `{radiusM}` are filled from the view when `boundsQuery` is set (Viewport, below); `{TOKEN}` marks where a `path` credential goes.           |
 | `method`          | `GET` (default) or `POST`.                                                                                                                                                                                                                                    |
 | `headers`         | Sent as given (`Accept` is set from the format unless you override it).                                                                                                                                                                                       |
 | `query`           | Added to the URL; values may carry the viewport placeholders.                                                                                                                                                                                                 |
@@ -59,24 +59,41 @@ as a stale fallback, and Source Health shows the reason.
 
 ## `pagination`
 
-| Strategy       | Keys                                                                 | Stops when                                                                      |
-| -------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `none`         | —                                                                    | after one request (default)                                                     |
-| `page-number`  | `pageParam`, `sizeParam?`, `size?`, `firstPage?` (default 1)         | a page is empty or shorter than `size`                                          |
-| `offset-limit` | `offsetParam`, `limitParam`, `limit`                                 | a page is shorter than `limit`                                                  |
-| `cursor`       | `cursorParam`, `cursorPath` (in the body)                            | the body has no cursor, or a page is empty                                      |
-| `next-link`    | `nextLinkPath` (in the body; relative links resolve against the URL) | there is no link, or it leaves the endpoint's origin (never followed elsewhere) |
+| Strategy       | Keys                                                                 | Stops when                                                                       |
+| -------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `none`         | —                                                                    | after one request (default)                                                      |
+| `page-number`  | `pageParam`, `sizeParam?`, `size?`, `firstPage?` (default 1)         | a page is empty or shorter than `size`                                           |
+| `offset-limit` | `offsetParam`, `limitParam`, `limit`                                 | a page is shorter than `limit`                                                   |
+| `cursor`       | `cursorParam`, `cursorPath` (in the body)                            | the body has no cursor, or a page is empty                                       |
+| `next-link`    | `nextLinkPath` (in the body; relative links resolve against the URL) | there is no link, or it leaves the endpoint's origin (never followed elsewhere)  |
+| `link-header`  | — (the response's RFC 8288 `Link` header, its `rel="next"` target)   | there is no `rel="next"`, the page was empty, or it leaves the endpoint's origin |
 
 `maxPages` caps every strategy (default 10, at most 200). Pages are merged into one snapshot;
 a duplicate `externalId` across pages keeps the first. The rate limit accounts for the pages.
 
 ## Viewport (`boundsQuery: true`)
 
-The URL or a query value must carry at least one of `{south}` `{west}` `{north}` `{east}`
-(five-decimal degrees, filled from the viewport the renderer reports). Until there is a
-viewport the poll is skipped and Source Health says so. A globe-wide view sends the whole
-world; a source that wants a point and a radius instead is a bespoke provider for now
-(`adsb-lol` is the model).
+The URL or a query value must carry at least one view placeholder. Until there is a
+viewport the poll is skipped and Source Health says so.
+
+| Placeholder                           | Filled with                                                                                                                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{south}` `{west}` `{north}` `{east}` | The viewport, five-decimal degrees. A globe-wide view sends the whole world.                                                                  |
+| `{lat}` `{lon}`                       | Where the view is centred (five decimals) — the point the user looks at, not the middle of the bounds, which for a globe-wide view is 0°, 0°. |
+| `{radiusKm}` `{radiusNm}` `{radiusM}` | The distance from that centre to the farthest corner or edge of the view, rounded up to a whole unit, and no more than `boundsMaxRadiusKm`.   |
+
+A source that answers a point and a radius, with a limit on the radius, takes the centre and
+the radius and states the limit; past it the part of the view around the centre is covered:
+
+```json
+"boundsQuery": true,
+"boundsMaxRadiusKm": 463,
+"endpoint": { "url": "https://api.example.org/v2/point/{lat}/{lon}/{radiusNm}" }
+```
+
+Validation warns when a radius has no `{lat}`/`{lon}` beside it, when `boundsMaxRadiusKm` is
+set and no radius uses it, and when the endpoint has view placeholders but `boundsQuery` is
+not set (they would be sent as written).
 
 ## Credentials
 

@@ -188,6 +188,16 @@ test('sources, feed, settings, diagnostics-ready, attribution, welcome and offli
   });
   html = render(s);
   assert.ok(html.includes('>OFFLINE<') && html.includes('Offline — remote sources are unreachable'));
+  // Working offline by choice says so, whatever the connection reads.
+  assert.ok(s.session.settings, 'the demo state carries settings');
+  {
+    const chosen = {
+      ...s,
+      session: { ...s.session, settings: { ...s.session.settings!, network: { workOffline: true } } },
+    };
+    html = render(chosen);
+    assert.ok(html.includes('Working offline (Settings → Network)'), 'the banner names the switch');
+  }
 
   s = rootReducer(state, { type: 'ui/contextTab', tab: 'watchzones' });
   s = rootReducer(s, { type: 'ui/contextTab', tab: 'collections' });

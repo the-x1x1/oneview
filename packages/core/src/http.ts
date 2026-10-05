@@ -1,6 +1,14 @@
 import type { Clock } from '@worldview/world-model';
 import { ProviderError, type ProviderHttpRequest, type ProviderHttpResponse } from '@worldview/provider-sdk';
-import { RateLimiter, CircuitBreaker, SingleFlight, withRetry, sleep, combineSignals } from './resilience.js';
+import {
+  RateLimiter,
+  CircuitBreaker,
+  type SharedHostBudget,
+  SingleFlight,
+  withRetry,
+  sleep,
+  combineSignals,
+} from './resilience.js';
 import type { Logger } from './logger.js';
 import { silentLogger } from './logger.js';
 
@@ -36,6 +44,8 @@ export interface HttpClientOptions {
   hardMaxBytes?: number;
   maxRetries?: number;
   requestsPerMinute?: number;
+  /** A host budget shared with other clients, and this client's share of it (see SharedHostBudget). */
+  sharedHostBudget?: { budget: SharedHostBudget; requestsPerMinute: number };
   staleWhileErrorMs?: number;
   cacheEnabled?: boolean;
   /**
@@ -256,6 +266,21 @@ export class HttpClient {
       if (wait > 10_000)
         return serveStale(new ProviderError('RATE_LIMITED', `client rate limit for ${host}`, { retryAfterMs: wait }));
       await (this.opts.sleep ?? sleep)(wait, req.signal);
+    }
+    const shared = this.opts.sharedHostBudget;
+    if (shared) {
+      // Other clients take from the same bucket: a slot freed by waiting may be gone again,
+      // so ask again after each wait (a few times; past ten seconds the poll is refused).
+      for (let attempt = 0; ; attempt++) {
+        const sharedWait = shared.budget.tryAcquire(host, shared.requestsPerMinute);
+        if (sharedWait === 0) break;
+        this.stats.rateLimitedWaits++;
+        if (sharedWait > 10_000 || attempt >= 3)
+          return serveStale(
+            new ProviderError('RATE_LIMITED', `shared rate limit for ${host}`, { retryAfterMs: sharedWait }),
+          );
+        await (this.opts.sleep ?? sleep)(sharedWait, req.signal);
+      }
     }
 
     const timeoutMs = Math.min(

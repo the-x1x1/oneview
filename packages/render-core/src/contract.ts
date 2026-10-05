@@ -134,6 +134,25 @@ export interface AttributionEntry {
 export interface RendererEvents {
   viewChanged: ViewState;
   pick: PickResult | null;
+  /**
+   * Every click on the map, with the point on the ground under it — whatever was or was not
+   * picked there (the measure tool takes its points from this). Not sent where the click
+   * missed the globe.
+   */
+  click: { position: GeoPosition; screen: { x: number; y: number } };
+  /**
+   * A right-click on the map — pressed and released without a drag; a right-drag turns or
+   * tilts the view and is not one — with the point on the ground under it ("What's here").
+   * Not sent where the click missed the globe.
+   */
+  contextMenu: { position: GeoPosition; screen: { x: number; y: number } };
+  /**
+   * Where the pointer is over the map: the point on the ground under it, at most once a
+   * frame while it moves, and `null` once it leaves the map or points past the edge of the
+   * globe (the HUD's cursor readout). The ground is the ellipsoid in 3D — no depth read —
+   * so following the pointer costs nothing worth measuring. A longitude is in −180..180.
+   */
+  pointer: { position: GeoPosition; screen: { x: number; y: number } } | null;
   hover: PickResult | null;
   ready: void;
   /**
@@ -284,10 +303,11 @@ export interface WorldRenderer {
    */
   setVisualStyle?(id: VisualStyleId): void;
   /**
-   * Shade the night side from the Sun's position now (sun.ts), kept current to the minute;
-   * `false` puts the map back exactly as it was. Optional.
+   * Shade the night side from the Sun's position (sun.ts): at `atMs` when given — the
+   * timeline's time, paused or replaying — or else now, kept current to the minute; `false`
+   * puts the map back exactly as it was. Optional.
    */
-  setDayNight?(on: boolean): void;
+  setDayNight?(on: boolean, atMs?: number): void;
   /**
    * Turn slowly round the middle of the view until turned off, or until the operator drags,
    * scrolls or pinches (then `cameraMode` says so). Optional.

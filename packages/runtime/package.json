@@ -16,6 +16,7 @@
   "dependencies": {
     "@worldview/camera-gateway": "workspace:*",
     "@worldview/config": "workspace:*",
+    "@worldview/connector-runtime": "workspace:*",
     "@worldview/core": "workspace:*",
     "@worldview/diagnostics": "workspace:*",
     "@worldview/event-engine": "workspace:*",

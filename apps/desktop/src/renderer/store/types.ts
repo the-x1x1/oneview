@@ -1,4 +1,11 @@
-import type { JsonValue, RasterOverlay, WorldEvent, WorldObject, WorldQuery } from '@worldview/world-model';
+import type {
+  GeoPosition,
+  JsonValue,
+  RasterOverlay,
+  WorldEvent,
+  WorldObject,
+  WorldQuery,
+} from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -80,6 +87,12 @@ export interface WorldSlice {
   lastChangeAt: string | null;
   /** A paged snapshot still arriving (world.subscribe with pageSize), or null. */
   snapshotStream: SnapshotStream | null;
+  /**
+   * The operator's own boat in the mirror (a vessel that says `ownVessel`, from NMEA 2000):
+   * kept as objects arrive and leave, so the closest point of approach never has to search
+   * the whole mirror for it. Absent while there is none.
+   */
+  ownVesselId?: string;
 }
 
 /**
@@ -151,7 +164,7 @@ export interface UpdaterSlice {
 }
 
 export type ContextTab =
-  'selection' | 'sources' | 'timeline' | 'related' | 'feed' | 'changes' | 'collections' | 'watchzones';
+  'selection' | 'sources' | 'timeline' | 'related' | 'feed' | 'changes' | 'collections' | 'watchzones' | 'sky';
 export type DialogId = 'settings' | 'diagnostics' | 'attribution' | 'welcome' | null;
 
 export interface Notification {
@@ -166,6 +179,22 @@ export interface Notification {
   /** How many were merged into this one, and the newest of them, newest first. */
   count?: number;
   items?: string[];
+}
+
+/** The measure tool's points, and whether the shape is closed back to the first for its area (map/measure.ts). */
+export interface MeasureState {
+  points: GeoPosition[];
+  area?: boolean;
+}
+
+/**
+ * What's here (map/whats-here.tsx): the point the operator right-clicked, or asked about from
+ * the palette (the middle of the view), and where on the map it was when asked.
+ */
+export interface WhatsHereState {
+  position: GeoPosition;
+  /** Where on the map's canvas the point was when asked, CSS pixels; null when not known. */
+  screen: { x: number; y: number } | null;
 }
 
 export interface UiSlice {
@@ -203,6 +232,19 @@ export interface UiSlice {
    * Session state, like clean view.
    */
   imageryCompare: ImagerySplit | null;
+  /**
+   * The measure tool (map/measure.ts): the points clicked so far, in order, and whether the
+   * shape is closed for its area; null when it is off. While it is on a click on the map adds a
+   * point and selects nothing. Session state.
+   */
+  measure: MeasureState | null;
+  /** The What's here card, or null. Session state. */
+  whatsHere: WhatsHereState | null;
+  /**
+   * Range rings round the selected object (R; map/range-rings.ts): drawn while this is on and
+   * the selection has a position. Session state.
+   */
+  rangeRings: boolean;
   /** The object the camera keeps in the middle of the view (F), or null. Ends with the selection. */
   followId: string | null;
   /**
@@ -299,6 +341,9 @@ export type UiAction =
   | { type: 'ui/lastQuery'; query: WorldQuery; title: string; total: number }
   | { type: 'ui/cleanView'; on: boolean }
   | { type: 'ui/imageryCompare'; split: ImagerySplit | null }
+  | { type: 'ui/measure'; measure: MeasureState | null }
+  | { type: 'ui/whatsHere'; whatsHere: WhatsHereState | null }
+  | { type: 'ui/rangeRings'; on: boolean }
   | { type: 'ui/firstFrame' }
   /** What the camera is doing: asked for by the operator, or reported by the renderer when it stopped by itself. */
   | { type: 'ui/cameraMode'; orbit: boolean; followId: string | null };

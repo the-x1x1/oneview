@@ -29,6 +29,12 @@
  *    min_label/max_label, labelrank, the country code; labels Natural Earth never shows
  *    (min_label > 11) are dropped.
  *
+ * Places (Natural Earth, public domain) — searchable offline, not drawn:
+ *  - cities and towns: ne_10m_populated_places_simple — name, the ASCII spelling and the
+ *    former or parallel name as aliases, the country (ISO 3166-1 alpha-2, else
+ *    the admin-0 code), the first-level region's name, the largest population figure and
+ *    whether it is a capital. Sorted largest first.
+ *
  * Glyphs: Noto Sans Regular SDF ranges (SIL OFL 1.1) copied with the licence text.
  */
 import { createHash } from 'node:crypto';
@@ -41,6 +47,7 @@ const repoRoot = path.resolve(here, '..', '..', '..');
 
 export const FORMAT_BORDERS = 'worldview-reference-borders@1';
 export const FORMAT_LABELS = 'worldview-reference-labels@1';
+export const FORMAT_PLACES = 'worldview-reference-places@1';
 const Q = 1000; // quantisation: thousandths of a degree
 const TOLERANCE = { country: 0.002, state: 0.004 }; // degrees
 const COUNTRY_SKIP = new Set(['Overlay limit', 'Lease limit']);
@@ -186,6 +193,60 @@ export function buildLabels(countries, states) {
   };
 }
 
+const str = (v) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '');
+
+/**
+ * Other names a city is searched by: the ASCII spelling ("Kiev" for Kyiv) and the former or
+ * parallel name ("Bombay" for Mumbai); the main name and repeats dropped. `namealt` is left
+ * out: in this file it is lossy ("Ciudad de M", "Sio Paulo") or a note ("Formerly …").
+ */
+function altNames(p, name) {
+  const out = [];
+  const seen = new Set([name.toLowerCase()]);
+  for (const raw of [str(p.nameascii), str(p.namepar)]) {
+    const n = raw.trim();
+    if (!n || n.length > 120 || seen.has(n.toLowerCase())) continue;
+    seen.add(n.toLowerCase());
+    out.push(n);
+  }
+  return out.join('|');
+}
+
+/**
+ * Cities and towns as `[name, lon, lat, country, region, population, capital, aliases]`;
+ * capital 1 for a country's capital, aliases '|'-joined. Largest population first, then
+ * name, so the file is deterministic.
+ */
+export function buildPlaces(populated) {
+  const rows = [];
+  const seen = new Set();
+  for (const f of populated.features) {
+    const p = f.properties ?? {};
+    const name = str(p.name) || str(p.nameascii);
+    let x = num(p.longitude);
+    let y = num(p.latitude);
+    if ((x === undefined || y === undefined) && f.geometry?.type === 'Point') [x, y] = f.geometry.coordinates;
+    if (!name || name.length > 120 || x === undefined || y === undefined) continue;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(y) > 90 || Math.abs(x) > 180) continue;
+    const iso2 = str(p.iso_a2);
+    const country = /^[A-Z]{2}$/.test(iso2) ? iso2 : str(p.adm0_a3).slice(0, 3);
+    const region = str(p.adm1name);
+    const pop = Math.max(0, Math.round(num(p.pop_max, 0)));
+    const capital = /^Admin-0 capital/.test(str(p.featurecla)) || num(p.adm0cap, 0) === 1 ? 1 : 0;
+    const row = [name, round4(x), round4(y), country, region, pop, capital, altNames(p, name)];
+    const key = `${name}|${row[1]}|${row[2]}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push(row);
+  }
+  rows.sort((a, b) => b[5] - a[5] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0) || a[1] - b[1]);
+  return {
+    format: FORMAT_PLACES,
+    fields: { cities: ['name', 'lon', 'lat', 'country', 'region', 'population', 'capital', 'aliases'] },
+    cities: rows,
+  };
+}
+
 function main() {
   const raw = path.resolve(process.argv[2] ?? 'reference-raw');
   const out = path.resolve(process.argv[3] ?? path.join(repoRoot, 'apps', 'desktop', 'assets'));
@@ -209,6 +270,7 @@ function main() {
     json('natural-earth/ne_50m_admin_0_countries.geojson'),
     json('natural-earth/ne_10m_admin_1_states_provinces.geojson'),
   );
+  const places = buildPlaces(json('natural-earth/ne_10m_populated_places_simple.geojson'));
   const sources = manifest.files
     .filter((f) => f.name.startsWith('natural-earth/'))
     .map((f) => ({ file: f.name.split('/').pop(), url: f.url, sha256: f.sha256 }));
@@ -223,6 +285,7 @@ function main() {
   mkdirSync(refDir, { recursive: true });
   writeFileSync(path.join(refDir, 'borders.json'), JSON.stringify({ ...borders.doc, provenance }));
   writeFileSync(path.join(refDir, 'labels.json'), JSON.stringify({ ...labels, provenance }));
+  writeFileSync(path.join(refDir, 'places.json'), JSON.stringify({ ...places, provenance }));
 
   const fontFiles = manifest.files.filter((f) => f.name.startsWith('fonts/'));
   for (const f of fontFiles) {
@@ -253,6 +316,7 @@ function main() {
           countries: labels.countries.length,
           states: labels.states.length,
         },
+        places: { bytes: size(path.join(refDir, 'places.json')), cities: places.cities.length },
         fonts: fontFiles.length,
       },
       null,

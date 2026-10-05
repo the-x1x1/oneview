@@ -1,6 +1,7 @@
 import { drawnBounds, overlaySeries, type RasterOverlay } from '@worldview/world-model';
 import {
   applyBrightnessFade,
+  mendAntimeridianColumn,
   clampSplit,
   featherWeights,
   latitudeWeights,
@@ -135,6 +136,7 @@ function fadeTile(
   if (!ctx) return image;
   ctx.drawImage(image as CanvasImageSource, 0, 0);
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  if (feather) mendAntimeridianColumn(data.data, canvas.width, { z: feather.level, x: feather.x });
   // The globe's WMTS tiles are Web Mercator (x from 180° W, 2^level columns), whatever their pixels.
   const weights = feather
     ? featherWeights({ z: feather.level, x: feather.x }, canvas.width, feather.slice, feather.deg)

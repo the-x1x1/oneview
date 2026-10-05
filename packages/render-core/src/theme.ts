@@ -69,6 +69,7 @@ export const DARK_THEME: Theme = {
     // Military transponders: amber against the sky-blue of everything else in the air.
     'aircraft.military': dark('#f59e0b', 6),
     vessel: dark('#2dd4bf', 6),
+    'vessel.own': dark('#f472b6', 7),
     satellite: dark('#a78bfa', 4),
     // Satellites by what they are for (celestrak categories.ts). The violet stays for
     // communications and anything unknown; Starlink, thousands strong, is the quietest;
@@ -156,6 +157,31 @@ export const DARK_THEME: Theme = {
     // A selected flight's planned route (flight-route.ts): dashed, in the aircraft's hue but
     // paler — a schedule, not where the aircraft has been — and its airports as white points.
     'trail.route': dark('#7dd3fc', 2),
+    // The latitude and longitude grid (desktop renderer graticule.ts): faint, beneath everything.
+    graticule: dark('#cbd5e1', 1),
+    'graticule.label': dark('#cbd5e1', 2),
+    // Range rings round the selection (desktop renderer range-rings.ts): outlines only.
+    'range-ring': { ...dark('#c4b5fd', 2), fillAlpha: 0, edgePx: 1.5 },
+    'range-ring.label': dark('#ddd6fe', 2),
+    // The selected satellite's footprint (desktop renderer footprint.ts): 10° up, and the horizon.
+    footprint: dark('#fcd34d', 2),
+    'footprint.horizon': dark('#fde68a', 1),
+    'footprint.label': dark('#fde68a', 2),
+    // The selected ship's or aircraft's course vector (desktop renderer course-vector.ts): dashed
+    // like the predicted orbit, a tick each few minutes; the boat's own in its pink, paler; the
+    // closest point of approach joined in amber, red when it is close.
+    'course-vector': dark('#cbd5e1', 2),
+    'course-vector.tick': dark('#e2e8f0', 3),
+    'course-vector.own': dark('#f9a8d4', 2),
+    'course-vector.own.tick': dark('#fbcfe8', 3),
+    'course-vector.cpa': dark('#fde68a', 2),
+    'course-vector.cpa-close': dark('#f87171', 2),
+    // Where the Sun and the Moon stand overhead, with day and night on (desktop sky-points.ts).
+    'sky.sun': dark('#fbbf24', 9),
+    'sky.moon': dark('#e2e8f0', 8),
+    // The measure tool (desktop renderer measure.ts): its line and its points.
+    measure: dark('#fbbf24', 3),
+    'measure.point': dark('#fde68a', 7),
     'route.airport': dark('#f1f5f9', 6),
     'route.airport.destination': dark('#f8fafc', 8),
     watchzone: dark('#22d3ee', 2),
@@ -167,6 +193,11 @@ export const DARK_THEME: Theme = {
     'event.storm': dark('#ffc140', 8),
     'event.launch': dark('#fdba74', 8),
     'event.air-quality': dark('#c084fc', 8),
+    // An aircraft broadcasting an emergency (event-engine aircraftEmergencyRule): a deeper red
+    // than a wildfire cluster's.
+    'event.aircraft-emergency': dark('#ef4444', 9),
+    // An AIS distress beacon transmitting as active (event-engine distressBeaconRule): rose.
+    'event.distress-beacon': dark('#fb7185', 10),
     'event.satellite-decay': dark('#c4b5fd', 8),
   },
   fallback: dark('#9ca3af', 5),

@@ -37,6 +37,7 @@ const H = 100;
 export function TrackHistory({ object, track: all, actions }: ContextSectionProps) {
   const [windowMs, setWindowMs] = useState(TRACK_WINDOWS[0]!.ms);
   const [pointer, setPointer] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
   // What was observed is the history; a predicted tail (a satellite's next orbit) is shown
   // on the map and summarised below, never charted or counted as where the object was.
   const track = useMemo(() => observedPart(all), [all]);
@@ -196,6 +197,42 @@ export function TrackHistory({ object, track: all, actions }: ContextSectionProp
           >
             Replay track
           </Button>
+          {first && last ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon="download"
+              aria-expanded={exporting}
+              onClick={() => setExporting((v) => !v)}
+            >
+              Export track
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {exporting && first && last ? (
+        <div className="wv-ctx-actions" role="group" aria-label="Export the track as">
+          {(
+            [
+              ['gpx', 'GPX', 'A track with times: GPS tools, flight and route replay'],
+              ['kml', 'KML', 'Google Earth, ATAK'],
+              ['geojson', 'GeoJSON', 'QGIS and the web'],
+              ['csv', 'CSV', 'A spreadsheet'],
+            ] as const
+          ).map(([format, label, title]) => (
+            <Button
+              key={format}
+              size="sm"
+              variant="ghost"
+              title={title}
+              onClick={() => {
+                setExporting(false);
+                void actions.exportTrack(object.id, first.observedAt, last.observedAt, format);
+              }}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
       ) : null}
     </div>

@@ -30,6 +30,8 @@ import {
   EVENT_TYPE_LABELS,
   MAX_READING_KEYS,
   type AppSettings,
+  type Collection,
+  type CollectionItem,
   type DiagnosticsSnapshot,
   type EventTypeInfo,
   type SearchResult,
@@ -41,7 +43,21 @@ import type { RequestHandlers } from './contract.js';
 import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-core';
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
+import { ownPlaceResults } from './support/own-places-search.js';
+import { SKY_LIMIT_DEFAULT, skyOverhead } from './support/sky-overhead.js';
+import { zonesFromGeodata, zonesToGeodata } from './support/zone-geodata.js';
 import { mergeObjectTrack } from './support/object-track.js';
+import {
+  collectionFromGeodata,
+  collectionGeodata,
+  geoFormatFor,
+  lineGeodata,
+  MAX_LINE_EXPORT_POINTS,
+  objectsToKml,
+  trackGeodata,
+  placesOf,
+  type CollectionGeoFormat,
+} from './support/collection-geodata.js';
 import {
   DeniedError,
   InvalidRequestError,
@@ -157,6 +173,9 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       for (const entry of enabled) {
         for (const t of core.providerHost.manifest(entry.providerId)?.objectTypes ?? []) suppliedTypes.add(t);
       }
+      const limitsDeclared = enabled.some((entry) =>
+        (core.providerHost.manifest(entry.providerId)?.telemetry?.series ?? []).some((series) => series.limits),
+      );
       const out: EventTypeInfo[] = [];
       for (const type of Object.values(EventTypes) as string[]) {
         const label = EVENT_TYPE_LABELS[type] ?? type;
@@ -176,6 +195,17 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
           continue;
         }
         const objectTypes = [...rule.objectTypes];
+        // A reading passes a limit only where a source says what its limits are.
+        if (type === EventTypes.ReadingLimit && !limitsDeclared) {
+          out.push({
+            type,
+            label,
+            available: false,
+            unavailableReason: 'No enabled source declares limits for its readings',
+            objectTypes,
+          });
+          continue;
+        }
         const supplied = objectTypes.filter((t) => suppliedTypes.has(t));
         out.push(
           supplied.length > 0
@@ -467,7 +497,18 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         ...(resolvedBias ? { bias: resolvedBias } : {}),
       });
       // Worldpack place hits that the gazetteer merged keep their 'worldpack' source label.
-      return mergePackResults(core, trimmed, results, clampLimit(limit, 20, 100));
+      const merged = mergePackResults(core, trimmed, results, clampLimit(limit, 20, 100));
+      // The operator's own places: collected locations and watch zones, by name.
+      const own = ownPlaceResults(
+        await core.collections.list(),
+        await core.watchZoneStore.list(),
+        trimmed.slice(0, 200),
+        10,
+      );
+      if (!own.length) return merged;
+      return [...own, ...merged]
+        .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        .slice(0, clampLimit(limit, 20, 100));
     },
     // Online geocoding is asked by the desktop main process, which overrides this with the
     // rate-limited Nominatim/Photon client (apps/desktop/src/main/place-search.ts). Anywhere
@@ -478,6 +519,55 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       attribution: '',
       message: 'Online place search is part of the desktop app; the built-in gazetteer is searched instead.',
     }),
+    // The satellites above a place's horizon now (support/sky-overhead.ts): from the live
+    // world's propagated positions, nothing looked up.
+    'sky.overhead': async ({ observer, minElevationDeg, limit, excludeCategories, visibleOnly }) => {
+      const { latitude, longitude } = observer ?? {};
+      if (
+        typeof latitude !== 'number' ||
+        typeof longitude !== 'number' ||
+        !(Math.abs(latitude) <= 90) ||
+        !(Math.abs(longitude) <= 180)
+      )
+        throw new InvalidRequestError('sky.overhead needs an observer');
+      const min = typeof minElevationDeg === 'number' ? Math.max(-5, Math.min(90, minElevationDeg)) : 0;
+      return skyOverhead(core.state.ofType('satellite'), { latitude, longitude }, core.clock.now(), {
+        minElevationDeg: min,
+        limit: clampLimit(limit, SKY_LIMIT_DEFAULT, 500),
+        ...(Array.isArray(excludeCategories) ? { excludeCategories: excludeCategories.slice(0, 20) } : {}),
+        ...(visibleOnly === true ? { visibleOnly: true } : {}),
+      });
+    },
+    // Offline reverse lookup ("What's here"): the gazetteers in memory, nothing sent anywhere.
+    'search.nearest': async ({ position, kinds, limit, maxDistanceM }) => {
+      const { latitude, longitude } = position ?? {};
+      if (
+        typeof latitude !== 'number' ||
+        typeof longitude !== 'number' ||
+        !(Math.abs(latitude) <= 90) ||
+        !(Math.abs(longitude) <= 180)
+      )
+        throw new InvalidRequestError('search.nearest needs a position');
+      return (
+        core.gazetteer.nearest?.(
+          { latitude, longitude },
+          {
+            kinds: kinds?.length ? kinds : ['city'],
+            limit: clampLimit(limit, 1, 10),
+            ...(maxDistanceM !== undefined ? { maxDistanceM } : {}),
+          },
+        ) ?? []
+      ).map((p) => ({
+        id: p.id,
+        name: p.name,
+        kind: p.kind === 'coordinate' ? 'poi' : p.kind,
+        position: p.position,
+        distanceM: Math.round(p.distanceM),
+        bearingDeg: Math.round(p.bearingDeg * 10) / 10,
+        ...(p.countryCode ? { countryCode: p.countryCode } : {}),
+        ...(p.region ? { region: p.region } : {}),
+      }));
+    },
     'lenses.list': async () => core.allLenses(),
     'lenses.save': async (lens) => {
       const parsed = requireLens(lens);
@@ -504,30 +594,109 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       requireId(id, 'id');
       return core.collections.remove(id);
     },
-    'collections.export': async ({ id }) => {
+    'collections.export': async ({ id, format = 'json' }) => {
       requireId(id, 'id');
+      if (!['json', 'gpx', 'kml', 'geojson'].includes(format))
+        throw new InvalidRequestError('format must be json, gpx, kml or geojson');
       const collection = await core.collections.get(id);
       if (!collection) throw new NotFoundError(`unknown collection ${id}`);
+      const geo = format === 'json' ? undefined : (format as CollectionGeoFormat);
       const choice = await core.hostBridge.pickSaveFile({
         title: 'Export collection',
-        defaultPath: suggestedPath(core, `${slug(collection.name)}.worldview-collection.json`),
-        filters: [{ name: 'WorldView collection', extensions: ['json'] }],
+        defaultPath: suggestedPath(core, `${slug(collection.name)}.${geo ?? 'worldview-collection.json'}`),
+        filters: [
+          geo === 'gpx'
+            ? { name: 'GPX waypoints', extensions: ['gpx'] }
+            : geo === 'kml'
+              ? { name: 'KML placemarks', extensions: ['kml'] }
+              : geo === 'geojson'
+                ? { name: 'GeoJSON', extensions: ['geojson'] }
+                : { name: 'WorldView collection', extensions: ['json'] },
+        ],
       });
       if ('cancelled' in choice) return { cancelled: true };
-      await fs.writeFile(choice.path, `${JSON.stringify({ version: 1, collection }, null, 2)}\n`, 'utf8');
-      return { path: choice.path };
+      // The operator's own places go out as they are; a collected object's position only while
+      // it is in the world and every source behind it allows export (the rule export.objects
+      // keeps) — in the collection file too, where such an object keeps its name and id only.
+      const attribution = new Set<string>();
+      let skipped = 0;
+      const mayGo = (item: CollectionItem): boolean => {
+        if (item.kind !== 'object' || !item.position) return true;
+        const object = item.objectId ? core.state.get(item.objectId) : undefined;
+        const ok =
+          !!object &&
+          object.sourceRefs.every((r) => {
+            const policy = core.policyFor(r.providerId);
+            return !!policy && mayExport(policy);
+          });
+        if (!ok) skipped++;
+        else if (object?.provenance.attribution) attribution.add(object.provenance.attribution);
+        return ok;
+      };
+      if (!geo) {
+        const items = collection.items.map((item) => {
+          if (mayGo(item)) return item;
+          const { position: _withheld, ...rest } = item;
+          return rest;
+        });
+        await fs.writeFile(
+          choice.path,
+          `${JSON.stringify({ version: 1, collection: { ...collection, items } }, null, 2)}\n`,
+          'utf8',
+        );
+        return skipped ? { path: choice.path, skipped } : { path: choice.path };
+      }
+      const items = collection.items.filter((item) => !!item.position && mayGo(item));
+      const places = placesOf(items);
+      const body = collectionGeodata(geo, collection, places, {
+        exportedAt: new Date(core.clock.now()).toISOString(),
+        attribution: [...attribution].sort(),
+      });
+      await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+      core.log.info('collection exported', { format: geo, places: places.length, skipped });
+      return { path: choice.path, places: places.length, skipped };
     },
     'collections.import': async () => {
       const choice = await core.hostBridge.pickOpenFile({
         title: 'Import collection',
-        filters: [{ name: 'WorldView collection', extensions: ['json'] }],
+        filters: [{ name: 'Collection, or places (GPX, KML, GeoJSON)', extensions: ['json', 'gpx', 'kml', 'geojson'] }],
       });
       if ('cancelled' in choice) return { imported: null, issues: ['cancelled'] };
       let raw: string;
+      let fileMtimeMs = core.clock.now();
       try {
+        const stat = await fs.stat(choice.path);
+        if (Number.isFinite(stat.mtimeMs)) fileMtimeMs = Math.floor(stat.mtimeMs);
+        if (stat.size > MAX_COLLECTION_IMPORT_BYTES)
+          return { imported: null, issues: [`file is larger than ${MAX_COLLECTION_IMPORT_BYTES / 1_000_000} MB`] };
         raw = await fs.readFile(choice.path, 'utf8');
       } catch (err) {
         return { imported: null, issues: [`file is not readable: ${errorText(err)}`] };
+      }
+      // Places from another tool: a new collection of locations, named after the file.
+      const geo = geoFormatFor(choice.path);
+      if (geo) {
+        const read = collectionFromGeodata(geo, raw, {
+          name: path.basename(choice.path).replace(/\.[^.]+$/, ''),
+          nowIso: new Date(core.clock.now()).toISOString(),
+          fileTime: new Date(fileMtimeMs).toISOString(),
+        });
+        if ('malformed' in read) return { imported: null, issues: [read.malformed] };
+        if (!read.collection.items.length)
+          return {
+            imported: null,
+            issues: [
+              `no places in the file${read.skipped ? ` (${read.skipped} lines, shapes or bad points left out)` : ''}`,
+            ],
+          };
+        const placed = await importedCollection(read.collection, (id) => core.collections.get(id));
+        if (!placed.unchanged) await core.collections.save(placed.collection);
+        return {
+          imported: placed.collection,
+          issues: read.skipped
+            ? [`${read.skipped} lines, shapes or bad points left out: a collection keeps places`]
+            : [],
+        };
       }
       let parsed: unknown;
       try {
@@ -538,8 +707,10 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const envelope = parsed as { collection?: unknown };
       const collection = validateCollection(envelope?.collection ?? parsed);
       if (!collection) return { imported: null, issues: ['file does not contain a valid collection'] };
-      await core.collections.save(collection);
-      return { imported: collection, issues: [] };
+      const placed = await importedCollection(collection, (id) => core.collections.get(id));
+      if (placed.unchanged) return { imported: placed.collection, issues: [] };
+      await core.collections.save(placed.collection);
+      return { imported: placed.collection, issues: [] };
     },
 
     // ---- watch zones ----------------------------------------------------------
@@ -549,6 +720,40 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       const zones = await core.watchZoneStore.save(parsed);
       core.watchZones.setZones(zones);
       return zones;
+    },
+    'watchzones.export': async ({ format }) => {
+      if (format !== 'kml' && format !== 'geojson') throw new InvalidRequestError('format must be kml or geojson');
+      const zones = await core.watchZoneStore.list();
+      const choice = await core.hostBridge.pickSaveFile({
+        title: 'Export watch zones',
+        defaultPath: suggestedPath(core, `worldview-watch-zones.${format}`),
+        filters: [
+          format === 'kml' ? { name: 'KML', extensions: ['kml'] } : { name: 'GeoJSON', extensions: ['geojson'] },
+        ],
+      });
+      if ('cancelled' in choice) return { cancelled: true };
+      const out = zonesToGeodata(format, zones, new Date(core.clock.now()).toISOString());
+      await fs.writeFile(choice.path, `${out.text}\n`, 'utf8');
+      return { path: choice.path, zones: out.written, skipped: out.skipped };
+    },
+    'watchzones.import': async () => {
+      const choice = await core.hostBridge.pickOpenFile({
+        title: 'Import watch zones',
+        filters: [{ name: 'Shapes (KML, GeoJSON)', extensions: ['kml', 'geojson', 'json'] }],
+      });
+      if ('cancelled' in choice) return { zones: [], issues: ['cancelled'] };
+      let raw: string;
+      try {
+        const stat = await fs.stat(choice.path);
+        if (stat.size > MAX_COLLECTION_IMPORT_BYTES)
+          return { zones: [], issues: [`file is larger than ${MAX_COLLECTION_IMPORT_BYTES / 1_000_000} MB`] };
+        raw = await fs.readFile(choice.path, 'utf8');
+      } catch (err) {
+        return { zones: [], issues: [`file is not readable: ${errorText(err)}`] };
+      }
+      const read = zonesFromGeodata(/\.kml$/i.test(choice.path) ? 'kml' : 'geojson', raw);
+      if ('malformed' in read) return { zones: [], issues: [read.malformed] };
+      return read.zones.length ? read : { zones: [], issues: ['no shapes in the file', ...read.issues] };
     },
     'watchzones.delete': async ({ id }) => {
       requireId(id, 'id');
@@ -635,6 +840,49 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
 
     // ---- export ----------------------------------------------------------------
     'export.objects': async (request) => exportObjects(core, request),
+    'export.track': async (request) => exportTrack(core, request),
+    'export.line': async (request) => {
+      const format = request?.format;
+      if (format !== 'gpx' && format !== 'kml' && format !== 'geojson')
+        throw new InvalidRequestError('format must be gpx, kml or geojson');
+      const points = Array.isArray(request.points) ? request.points : [];
+      if (points.length < 2 || points.length > MAX_LINE_EXPORT_POINTS)
+        throw new InvalidRequestError(`a line has 2 to ${MAX_LINE_EXPORT_POINTS} points`);
+      for (const p of points)
+        if (
+          typeof p?.latitude !== 'number' ||
+          typeof p.longitude !== 'number' ||
+          !(Math.abs(p.latitude) <= 90) ||
+          !(Math.abs(p.longitude) <= 180)
+        )
+          throw new InvalidRequestError('every point needs a latitude and a longitude on the globe');
+      const closed = request.closed === true && points.length >= 3;
+      const name =
+        (typeof request.name === 'string' && request.name.trim().slice(0, 200)) ||
+        (closed ? 'Measured area' : 'Measured line');
+      const choice = await core.hostBridge.pickSaveFile({
+        title: closed ? 'Export the measured shape' : 'Export the measured line',
+        defaultPath: suggestedPath(core, `${slug(name)}.${format}`),
+        filters: [
+          format === 'gpx'
+            ? { name: 'GPX route', extensions: ['gpx'] }
+            : format === 'kml'
+              ? { name: 'KML', extensions: ['kml'] }
+              : { name: 'GeoJSON', extensions: ['geojson'] },
+        ],
+      });
+      if ('cancelled' in choice) return { cancelled: true };
+      const body = lineGeodata(
+        format,
+        name,
+        points.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+        closed,
+        new Date(core.clock.now()).toISOString(),
+      );
+      await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+      return { path: choice.path, points: points.length };
+    },
+    'export.readings': async (request) => exportReadings(core, request),
 
     // ---- cameras ----------------------------------------------------------------
     'camera.register': async (source) => {
@@ -713,6 +961,8 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     'tiles.status': async () => NO_TILE_CACHE,
     'tiles.clear': async () => NO_TILE_CACHE,
     'tiles.prefetch': async () => undefined,
+    // A picture of the window is the desktop shell's (main.ts); without one there is none to save.
+    'view.capture': async () => ({ cancelled: true }),
   };
   return handlers;
 }
@@ -863,11 +1113,11 @@ function suggestedPath(core: RuntimeCore, fileName: string): string {
 
 async function exportObjects(
   core: RuntimeCore,
-  request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' },
+  request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' | 'kml' },
 ): Promise<{ path: string; skippedProviders: string[] } | { cancelled: true }> {
   const format = request?.format;
-  if (format !== 'geojson' && format !== 'json' && format !== 'csv')
-    throw new InvalidRequestError('format must be geojson, json or csv');
+  if (format !== 'geojson' && format !== 'json' && format !== 'csv' && format !== 'kml')
+    throw new InvalidRequestError('format must be geojson, json, csv or kml');
   const query = parseQuery(request?.query);
 
   const result: WorldQueryResult<WorldObject> = core.isLive()
@@ -910,16 +1160,158 @@ async function exportObjects(
   const body =
     format === 'csv'
       ? toCsv(allowed)
-      : format === 'geojson'
-        ? toGeoJson(allowed, attribution)
+      : format === 'kml'
+        ? objectsToKml(allowed, attribution, new Date(core.clock.now()).toISOString())
+        : format === 'geojson'
+          ? toGeoJson(allowed, attribution)
+          : JSON.stringify(
+              { exportedAt: new Date(core.clock.now()).toISOString(), attribution, objects: allowed },
+              null,
+              2,
+            );
+  await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+  core.log.info('objects exported', { format, objects: allowed.length, skippedProviders: skipped.size });
+  return { path: choice.path, skippedProviders: [...skipped].sort() };
+}
+
+/**
+ * One object's recorded track to a file. History is the record: live points fill the tail,
+ * nothing a source is asked about now (an aircraft's route) is included. Every provider of
+ * the track, recorded or live, must allow export, or nothing is written.
+ */
+async function exportTrack(
+  core: RuntimeCore,
+  request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' | 'gpx' | 'kml' },
+): Promise<{ path: string; points: number } | { cancelled: true } | { refused: string[] }> {
+  const format = request?.format;
+  if (format !== 'geojson' && format !== 'csv' && format !== 'gpx' && format !== 'kml')
+    throw new InvalidRequestError('format must be geojson, csv, gpx or kml');
+  requireId(request.objectId, 'objectId');
+  requireRange(request.time);
+  const { objectId, time } = request;
+  const recorded = await core.history.track(objectId, time);
+  const seen = new Set(recorded.map((p) => p.observedAt));
+  const points = [
+    ...recorded,
+    ...core.state.track(objectId).filter((p) => !seen.has(p.observedAt) && within(time, p.observedAt)),
+  ].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
+  if (points.length === 0) throw new InvalidRequestError('no recorded track in that window');
+  const refused = await exportRefusals(core, objectId, time);
+  if (refused.length) return { refused };
+  const live = core.state.get(objectId);
+  const providers = new Set([
+    ...(await core.history.trackProviders(objectId, time)),
+    ...(live?.sourceRefs.map((r) => r.providerId) ?? []),
+  ]);
+
+  const name = live?.labels['callsign'] ?? live?.labels['name'] ?? objectId.split(':').pop() ?? 'track';
+  const safe =
+    String(name)
+      .replace(/[^A-Za-z0-9._-]+/g, '-')
+      .slice(0, 60) || 'track';
+  const choice = await core.hostBridge.pickSaveFile({
+    title: 'Export track',
+    defaultPath: suggestedPath(core, `worldview-track-${safe}-${time.start.slice(0, 10)}.${format}`),
+    filters: [{ name: { geojson: 'GeoJSON', csv: 'CSV', gpx: 'GPX track', kml: 'KML' }[format], extensions: [format] }],
+  });
+  if ('cancelled' in choice) return { cancelled: true };
+  const attribution = [...providers]
+    .map((id) => core.policyFor(id)?.attributionText)
+    .filter((a): a is string => Boolean(a));
+  const body =
+    format === 'gpx' || format === 'kml'
+      ? trackGeodata(format, String(name), points, {
+          exportedAt: new Date(core.clock.now()).toISOString(),
+          attribution,
+        })
+      : format === 'csv'
+        ? [
+            'observedAt,latitude,longitude,altitudeM',
+            ...points.map((p) => [p.observedAt, p.latitude, p.longitude, p.altitudeM ?? ''].join(',')),
+          ].join('\n')
         : JSON.stringify(
-            { exportedAt: new Date(core.clock.now()).toISOString(), attribution, objects: allowed },
+            {
+              type: 'Feature',
+              id: objectId,
+              geometry: {
+                type: 'LineString',
+                coordinates: points.map((p) =>
+                  p.altitudeM !== undefined ? [p.longitude, p.latitude, p.altitudeM] : [p.longitude, p.latitude],
+                ),
+              },
+              properties: {
+                id: objectId,
+                start: points[0]!.observedAt,
+                end: points[points.length - 1]!.observedAt,
+                times: points.map((p) => p.observedAt),
+                providers: [...providers].sort(),
+                attribution,
+                exportedAt: new Date(core.clock.now()).toISOString(),
+              },
+            },
             null,
             2,
           );
   await fs.writeFile(choice.path, `${body}\n`, 'utf8');
-  core.log.info('objects exported', { format, objects: allowed.length, skippedProviders: skipped.size });
-  return { path: choice.path, skippedProviders: [...skipped].sort() };
+  core.log.info('track exported', { format, points: points.length });
+  return { path: choice.path, points: points.length };
+}
+
+/** The providers of an object's recorded rows and of its live self that refuse export. */
+async function exportRefusals(core: RuntimeCore, objectId: string, time: TimeRange): Promise<string[]> {
+  const live = core.state.get(objectId);
+  const providers = new Set([
+    ...(await core.history.trackProviders(objectId, time)),
+    ...(live?.sourceRefs.map((r) => r.providerId) ?? []),
+  ]);
+  return [...providers]
+    .filter((id) => {
+      const policy = core.policyFor(id);
+      return !policy || !mayExport(policy);
+    })
+    .sort();
+}
+
+/** One object's recorded readings to CSV: observedAt, then one column per key. */
+async function exportReadings(
+  core: RuntimeCore,
+  request: { objectId: string; keys: string[]; time: TimeRange },
+): Promise<{ path: string; rows: number } | { cancelled: true } | { refused: string[] }> {
+  requireId(request?.objectId, 'objectId');
+  requireRange(request.time);
+  const { objectId, keys, time } = request;
+  if (
+    !Array.isArray(keys) ||
+    keys.length === 0 ||
+    keys.length > MAX_READING_KEYS ||
+    !keys.every((k) => typeof k === 'string' && /^[A-Za-z_][A-Za-z0-9_.]{0,63}$/.test(k))
+  )
+    throw new InvalidRequestError(`keys must be 1–${MAX_READING_KEYS} reading names`);
+  const { readings } = await core.history.readings(objectId, keys, time, 1_000_000);
+  if (readings.length === 0) throw new InvalidRequestError('no recorded readings in that window');
+  const refused = await exportRefusals(core, objectId, time);
+  if (refused.length) return { refused };
+  const choice = await core.hostBridge.pickSaveFile({
+    title: 'Export readings',
+    defaultPath: suggestedPath(
+      core,
+      `worldview-readings-${
+        objectId
+          .split(':')
+          .pop()
+          ?.replace(/[^A-Za-z0-9._-]+/g, '-') ?? 'object'
+      }-${time.start.slice(0, 10)}.csv`,
+    ),
+    filters: [{ name: 'CSV', extensions: ['csv'] }],
+  });
+  if ('cancelled' in choice) return { cancelled: true };
+  const body = [
+    ['observedAt', ...keys].join(','),
+    ...readings.map((r) => [r.observedAt, ...keys.map((k) => r.values[k] ?? '')].join(',')),
+  ].join('\n');
+  await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+  core.log.info('readings exported', { rows: readings.length, keys: keys.length });
+  return { path: choice.path, rows: readings.length };
 }
 
 function toGeoJson(objects: readonly WorldObject[], attribution: string[]): string {
@@ -1014,4 +1406,31 @@ function csvCell(value: string | number | undefined): string {
   const text = String(value);
   const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return `"${safe.replace(/"/g, '""')}"`;
+}
+
+/** The largest file read as a collection or as places (a GPX of 2,000 waypoints is well under 1 MB). */
+const MAX_COLLECTION_IMPORT_BYTES = 20_000_000;
+
+/**
+ * Where an imported collection goes. A collection with its id that is not there is added as
+ * it is. One that is there with the same name and items is left alone (importing the same file
+ * twice changes nothing). One that is there and differs — edited since it was exported, or a
+ * different collection that happens to share the id — is kept, and the import is added beside
+ * it under a new id as "<name> (imported)": importing never overwrites what the operator has.
+ */
+export async function importedCollection(
+  incoming: Collection,
+  get: (id: string) => Promise<Collection | undefined>,
+): Promise<{ collection: Collection; unchanged: boolean }> {
+  const existing = await get(incoming.id);
+  if (!existing) return { collection: incoming, unchanged: false };
+  if (existing.name === incoming.name && JSON.stringify(existing.items) === JSON.stringify(incoming.items))
+    return { collection: existing, unchanged: true };
+  for (let n = 1; n < 1000; n++) {
+    const id = `${incoming.id.slice(0, 100)}-imported${n === 1 ? '' : `-${n}`}`;
+    if (await get(id)) continue;
+    const name = `${incoming.name.slice(0, 180)} (imported${n === 1 ? '' : ` ${n}`})`;
+    return { collection: { ...incoming, id, name }, unchanged: false };
+  }
+  throw new Error('too many imported copies of this collection');
 }

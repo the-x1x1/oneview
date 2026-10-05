@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { loadReferenceData } from './reference-data.js';
 import { modelsField } from './perf-fields.js';
 import type { GeoBounds, WorldObject } from '@worldview/world-model';
@@ -30,7 +38,7 @@ import {
   type RenderFeature,
   type ViewState,
 } from '@worldview/render-core';
-import { Button, EmptyState, Icon } from '@worldview/ui';
+import { Button, EmptyState, Icon, formatObjectType } from '@worldview/ui';
 import { useActions, useAppState, useClient, useDispatch, useHosts } from '../store/store.js';
 import { drawnWhileComparing, visibleOverlays } from '../weather-imagery.js';
 import { MapAttribution } from './map-attribution.js';
@@ -52,9 +60,22 @@ import { CAMERA_PREVIEWS_LAYER_ID, layerOn, objectFilter } from '../layer-tree.j
 import { CameraPreviews } from './camera-previews.js';
 import { displaySettings, objectFeatureId, objectIdOfFeature } from '../store/display.js';
 import { Hud } from './hud.js';
+import { measureFeatures } from './measure.js';
+import { AIRCRAFT_HORIZON_MIN_M, footprintFeatures, radioHorizonFeatures } from './footprint.js';
+import { graticuleExtent, graticuleFeatures } from './graticule.js';
+import { rangeRingFeatures, ringSpacingM } from './range-rings.js';
+import { NO_TOOL_LAYER, selectionPosition, sendToolLayer, type ToolLayerShown } from './tool-layers.js';
+import { MeasurePanel } from './measure-panel.js';
+import { WhatsHere } from './whats-here.js';
+import { displayName } from '../context/props.js';
+import { KEY_FLIGHT_MS, chainedKeyView, type KeyFlight } from './keyboard-nav.js';
+import { SkyPoints } from './sky-points.js';
+import { CourseVector } from './course-vector.js';
+import { pastShownAtMs } from '../store/shown-time.js';
+import { ownVesselFor } from '../context/cpa.js';
 import { ImageryCompare } from './imagery-compare.js';
 import { presentedRoute } from './route-overlay.js';
-import type { RootState } from '../store/types.js';
+import type { MeasureState, RootState } from '../store/types.js';
 
 const VIEWPORT_THROTTLE_MS = 500;
 const PERF_WINDOW_MS = 10_000;
@@ -242,8 +263,14 @@ function nextFrame(cb: (t: number) => void): number {
  * (features pushed at animation-frame cadence via diffFeatures).
  */
 export function MapHost() {
-  const { world, lenses, ui, session, sources, watchzones, timeline } = useAppState();
+  const { world, lenses, ui, session, sources, watchzones, timeline, collections } = useAppState();
   const actions = useActions();
+  // Read by the renderer's click and pick handlers, which are installed once per host.
+  const measuringRef = useRef(false);
+  measuringRef.current = ui.measure !== null;
+  const whatsHereRef = useRef(false);
+  whatsHereRef.current = ui.whatsHere !== null;
+  const measureState = ui.measure;
   const client = useClient();
   const dispatch = useDispatch();
   const hosts = useHosts();
@@ -376,8 +403,22 @@ export function MapHost() {
       viewportIpc.call(view);
     };
     offs.push(h.on('viewChanged', sendViewport));
+    // While measuring, a click adds a point and selects nothing (map/measure.ts).
+    offs.push(
+      h.on('click', (c) => {
+        if (measuringRef.current) actions.addMeasurePoint(c.position);
+      }),
+    );
+    // A right-click asks what is there (whats-here.tsx); a click on the map puts it away and
+    // does nothing else — not clearing the selection the card was measuring from.
+    offs.push(h.on('contextMenu', (c) => actions.showWhatsHere(c.position, c.screen)));
     offs.push(
       h.on('pick', (pick) => {
+        if (whatsHereRef.current) {
+          actions.closeWhatsHere();
+          return;
+        }
+        if (measuringRef.current) return;
         if (!pick) {
           void actions.select(null);
           return;
@@ -661,9 +702,13 @@ export function MapHost() {
   useEffect(() => {
     host?.setVisualStyle?.(display.visualStyle);
   }, [host, display.visualStyle]);
+  // Live or paused, the shading follows the clock by itself; replaying or scrubbed back, it is
+  // for the timeline's time, to the minute (the terminator moves a quarter of a degree in one).
+  const pastAtMs = pastShownAtMs(timeline.control);
+  const skyAtMs = pastAtMs === undefined ? undefined : Math.floor(pastAtMs / 60_000) * 60_000;
   useEffect(() => {
-    host?.setDayNight?.(display.dayNight);
-  }, [host, display.dayNight]);
+    host?.setDayNight?.(display.dayNight, skyAtMs);
+  }, [host, display.dayNight, skyAtMs]);
   useEffect(() => {
     if (!host || mounted !== 'ready') return;
     host.setOrbit?.(ui.orbit);
@@ -738,6 +783,8 @@ export function MapHost() {
     eventTypes: ReadonlySet<string> | undefined;
     zones: readonly PresentedZone[];
     animate: boolean;
+    shownAtMs: number | undefined;
+    measure: MeasureState | null;
   } | null>(null);
   // Satellites move between their propagations only while the timeline is live: paused or
   // replaying, each is where the moment shown puts it.
@@ -746,7 +793,17 @@ export function MapHost() {
     () => watchzones.zones.map((z) => ({ id: z.id, name: z.name, region: z.geometry, enabled: z.enabled })),
     [watchzones.zones],
   );
-  latest.current = { world, visibleTypes, keepObject, eventTypes: filter?.eventTypes, zones, animate };
+  latest.current = {
+    world,
+    visibleTypes,
+    keepObject,
+    eventTypes: filter?.eventTypes,
+    zones,
+    animate,
+    // Not a reason for a pass of its own: replaying, the objects change with every step anyway.
+    shownAtMs: pastAtMs,
+    measure: measureState,
+  };
   // Presentation depends on the LOD band, never on the exact camera. With view culling off
   // (renderers cull on the GPU) and no clustering, nothing it produces changes while the
   // camera moves within a band — so re-running it on every camera update was pure cost,
@@ -777,7 +834,19 @@ export function MapHost() {
       frame.current = null;
       const input = latest.current;
       if (!input) return;
-      const { world: w, visibleTypes: vt, keepObject: keep, eventTypes: et, zones: zs, animate: an } = input;
+      // Read from `latest`, never from this closure: a pass already scheduled by an earlier
+      // render runs instead of this one, and must draw what is current (the measure line
+      // stayed on the map after Done when it read the points it was scheduled with).
+      const {
+        world: w,
+        visibleTypes: vt,
+        keepObject: keep,
+        eventTypes: et,
+        zones: zs,
+        animate: an,
+        shownAtMs,
+        measure,
+      } = input;
       const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const result = presentObjects({
         objects: withSelection(keep ? keptObjects(w.objects.values(), keep, w.selectedId) : w.objects.values(), w),
@@ -790,12 +859,16 @@ export function MapHost() {
         ...selectedRouteOf(w),
         zones: zs,
         animate: an,
+        ...(shownAtMs !== undefined ? { shownAtMs } : {}),
         maxFeatures: budget.maxFeatures,
         detail: budget.detail,
         cullToView: false,
         featureCache: featureCache.current,
       });
-      const update = diffFeatures(previousFeatures.current, result.upsert);
+      const update = diffFeatures(
+        previousFeatures.current,
+        measure?.points.length ? [...result.upsert, ...measureFeatures(measure.points, measure.area)] : result.upsert,
+      );
       // The diff has already indexed this pass; building a second map of every feature was
       // a whole extra walk per pass for nothing.
       previousFeatures.current = update.index;
@@ -832,7 +905,73 @@ export function MapHost() {
     keepObject,
     budget,
     scheduleDrain,
+    measureState,
   ]);
+
+  // ---- tool layers: the latitude and longitude grid (G), range rings (R), a satellite's footprint ----
+  // Their own features, sent beside the presentation pass rather than through it: that pass
+  // runs when the objects or the zoom band change, these when what they show does. The pass's
+  // diff never sees these ids, so it never removes them; `sendToolLayer` does, by id.
+  const gridOn = mounted === 'ready' && (display.grid ?? false);
+  const gridShown = useRef<ToolLayerShown>(NO_TOOL_LAYER);
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setFeatures) return;
+    const extent = gridOn ? graticuleExtent(world.view) : undefined;
+    sendToolLayer(host, gridShown, extent ? JSON.stringify(extent) : '', () =>
+      extent ? graticuleFeatures(extent) : [],
+    );
+  }, [host, mounted, gridOn, world.view]);
+
+  // Where the selection is: the centre of range rings and where the HUD's RNG row measures from.
+  const selectionAt = selectionPosition(world);
+  const activeCollection = collections.collections.find((c) => c.id === collections.activeId);
+  const ringsCenter = ui.rangeRings ? selectionAt : undefined;
+  const ringsSpacing = ui.rangeRings ? ringSpacingM(world.view) : undefined;
+  const ringsKey =
+    mounted === 'ready' && ringsCenter && ringsSpacing
+      ? `${ringsSpacing}|${ringsCenter.latitude.toFixed(4)}|${ringsCenter.longitude.toFixed(4)}`
+      : '';
+  const ringsShown = useRef<ToolLayerShown>(NO_TOOL_LAYER);
+  const ringsInput = useRef({ center: ringsCenter, spacing: ringsSpacing });
+  ringsInput.current = { center: ringsCenter, spacing: ringsSpacing };
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setFeatures) return;
+    sendToolLayer(host, ringsShown, ringsKey, () => {
+      const { center, spacing } = ringsInput.current;
+      return ringsKey && center && spacing ? rangeRingFeatures(center, spacing) : [];
+    });
+  }, [host, mounted, ringsKey]);
+
+  // The selected satellite's footprint (footprint.ts): where on the ground it is above the
+  // horizon and 10° up, redrawn as it moves a kilometre or so. A selected aircraft in the air
+  // gets its radio horizon instead: where a receiver on the ground could hear it.
+  const selectedNow = world.selectedId ? (world.objects.get(world.selectedId) ?? world.selectedObject) : null;
+  // The operator's own boat (NMEA 2000) with another vessel selected: its course vector and the
+  // closest point of approach are drawn beside the selection's (course-vector.ts).
+  const ownBoat = ownVesselFor(selectedNow, world);
+  const aloft = selectedNow?.position && (selectedNow.position.altitudeM ?? 0) > 0 ? selectedNow.position : undefined;
+  const footprintFor =
+    selectedNow?.type === 'satellite'
+      ? 'satellite'
+      : selectedNow?.type === 'aircraft' && aloft && (aloft.altitudeM ?? 0) >= AIRCRAFT_HORIZON_MIN_M
+        ? 'aircraft'
+        : null;
+  const footprintAt = footprintFor ? aloft : undefined;
+  const footprintKey =
+    mounted === 'ready' && footprintAt
+      ? `${footprintFor}|${footprintAt.latitude.toFixed(2)}|${footprintAt.longitude.toFixed(2)}|${Math.round((footprintAt.altitudeM ?? 0) / (footprintFor === 'aircraft' ? 100 : 1000))}`
+      : '';
+  const footprintShown = useRef<ToolLayerShown>(NO_TOOL_LAYER);
+  const footprintInput = useRef({ at: footprintAt, kind: footprintFor });
+  footprintInput.current = { at: footprintAt, kind: footprintFor };
+  useEffect(() => {
+    if (!host || mounted !== 'ready' || !host.setFeatures) return;
+    sendToolLayer(host, footprintShown, footprintKey, () => {
+      const { at, kind } = footprintInput.current;
+      if (!footprintKey || !at) return [];
+      return kind === 'aircraft' ? radioHorizonFeatures(at) : footprintFeatures(at);
+    });
+  }, [host, mounted, footprintKey]);
 
   // ---- hover: restyle the (at most two) features it touches, not the frame ----
   // The cursor crosses a dot every few frames on a busy overview, and each crossing used to
@@ -903,9 +1042,46 @@ export function MapHost() {
     return () => observer.disconnect();
   }, []);
 
+  // The globe's keyboard move still in the air (keyboard-nav.ts `chainedKeyView`).
+  const keyFlight = useRef<KeyFlight | undefined>(undefined);
   return (
     <div ref={mapRef} className="wv-map" role="region" aria-label="Map">
-      <div ref={containerRef} className="wv-map__surface" />
+      {/* The globe has no keyboard control of its own: focused, it takes the arrow keys, + and −
+          (keyboard-nav.ts). The 2D map's canvas takes them itself (MapLibre), so the surface is
+          not a second tab stop there. */}
+      <div
+        ref={containerRef}
+        className="wv-map__surface"
+        {...(ui.activeMode === '3D'
+          ? {
+              tabIndex: 0,
+              role: 'application',
+              'aria-label': 'Globe. Arrow keys move the view, + and − zoom, Shift with the arrows turns and tilts it',
+              // Cesium cancels the pointer's default, focus included, so a click on the globe
+              // would leave the keys where they were: take them on the press.
+              onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => {
+                if (document.activeElement !== e.currentTarget) e.currentTarget.focus({ preventScroll: true });
+              },
+              // The mouse takes the camera: a key's move still in the air is no longer where it is going.
+              onPointerDownCapture: () => {
+                keyFlight.current = undefined;
+              },
+              onWheelCapture: () => {
+                keyFlight.current = undefined;
+              },
+              onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
+                if (!host?.setView) return;
+                const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+                const step = chainedKeyView(host.getView(), keyFlight.current, now, e);
+                if (!step) return;
+                e.preventDefault();
+                e.stopPropagation();
+                keyFlight.current = step.flight;
+                host.setView(step.send, { animate: true, durationMs: KEY_FLIGHT_MS });
+              },
+            }
+          : {})}
+      />
       {mounted === 'missing' ? (
         <div className="wv-map__state">
           <EmptyState
@@ -932,6 +1108,13 @@ export function MapHost() {
         onOpen={openCamera}
       />
       {mounted === 'ready' ? <BasemapNotice /> : null}
+      <SkyPoints host={host ?? undefined} on={mounted === 'ready' && display.dayNight} atMs={skyAtMs} />
+      <CourseVector
+        host={mounted === 'ready' ? (host ?? undefined) : undefined}
+        selected={selectedNow}
+        own={ownBoat}
+        shownAtMs={pastAtMs}
+      />
       {mounted === 'ready' ? <WeatherLegend overlays={shownOverlays} /> : null}
       {mounted === 'ready' && imageryCompare ? (
         <ImageryCompare
@@ -949,6 +1132,8 @@ export function MapHost() {
           visualStyle={display.visualStyle}
           orbit={ui.orbit}
           following={ui.followId !== null}
+          {...(selectionAt ? { selection: selectionAt } : {})}
+          {...(display.hudGrid && display.hudGrid !== 'none' ? { grid: display.hudGrid } : {})}
           timeMode={timeline.control.mode}
           shownAtMs={timeline.control.cursorMs}
         />
@@ -978,12 +1163,53 @@ export function MapHost() {
             </button>
           ) : null}
         </div>
+        <button
+          type="button"
+          className={`wv-map__mode wv-map__tool${ui.measure ? ' wv-map__mode--active' : ''}`}
+          aria-pressed={ui.measure !== null}
+          onClick={() => actions.toggleMeasure()}
+          title="Measure distances (M)"
+        >
+          <Icon name="ruler" size={14} /> Measure
+        </button>
         {world.selectedId ? (
           <Button size="sm" variant="secondary" icon="close" onClick={() => actions.clearSelection()}>
             Clear selection
           </Button>
         ) : null}
       </div>
+      {/* What a screen reader hears when the selection changes — by a click, a search or the
+          keyboard's ] and [ — since the panel's new title alone is not announced. */}
+      <p className="wv-visually-hidden" role="status" aria-live="polite">
+        {world.selectedObject
+          ? `Selected ${displayName(world.selectedObject)}, ${formatObjectType(world.selectedObject.type)}`
+          : world.selectedEvent
+            ? `Selected ${world.selectedEvent.title}`
+            : ''}
+      </p>
+      {ui.measure ? <MeasurePanel points={ui.measure.points} area={ui.measure.area ?? false} /> : null}
+      {ui.whatsHere ? (
+        <WhatsHere
+          host={host ?? undefined}
+          position={ui.whatsHere.position}
+          screen={ui.whatsHere.screen}
+          {...(display.hudGrid && display.hudGrid !== 'none' ? { grid: display.hudGrid } : {})}
+          {...(session.settings?.home?.view
+            ? {
+                home: {
+                  latitude: session.settings.home.view.latitude,
+                  longitude: session.settings.home.view.longitude,
+                },
+              }
+            : {})}
+          {...(selectionAt ? { selection: { name: 'the selection', position: selectionAt } } : {})}
+          {...(activeCollection ? { collection: { id: activeCollection.id, name: activeCollection.name } } : {})}
+          {...(pastAtMs === undefined ? {} : { shownAtMs: pastAtMs })}
+          {...(selectedNow?.type === 'satellite'
+            ? { satellite: { id: selectedNow.id, name: displayName(selectedNow) } }
+            : {})}
+        />
+      ) : null}
       {/* The foot of the map: the credits, then the view bar under them, stacked so neither
           covers the other however many rows either wraps to. */}
       <div ref={dockRef} className="wv-map__dock">

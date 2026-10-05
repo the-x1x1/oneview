@@ -9,6 +9,8 @@ export interface KeyInput {
   shiftKey: boolean;
   /** True when focus is inside an editable control (input/textarea/select/contenteditable). */
   inEditable: boolean;
+  /** The key is held down and repeating. */
+  repeat?: boolean;
 }
 
 export type KeyResult =
@@ -20,27 +22,37 @@ export type KeyResult =
   | 'togglePlay'
   | 'jumpLive'
   | 'toggleHud'
+  | 'toggleGrid'
+  | 'toggleRangeRings'
   | 'nextStyle'
   | 'previousStyle'
   | 'toggleDayNight'
   | 'toggleOrbit'
   | 'toggleFollow'
   | 'toggleCleanView'
+  | 'toggleMeasure'
   | 'goHome'
+  | 'nextNearby'
+  | 'previousNearby'
   | null;
 
 /**
  * Global key map (directive §134/§135), pure so it is testable:
- *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else leave clean view, else clear
- *   selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
+ *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else What's here, else leave clean view,
+ *   else stop measuring, else clear selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
  *   H → HUD · V / Shift+V → next / previous visual style · N → day and night · O → orbit ·
- *   F → follow the selection · C → clean view · Home or Shift+H → the home view (all outside
+ *   F → follow the selection · C → clean view · M → measure · ] and [ → the next and previous
+ *   object out from the middle of the view · Home or Shift+H → the home view (all outside
  *   editable controls, and never with Ctrl, Cmd or Alt, so Ctrl+C still copies).
  */
 export function resolveKey(input: KeyInput): KeyResult {
   const mod = input.ctrlKey || input.metaKey;
   if (mod && !input.altKey && input.key.toLowerCase() === 'k') return 'palette';
   if (input.key === 'Escape') return 'escape';
+  // ] and [ step the selection: one step a press (held down, each would load an object's
+  // details); and on layouts that type them with AltGr (arriving as Ctrl+Alt), still them.
+  if ((input.key === ']' || input.key === '[') && !input.inEditable && !input.metaKey && input.ctrlKey === input.altKey)
+    return input.repeat ? null : input.key === ']' ? 'nextNearby' : 'previousNearby';
   if (input.inEditable || mod || input.altKey) return null;
   switch (input.key) {
     case '/':
@@ -71,6 +83,12 @@ export function resolveKey(input: KeyInput): KeyResult {
       return 'toggleFollow';
     case 'c':
       return 'toggleCleanView';
+    case 'm':
+      return 'toggleMeasure';
+    case 'g':
+      return 'toggleGrid';
+    case 'r':
+      return 'toggleRangeRings';
     default:
       return null;
   }
@@ -99,8 +117,16 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
         else actions.closeDialog();
         return true;
       }
+      if (state.ui.whatsHere) {
+        actions.closeWhatsHere();
+        return true;
+      }
       if (state.ui.cleanView) {
         actions.setCleanView(false);
+        return true;
+      }
+      if (state.ui.measure) {
+        actions.toggleMeasure();
         return true;
       }
       if (state.world.selectedId) {
@@ -123,6 +149,9 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return true;
     case 'jumpLive':
       actions.timeline({ type: 'jumpToLive' });
+      return true;
+    case 'toggleGrid':
+      void actions.toggleGrid();
       return true;
     case 'toggleHud':
       void actions.toggleHud();
@@ -149,6 +178,15 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return true;
     case 'toggleCleanView':
       actions.setCleanView(!state.ui.cleanView);
+      return true;
+    case 'toggleMeasure':
+      actions.toggleMeasure();
+      return true;
+    case 'nextNearby':
+    case 'previousNearby':
+      return actions.selectNearby(result === 'nextNearby' ? 1 : -1);
+    case 'toggleRangeRings':
+      actions.toggleRangeRings();
       return true;
     case 'goHome':
       actions.goHome();

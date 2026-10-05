@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ContextRegistry, contextRegistry, DEFAULT_SECTIONS, TYPE_SECTIONS } from './index.js';
+import { gridReferenceText } from './default-sections.js';
 
 test('registry composition: defaults + type sections at placement; same id overrides; unregister restores', () => {
   const r = new ContextRegistry();
@@ -43,10 +44,10 @@ test('registry composition: defaults + type sections at placement; same id overr
   assert.equal(r.sectionsFor('vessel').at(-1)?.id, 'v');
 });
 
-test('built-in registry: six defaults and one type section for each supported type', () => {
+test('built-in registry: seven defaults and one type section for each supported type', () => {
   assert.deepEqual(
     DEFAULT_SECTIONS.map((s) => s.id),
-    ['identity', 'position', 'freshness', 'sources', 'history', 'related'],
+    ['identity', 'position', 'freshness', 'sources', 'history', 'sky', 'related'],
   );
   for (const { type } of TYPE_SECTIONS) {
     const ids = contextRegistry.sectionsFor(type).map((s) => s.id);
@@ -85,4 +86,14 @@ test('a live satellite gets its catalogue record and passes: the NORAD id is a n
   assert.equal(hasNoradId(sat({ noradId: '25544' })), true);
   assert.equal(hasNoradId(sat({ name: 'Recorded satellite' })), false);
   assert.equal(hasNoradId(sat({ noradId: 'ISS' })), false);
+});
+
+test('position: the chosen grid reference beside the coordinates, UPS in the polar caps, none when none is chosen', () => {
+  const p = { latitude: 21.307, longitude: -157.85831 };
+  assert.equal(gridReferenceText(p, 'mgrs'), '4Q FJ 18415 56553');
+  assert.equal(gridReferenceText(p, 'utm'), '4Q 618415mE 2356553mN');
+  assert.equal(gridReferenceText(p, undefined), undefined);
+  assert.equal(gridReferenceText(undefined, 'mgrs'), undefined);
+  assert.equal(gridReferenceText({ latitude: 85, longitude: 0 }, 'mgrs'), 'Z AB 00000 44542');
+  assert.equal(gridReferenceText({ latitude: 85, longitude: 0 }, 'utm'), 'UPS N 2000000mE 1444542mN');
 });

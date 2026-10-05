@@ -102,6 +102,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'sources.definitions.setEnabled': { file: 'bundled/nws-alerts.json', enabled: true },
     'sources.definitions.draft': { url: 'https://example.org/stations.json' },
     'sources.definitions.save': { id: 'my-stations', definition: { connector: 'rest-json' } },
+    'view.capture': { rect: { x: 0, y: 48, width: 1200, height: 700 } },
     'tiles.prefetch': {
       sourceId: 'esri-world-imagery',
       bounds: { west: -10, south: -10, east: 10, north: 10 },
@@ -127,6 +128,8 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'timeline.set': { mode: 'PAUSED', speed: 5 },
     'search.query': { text: 'tokyo', limit: 5 },
     'search.places': { text: '221b baker street', limit: 6 },
+    'search.nearest': { position: { latitude: 19.9, longitude: -155.6 }, kinds: ['city'], limit: 3 },
+    'sky.overhead': { observer: { latitude: 21.3, longitude: -157.85 }, minElevationDeg: 10, limit: 50 },
     'lenses.save': {
       id: 'my-lens',
       name: 'Mine',
@@ -153,7 +156,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       ],
     },
     'collections.delete': { id: 'c1' },
-    'collections.export': { id: 'c1' },
+    'collections.export': { id: 'c1', format: 'kml' },
     'watchzones.save': {
       id: 'w1',
       name: 'Bay',
@@ -164,6 +167,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       createdAt: '2026-09-21T00:00:00.000Z',
     },
     'watchzones.delete': { id: 'w1' },
+    'watchzones.export': { format: 'kml' },
     'feed.recent': { limit: 20, minimumSeverity: 'MINOR' },
     'offline.removePack': { id: 'pack-1' },
     'offline.setPackEnabled': { id: 'pack-1', enabled: true },
@@ -171,6 +175,24 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'offline.removePublisher': { keyId: '0123456789abcdef' },
     'offline.setRequireTrusted': { required: true },
     'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
+    'export.readings': {
+      objectId: 'sensor:purpleair-local:abc',
+      keys: ['pm25Ugm3'],
+      time: { start: '2026-10-04T10:00:00.000Z', end: '2026-10-04T11:00:00.000Z' },
+    },
+    'export.track': {
+      objectId: 'aircraft:icao24:abc123',
+      time: { start: '2026-10-04T10:00:00.000Z', end: '2026-10-04T11:00:00.000Z' },
+      format: 'csv',
+    },
+    'export.line': {
+      points: [
+        { latitude: 19.7, longitude: -155.1 },
+        { latitude: 19.8, longitude: -155.5 },
+      ],
+      closed: false,
+      format: 'kml',
+    },
     'camera.register': { name: 'Porch', url: 'rtsp://192.168.1.10/stream' },
     'camera.snapshot': { cameraId: 'cam-1' },
     'camera.stream': { cameraId: 'cam-1' },
@@ -193,6 +215,8 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'credentials.has': { key: 'key with spaces' },
     'timeline.set': { speed: 3 },
     'search.places': { text: 'x'.repeat(201) },
+    'search.nearest': { position: { latitude: 91, longitude: 0 } },
+    'sky.overhead': { observer: { latitude: 21.3, longitude: -157.85 }, limit: 501 },
     'camera.register': { name: 'x', url: 'file:///etc/passwd' },
     'lenses.save': {
       id: 'l',
@@ -204,6 +228,15 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       extra: true,
     },
     'export.objects': { query: {}, format: 'xlsx' },
+    'export.track': { objectId: 'a', time: { start: 'yesterday', end: 'today' }, format: 'shp' },
+    'export.line': {
+      points: [
+        { latitude: 91, longitude: 0 },
+        { latitude: 0, longitude: 0 },
+      ],
+      format: 'gpx',
+    },
+    'export.readings': { objectId: 'a', keys: [], time: { start: 'yesterday', end: 'today' } },
     'feed.recent': { limit: 100000 },
     'offline.removePublisher': { keyId: '../../trust' },
     'offline.trustPublisher': { packId: 'pack-1', name: 'x'.repeat(200) },

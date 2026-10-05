@@ -77,8 +77,9 @@ interface OverlayBase {
  * east edges (latitudes as they are), but never past 180° either way. A slice meeting the
  * antimeridian was once widened across it (`west > east`), and neither renderer drew such a
  * box: on 2026-09-29 GOES-West and Himawari-9 fetched two tiles each on the globe and drew
- * next to nothing over the Pacific. At 180° the two slices meet edge to edge instead, unfeathered
- * (render-core `featherWeights`). Undefined without bounds.
+ * next to nothing over the Pacific. What a slice draws beyond 180° is a second layer instead
+ * ({@link antimeridianSpill}), whose bounds lie past ±180° and come out here as the strip on
+ * the far side. Undefined without bounds.
  */
 export function drawnBounds(o: Pick<RasterOverlay, 'bounds' | 'featherDeg'>): GeoBounds | undefined {
   const b = o.bounds;
@@ -86,6 +87,44 @@ export function drawnBounds(o: Pick<RasterOverlay, 'bounds' | 'featherDeg'>): Ge
   const half = (o.featherDeg ?? 0) / 2;
   if (!(half > 0) || b.west > b.east) return b;
   return { ...b, west: Math.max(-180, b.west - half), east: Math.min(180, b.east + half) };
+}
+
+/** Appended to an overlay's id for its part beyond the antimeridian ({@link antimeridianSpill}). */
+export const ANTIMERIDIAN_SPILL_SUFFIX = '#past180';
+
+/**
+ * The part of a cross-faded slice that lies beyond 180°, as a layer of its own: the slice
+ * (a `fadeBelow` overlay with `featherDeg` and `bounds`) that ends on the antimeridian,
+ * copied 360° round so that its bounds lie past it — Himawari's 93°…180° becomes
+ * −267°…−180°. {@link drawnBounds} turns those into the strip within half the feather on the
+ * far side of 180°, and the fade (render-core `featherWeights`) reads them as the same slice,
+ * so the two satellites that meet at 180° cross-fade there as they do at every other seam,
+ * instead of meeting along a straight line. Never sent anywhere: renderers make it from the
+ * list they are given ({@link withAntimeridianSpills}). Undefined for any other overlay, and
+ * for a slice that goes all the way round.
+ */
+export function antimeridianSpill(o: RasterOverlay): RasterOverlay | undefined {
+  const b = o.bounds;
+  const half = (o.featherDeg ?? 0) / 2;
+  if (!b || !o.fadeBelow || !(half > 0) || b.west > b.east) return undefined;
+  const atEast = b.east >= 180;
+  const atWest = b.west <= -180;
+  if (atEast === atWest) return undefined;
+  const shift = atEast ? -360 : 360;
+  return {
+    ...o,
+    id: `${o.id}${ANTIMERIDIAN_SPILL_SUFFIX}`,
+    name: `${o.name} (past 180°)`,
+    bounds: { ...b, west: b.west + shift, east: b.east + shift },
+  };
+}
+
+/** The list with each slice's part beyond 180° right after it (see {@link antimeridianSpill}). */
+export function withAntimeridianSpills(overlays: readonly RasterOverlay[]): RasterOverlay[] {
+  return overlays.flatMap((o) => {
+    const spill = antimeridianSpill(o);
+    return spill ? [o, spill] : [o];
+  });
 }
 
 /** True for an overlay that is a whole map, chosen as the basemap rather than drawn over one. */

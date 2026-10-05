@@ -17,9 +17,18 @@ export interface ContextSectionProps {
   /** The selected aircraft's flight (`world.flight`), when the selection is an aircraft. */
   flight?: FlightState | null;
   related: { objects: WorldObject[]; events: WorldEvent[] };
+  /**
+   * The operator's own boat (a vessel that says `ownVessel`, from NMEA 2000) when the selection
+   * is another vessel and the boat is in the world — for the closest point of approach.
+   */
+  ownVessel?: WorldObject;
   sources: ReadonlyArray<SourceHealthEntry>;
   actions: ShellActions;
   nowMs: number;
+  /** The time the map's world is from: now when live or paused, the timeline's cursor when replaying or scrubbed back. */
+  shownAtMs?: number;
+  /** The grid reference chosen for the HUD (Settings → Rendering), given beside the coordinates too. */
+  gridReference?: 'mgrs' | 'utm';
 }
 
 export interface ContextSection {

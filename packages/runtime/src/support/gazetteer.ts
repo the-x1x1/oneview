@@ -2,9 +2,12 @@ import type {
   Gazetteer,
   GazetteerHit,
   GazetteerLookupOptions,
+  GazetteerNearestOptions,
+  NearbyPlace,
   PlaceKind as QueryPlaceKind,
 } from '@worldview/query-engine';
 import type { PlaceSearcher, PlaceKind as PackPlaceKind } from '@worldview/offline';
+import { geodesicInverse, type GeoPosition } from '@worldview/world-model';
 
 /**
  * Adapts the offline `PlaceIndex` (worldpack search indexes) to the query engine's
@@ -52,6 +55,37 @@ export class PlaceIndexGazetteer implements Gazetteer {
       return out;
     });
   }
+
+  /** The pack places nearest a point (within 100 km unless asked otherwise), measured on the ellipsoid. */
+  nearest(position: GeoPosition, opts: GazetteerNearestOptions = {}): NearbyPlace[] {
+    const index = this.index();
+    if (index.size === 0 || !index.nearest) return [];
+    const kinds = packKindsFor(opts.kinds ?? ['city']);
+    const hits = index.nearest(position, {
+      limit: Math.max(1, opts.limit ?? 1) * 2,
+      ...(opts.maxDistanceM !== undefined ? { maxDistanceM: opts.maxDistanceM } : {}),
+      ...(kinds.length ? { kinds } : {}),
+    });
+    return hits
+      .map((hit) => {
+        const e = hit.entry;
+        const g = geodesicInverse(e.position, position);
+        const out: NearbyPlace = {
+          id: e.id,
+          name: e.name,
+          kind: KIND_MAP[e.kind],
+          position: e.position,
+          distanceM: g.distanceM,
+          bearingDeg: g.initialBearingDeg,
+          importance: e.importance,
+          source: this.source,
+        };
+        if (e.countryCode) out.countryCode = e.countryCode;
+        return out;
+      })
+      .sort((a, b) => a.distanceM - b.distanceM)
+      .slice(0, Math.max(1, opts.limit ?? 1));
+  }
 }
 
 function packKindsFor(kinds: readonly QueryPlaceKind[]): PackPlaceKind[] {
@@ -82,5 +116,9 @@ export class LateGazetteer implements Gazetteer {
 
   lookup(name: string, opts?: GazetteerLookupOptions): GazetteerHit[] {
     return this.inner?.lookup(name, opts) ?? [];
+  }
+
+  nearest(position: GeoPosition, opts?: GazetteerNearestOptions): NearbyPlace[] {
+    return this.inner?.nearest?.(position, opts) ?? [];
   }
 }

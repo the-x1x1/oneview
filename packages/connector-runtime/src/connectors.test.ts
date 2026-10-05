@@ -5,7 +5,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { testing } from '@worldview/provider-sdk';
 import { runConnectorSuite, formatSuite } from './testing/suite.js';
-import { defaultConnectorRegistry, RestJsonProvider, loadDefinitionsFrom, parseCsv, createPaginator } from './index.js';
+import {
+  defaultConnectorRegistry,
+  RestJsonProvider,
+  loadDefinitionsFrom,
+  parseCsv,
+  createPaginator,
+  nextFromLinkHeader,
+  viewValues,
+} from './index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const fixture = (name: string) => readFileSync(path.join(root, 'fixtures', 'connectors', name), 'utf8');
@@ -207,6 +215,55 @@ test('REST JSON follows next links across pages and merges them, within maxPages
   assert.equal(ctx.http.requests.length, 2);
 });
 
+test('pagination: RFC 8288 Link headers, rel=next only, own origin only', () => {
+  assert.equal(
+    nextFromLinkHeader('<https://a.example/x?page=3>; rel="last", <https://a.example/x?page=2>; rel="next"'),
+    'https://a.example/x?page=2',
+  );
+  assert.equal(nextFromLinkHeader('</x?page=2>; REL=next'), '/x?page=2', 'unquoted, any case');
+  assert.equal(nextFromLinkHeader('<https://a.example/x?p=2>; rel="next prefetch"'), 'https://a.example/x?p=2');
+  assert.equal(nextFromLinkHeader('<https://a.example/x?p=1>; rel="prev"'), undefined);
+  assert.equal(nextFromLinkHeader(undefined), undefined);
+  const link = createPaginator({ strategy: 'link-header' }, 'https://a.example/x');
+  assert.deepEqual(link.next({}, 3, 0, { link: '</x?page=2>; rel="next"' }), {
+    query: {},
+    url: 'https://a.example/x?page=2',
+  });
+  assert.equal(
+    link.next({}, 3, 0, { link: '<https://evil.example/x>; rel="next"' }),
+    undefined,
+    'never off the origin',
+  );
+  assert.equal(link.next({}, 0, 0, { link: '</x?page=2>; rel="next"' }), undefined, 'an empty page is the last');
+  assert.equal(link.next({}, 3, 0, {}), undefined);
+});
+
+test('REST JSON follows Link: rel=next headers across pages', async () => {
+  const doc = {
+    ...(example('citibike-stations-rest.json') as object),
+    pagination: { strategy: 'link-header', maxPages: 5 },
+  };
+  const v = defaultConnectorRegistry.validate(doc);
+  assert.ok(v.ok && v.definition, JSON.stringify(v.errors));
+  const provider = defaultConnectorRegistry.createProvider(v.definition!) as RestJsonProvider;
+  const ctx = testing.createFixtureContext({
+    providerId: v.definition!.id,
+    responder: (req) =>
+      req.url.includes('page=2')
+        ? { status: 200, body: fixture('gbfs-page2.json') }
+        : {
+            status: 200,
+            headers: { Link: '<https://gbfs.citibikenyc.com/gbfs/en/station_information.json?page=2>; rel="next"' },
+            body: fixture('gbfs-page1.json'),
+          },
+  });
+  await provider.initialize(ctx);
+  await provider.start();
+  const obs = await provider.query({ signal: new AbortController().signal, background: true });
+  assert.deepEqual(obs.map((o) => o.externalId).sort(), ['a', 'b', 'c']);
+  assert.equal(ctx.http.requests.length, 2);
+});
+
 test('bounds placeholders are filled from the viewport, and the poll waits for one', async () => {
   const doc = {
     ...(example('citibike-stations-rest.json') as object),
@@ -234,6 +291,46 @@ test('bounds placeholders are filled from the viewport, and the poll waits for o
     bounds: { west: -74.1, south: 40.6, east: -73.9, north: 40.8 },
   });
   assert.match(ctx.http.requests[0]!.url, /bbox=-74\.10000%2C40\.60000%2C-73\.90000%2C40\.80000/);
+});
+
+test('a point-and-radius source gets the view centre and the radius that reaches its edge, capped', async () => {
+  const doc = {
+    ...(example('citibike-stations-rest.json') as object),
+    boundsQuery: true,
+    boundsMaxRadiusKm: 463,
+    endpoint: { url: 'https://api.example.org/v2/point/{lat}/{lon}/{radiusNm}' },
+  };
+  const v = defaultConnectorRegistry.validate(doc);
+  assert.ok(v.ok, JSON.stringify(v.errors));
+  const provider = defaultConnectorRegistry.createProvider(v.definition!) as RestJsonProvider;
+  // A city-sized view: the farthest corner is ~14.1 km from the middle (7.6 nm, rounded up).
+  const city = { west: -74.1, south: 40.6, east: -73.9, north: 40.8 };
+  assert.equal(provider.buildRequest({ query: {} }, city).url, 'https://api.example.org/v2/point/40.70000/-74.00000/8');
+  // A continent: capped at 463 km (250 nm), around the centre the runtime gives.
+  const wide = { west: -130, south: 20, east: -60, north: 55 };
+  assert.equal(
+    provider.buildRequest({ query: {} }, wide, { latitude: 51.5, longitude: -0.1 }).url,
+    'https://api.example.org/v2/point/51.50000/-0.10000/250',
+  );
+  // Across 180°: the middle is on the date line, not in the Atlantic.
+  const fiji = viewValues({ west: 175, south: -20, east: -175, north: -15 });
+  assert.equal(fiji?.lon, '180.00000');
+  assert.equal(viewValues(undefined), undefined);
+  // Validation: a radius with no centre, a cap with no radius, placeholders without boundsQuery.
+  const noCentre = defaultConnectorRegistry.validate({
+    ...doc,
+    endpoint: { url: 'https://api.example.org/r', query: { r: '{radiusKm}' } },
+  });
+  assert.ok(noCentre.warnings.some((w) => /around what/.test(w)));
+  const unusedCap = defaultConnectorRegistry.validate({
+    ...doc,
+    endpoint: { url: 'https://api.example.org/b', query: { bbox: '{west},{south},{east},{north}' } },
+  });
+  assert.ok(unusedCap.warnings.some((w) => /boundsMaxRadiusKm is set/.test(w)));
+  const unset = defaultConnectorRegistry.validate({ ...doc, boundsQuery: undefined, boundsMaxRadiusKm: undefined });
+  assert.ok(unset.warnings.some((w) => /sent as written/.test(w)));
+  const tooFar = defaultConnectorRegistry.validate({ ...doc, boundsMaxRadiusKm: 50_000 });
+  assert.equal(tooFar.ok, false);
 });
 
 test('a path credential keeps {TOKEN} literal in the path for the HTTP client; the query stays as the URL class writes it', () => {

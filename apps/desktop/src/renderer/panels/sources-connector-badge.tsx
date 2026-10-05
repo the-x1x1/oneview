@@ -6,9 +6,11 @@ export function connectorOf(entry: Pick<SourceHealthEntry, 'meta'>): string | un
   return typeof c === 'string' && c.trim() ? c.trim() : undefined;
 }
 
-/** A definition's file name as the Definitions list shows it (without `bundled/`). */
+/** A definition's file name as the Definitions list shows it (without `bundled/` or `pack/<id>/`). */
 export function definitionFileLabel(file: string): string {
-  return file.startsWith('bundled/') ? `${file.slice('bundled/'.length)} (shipped)` : file;
+  if (file.startsWith('bundled/')) return `${file.slice('bundled/'.length)} (shipped)`;
+  const pack = /^pack\/([^/]+)\/(.+)$/.exec(file);
+  return pack ? `${pack[2]} (pack ${pack[1]})` : file;
 }
 
 /**

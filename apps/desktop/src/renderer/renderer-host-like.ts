@@ -54,6 +54,12 @@ export interface RendererHostLike {
    */
   maxFeatures?(): number;
   getView(): ViewState;
+  /**
+   * Move the camera to a view given in part (the rest stays as it is), at once or over
+   * `durationMs`: the globe's keyboard steps (map/keyboard-nav.ts). Optional: a host without it
+   * has no keyboard steps.
+   */
+  setView?(view: Partial<ViewState>, opts?: { animate?: boolean; durationMs?: number }): void;
   flyTo(
     target: { position: GeoPosition; altitudeM?: number; zoom?: number; bounds?: GeoBounds },
     opts?: FlyToOptions,
@@ -84,8 +90,8 @@ export interface RendererHostLike {
   setGraphics?(profile: GraphicsProfile): void;
   /** Visual style (render-core visual-styles.ts); replayed into whichever renderer is built later. */
   setVisualStyle?(id: VisualStyleId): void;
-  /** Night-side shading from the Sun's position now; replayed into whichever renderer is built later. */
-  setDayNight?(on: boolean): void;
+  /** Night-side shading, at `atMs` or now; replayed into whichever renderer is built later. */
+  setDayNight?(on: boolean, atMs?: number): void;
   /** Slow turn round the middle of the view, on the renderer on screen; ends by itself on input (`cameraMode`). */
   setOrbit?(on: boolean): void;
   /** Keep a feature (renderer id, e.g. `obj:…`) in the middle of the view; `null` lets go. Ends by itself (`cameraMode`). */

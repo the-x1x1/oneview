@@ -435,12 +435,41 @@ test('settings: the home view and online search are optional, validated and patc
   assert.deepEqual(next.search, { online: false });
 });
 
+test('settings: the history storage choice is optional (absent: the app uses DuckDB) and kept with the cap', () => {
+  assert.equal(DEFAULT_SETTINGS.history.backend, undefined);
+  assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 10_240, backend: 'ndjson' } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 10_240, backend: 'sqlite' } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ history: { maxMB: 10_240 } }).ok, true, 'a file from before the choice');
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { history: { maxMB: 20_480, backend: 'ndjson' } });
+  assert.deepEqual(next.history, { maxMB: 20_480, backend: 'ndjson' });
+});
+
+test('settings: Work offline is optional, a boolean, kept through a patch and a copy', () => {
+  assert.equal(DEFAULT_SETTINGS.network, undefined, 'online unless the operator says otherwise');
+  assert.equal(appSettingsPatchSchema.parse({ network: { workOffline: true } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ network: { workOffline: 'yes' } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ network: {} }).ok, false);
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { network: { workOffline: true } });
+  assert.deepEqual(next.network, { workOffline: true });
+  assert.deepEqual(applySettingsPatch(next, { textScale: next.textScale }).network, { workOffline: true }, 'kept');
+});
+
 test('settings: "3D models when close" is optional — absent, the graphics quality decides; a boolean pins it', () => {
   const display = { graphics: 'low', visualStyle: 'standard', hud: false, dayNight: false } as const;
   assert.equal(appSettingsPatchSchema.parse({ display }).ok, true, 'a file from before the switch is still valid');
   assert.equal(appSettingsPatchSchema.parse({ display: { ...display, models3d: true } }).ok, true);
   assert.equal(appSettingsPatchSchema.parse({ display: { ...display, models3d: 'yes' } }).ok, false);
   assert.equal(DEFAULT_SETTINGS.display.models3d, undefined, 'no pinned choice on a new installation');
+});
+
+test('settings: the HUD grid reference is optional — absent, degrees only; MGRS or UTM by name', () => {
+  const display = { graphics: 'low', visualStyle: 'standard', hud: true, dayNight: false } as const;
+  for (const hudGrid of ['none', 'mgrs', 'utm'])
+    assert.equal(appSettingsPatchSchema.parse({ display: { ...display, hudGrid } }).ok, true, hudGrid);
+  assert.equal(appSettingsPatchSchema.parse({ display: { ...display, hudGrid: 'ups' } }).ok, false);
+  assert.equal(DEFAULT_SETTINGS.display.hudGrid, undefined);
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { display: { ...DEFAULT_SETTINGS.display, hudGrid: 'mgrs' } });
+  assert.equal(next.display.hudGrid, 'mgrs');
 });
 
 test('settings: a Martin source is optional; its trusted host is a host name, its fields bounded', () => {
@@ -450,4 +479,24 @@ test('settings: a Martin source is optional; its trusted host is a host name, it
   assert.equal(appSettingsPatchSchema.parse({ martin: { ...martin, trustedHost: 'bad host/' } }).ok, false);
   assert.equal(appSettingsPatchSchema.parse({ martin: { ...martin, url: 'x'.repeat(513) } }).ok, false);
   assert.equal(appSettingsPatchSchema.parse({ martin: { url: '' } }).ok, false, 'all three fields');
+});
+
+test('pass alerts: up to 20 satellites, warned 1–60 minutes ahead; kept apart when cloned', () => {
+  const ok = {
+    passAlerts: {
+      satellites: [{ objectId: 'satellite:norad:25544', name: 'ISS (ZARYA)' }],
+      leadMinutes: 10,
+      visibleOnly: true,
+      desktop: false,
+    },
+  };
+  assert.equal(appSettingsPatchSchema.parse(ok).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ passAlerts: { ...ok.passAlerts, leadMinutes: 0 } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ passAlerts: { ...ok.passAlerts, leadMinutes: 2.5 } }).ok, false);
+  const many = Array.from({ length: 21 }, (_, i) => ({ objectId: `satellite:norad:${i}`, name: `S${i}` }));
+  assert.equal(appSettingsPatchSchema.parse({ passAlerts: { ...ok.passAlerts, satellites: many } }).ok, false);
+  const next = applySettingsPatch(DEFAULT_SETTINGS, ok);
+  assert.deepEqual(next.passAlerts, ok.passAlerts);
+  next.passAlerts!.satellites[0]!.name = 'changed';
+  assert.equal(ok.passAlerts.satellites[0]!.name, 'ISS (ZARYA)', 'the patch is copied, not shared');
 });

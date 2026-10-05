@@ -188,7 +188,7 @@ const timelinePatchSchema = s.object(
   {
     mode: s.optional(s.enum(['LIVE', 'PAUSED', 'REPLAY', 'HISTORICAL'] as const)),
     cursor: s.optional(iso),
-    speed: s.optional(s.enum([0.25, 1, 5, 20, 60] as const)),
+    speed: s.optional(s.enum([0.25, 1, 5, 20, 60, 600, 3600] as const)),
     range: s.optional(timeRangeSchema),
   },
   { strict: true },
@@ -199,8 +199,15 @@ const eventIdRequest = s.object({ eventId: id }, { strict: true });
 const idRequest = s.object({ id: shortId }, { strict: true });
 const providerRequest = s.object({ providerId }, { strict: true });
 const cameraIdRequest = s.object({ cameraId: shortId }, { strict: true });
-/** A definition file name as `sources.definitions.list` gives it (`bundled/` prefix for shipped ones). */
-const definitionFile = s.string({ min: 6, max: 300, pattern: /^(bundled\/)?[A-Za-z0-9][A-Za-z0-9._-]*\.json$/ });
+/**
+ * A definition file name as `sources.definitions.list` gives it: `bundled/` for shipped
+ * ones, `pack/<pack id>/` for a world pack's signed set, bare for the operator's folder.
+ */
+const definitionFile = s.string({
+  min: 6,
+  max: 300,
+  pattern: /^(bundled\/|pack\/[a-z0-9][a-z0-9-]{1,63}\/)?[A-Za-z0-9][A-Za-z0-9._-]*\.json$/,
+});
 const jsonSettings = s.record(s.json({ maxDepth: 8 }), { keyPattern: /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, max: 128 });
 
 export const REQUEST_SCHEMAS: RequestSchemas = {
@@ -322,6 +329,25 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     },
     { strict: true },
   ) as Schema<RequestOf<'search.places'>>,
+  'search.nearest': s.object(
+    {
+      position: positionSchema,
+      kinds: s.optional(s.array(s.enum(['country', 'region', 'city', 'airport', 'port'] as const), { max: 5 })),
+      limit: s.optional(s.number({ min: 1, max: 10, integer: true })),
+      maxDistanceM: s.optional(s.number({ min: 0, max: 20_100_000 })),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'search.nearest'>>,
+  'sky.overhead': s.object(
+    {
+      observer: positionSchema,
+      minElevationDeg: s.optional(s.number({ min: -5, max: 90 })),
+      limit: s.optional(s.number({ min: 1, max: 500, integer: true })),
+      excludeCategories: s.optional(s.array(s.string({ max: 40 }), { max: 20 })),
+      visibleOnly: s.optional(s.boolean()),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'sky.overhead'>>,
   'lenses.list': voidSchema,
   'lenses.save': lensDefinitionSchema,
   'lenses.delete': idRequest,
@@ -329,12 +355,19 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'collections.list': voidSchema,
   'collections.save': collectionSchema,
   'collections.delete': idRequest,
-  'collections.export': idRequest,
+  'collections.export': s.object(
+    { id: shortId, format: s.optional(s.enum(['json', 'gpx', 'kml', 'geojson'] as const)) },
+    { strict: true },
+  ) as Schema<RequestOf<'collections.export'>>,
   'collections.import': voidSchema,
 
   'watchzones.list': voidSchema,
   'watchzones.save': watchZoneSchema,
   'watchzones.delete': idRequest,
+  'watchzones.export': s.object({ format: s.enum(['kml', 'geojson'] as const) }, { strict: true }) as Schema<
+    RequestOf<'watchzones.export'>
+  >,
+  'watchzones.import': voidSchema,
 
   'feed.recent': s.object(
     { limit: s.optional(s.number({ min: 1, max: 500, integer: true })), minimumSeverity: s.optional(severity) },
@@ -357,9 +390,36 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'offline.setRequireTrusted': s.object({ required: s.boolean() }, { strict: true }),
 
   'export.objects': s.object(
-    { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv'] as const) },
+    { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv', 'kml'] as const) },
     { strict: true },
   ),
+  'export.readings': s.object(
+    {
+      objectId: id,
+      keys: s.array(s.string({ min: 1, max: 64 }), { min: 1, max: MAX_READING_KEYS }),
+      time: timeRangeSchema,
+    },
+    { strict: true },
+  ),
+  'export.track': s.object(
+    { objectId: id, time: timeRangeSchema, format: s.enum(['geojson', 'csv', 'gpx', 'kml'] as const) },
+    { strict: true },
+  ),
+  'export.line': s.object(
+    {
+      points: s.array(
+        s.object(
+          { latitude: s.number({ min: -90, max: 90 }), longitude: s.number({ min: -180, max: 180 }) },
+          { strict: true },
+        ),
+        { min: 2, max: 500 },
+      ),
+      closed: s.optional(s.boolean()),
+      name: s.optional(s.string({ max: 200 })),
+      format: s.enum(['gpx', 'kml', 'geojson'] as const),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'export.line'>>,
 
   'camera.register': cameraSourceSchema,
   'camera.snapshot': cameraIdRequest,
@@ -380,6 +440,22 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { sourceId: providerId, bounds: boundsSchema, zoom: s.number({ min: 0, max: 30 }) },
     { strict: true },
   ) as Schema<RequestOf<'tiles.prefetch'>>,
+  'view.capture': s.object(
+    {
+      rect: s.optional(
+        s.object(
+          {
+            x: s.number({ min: 0, max: 20_000 }),
+            y: s.number({ min: 0, max: 20_000 }),
+            width: s.number({ min: 1, max: 20_000 }),
+            height: s.number({ min: 1, max: 20_000 }),
+          },
+          { strict: true },
+        ),
+      ),
+    },
+    { strict: true },
+  ) as Schema<RequestOf<'view.capture'>>,
 };
 
 export function schemaFor(channel: string): Schema<unknown> | undefined {

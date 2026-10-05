@@ -74,6 +74,14 @@ test('the SQLite index answers exactly as the in-memory one over the seed places
   assert.equal(changed.built, true);
   assert.equal(changed.index.size, 10);
   changed.index.close();
+  // A file of an older index version (before latitude and longitude had columns) is rebuilt.
+  const db = new sqlite.DatabaseSync(file);
+  db.prepare("UPDATE meta SET value = '2' WHERE key = 'version'").run();
+  db.close();
+  const upgraded = await SqlitePlaceIndex.openOrBuild(sqlite, file, 'b'.repeat(64), async () => ENTRIES.slice(0, 10));
+  assert.equal(upgraded.built, true, 'version 2 is rebuilt as version 3');
+  assert.ok(upgraded.index.nearest({ latitude: 21.3, longitude: -157.9 }, { maxDistanceM: 20_000_000 }).length >= 1);
+  upgraded.index.close();
   await fs.rm(dir, { recursive: true, force: true });
 });
 
@@ -155,4 +163,108 @@ test('registry: packs are searched through SQLite when it is here, and their ind
   assert.equal(memory.placeIndexKind, 'memory');
   assert.equal(memory.placeIndex().search('Honolulu')[0]?.entry.name, 'Honolulu');
   await fs.rm(dir, { recursive: true, force: true });
+});
+
+test('nearest a point: the SQLite index and the in-memory one give the same places, nearest first', async (t) => {
+  if (!sqlite) return t.skip('no node:sqlite');
+  const dir = await tempDir();
+  const { index } = await SqlitePlaceIndex.openOrBuild(
+    sqlite,
+    path.join(dir, 'near.sqlite'),
+    'b'.repeat(64),
+    async () => ENTRIES,
+  );
+  const memory = new PlaceIndex(ENTRIES);
+  const points = [
+    { latitude: 21.33, longitude: -157.9 }, // near Honolulu and HNL
+    { latitude: 51.48, longitude: -0.2 }, // London
+    { latitude: 0, longitude: -140 }, // open Pacific: nothing within 100 km
+    { latitude: 89.9, longitude: 10 }, // the pole: every longitude
+  ];
+  for (const p of points)
+    for (const opts of [
+      {},
+      { limit: 5 },
+      { limit: 5, kinds: ['airport' as const] },
+      { maxDistanceM: 2_000_000, limit: 3 },
+    ]) {
+      const fromSqlite = index.nearest(p, opts).map((h) => [h.entry.id, Math.round(h.distanceM)]);
+      const fromMemory = memory.nearest(p, opts).map((h) => [h.entry.id, Math.round(h.distanceM)]);
+      assert.deepEqual(fromSqlite, fromMemory, `${JSON.stringify(p)} ${JSON.stringify(opts)}`);
+    }
+  const near = memory.nearest({ latitude: 21.33, longitude: -157.9 }, { limit: 3 });
+  assert.ok(near.length >= 1 && near.every((h, i) => i === 0 || h.distanceM >= near[i - 1]!.distanceM));
+  assert.deepEqual(memory.nearest({ latitude: 0, longitude: -140 }), [], 'nothing within 100 km');
+  // Several packs: one place once, nearest first.
+  const both = new CompositePlaceSearch([index, memory]);
+  const merged = both.nearest({ latitude: 21.33, longitude: -157.9 }, { limit: 5 });
+  assert.equal(new Set(merged.map((h) => h.entry.id)).size, merged.length);
+  assert.deepEqual(
+    merged.map((h) => h.entry.id),
+    memory.nearest({ latitude: 21.33, longitude: -157.9 }, { limit: 5 }).map((h) => h.entry.id),
+  );
+});
+
+test('nearest a point over many places takes milliseconds, across the antimeridian too', async (t) => {
+  if (!sqlite) return t.skip('no node:sqlite');
+  const dir = await tempDir();
+  const many: PlaceEntry[] = [];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  for (let i = 0; i < 100_000; i++)
+    many.push({
+      id: `p${i}`,
+      name: `Place ${i}`,
+      altNames: [],
+      kind: i % 10 === 0 ? 'airport' : 'city',
+      position: { latitude: rnd() * 160 - 80, longitude: rnd() * 360 - 180 },
+      importance: rnd(),
+    });
+  many.push({
+    id: 'west-of-180',
+    name: 'West',
+    altNames: [],
+    kind: 'city',
+    position: { latitude: -17, longitude: 179.95 },
+    importance: 0.5,
+  });
+  many.push({
+    id: 'east-of-180',
+    name: 'East',
+    altNames: [],
+    kind: 'city',
+    position: { latitude: -17, longitude: -179.95 },
+    importance: 0.5,
+  });
+  const { index } = await SqlitePlaceIndex.openOrBuild(
+    sqlite,
+    path.join(dir, 'many.sqlite'),
+    'c'.repeat(64),
+    async () => many,
+  );
+  const memory = new PlaceIndex(many);
+  const started = performance.now();
+  for (let i = 0; i < 50; i++)
+    index.nearest({ latitude: rnd() * 160 - 80, longitude: rnd() * 360 - 180 }, { limit: 3 });
+  const perCall = (performance.now() - started) / 50;
+  assert.ok(perCall < 50, `${perCall.toFixed(1)} ms a call`);
+  // From just east of 180°, the place just west of it is found, as the in-memory index finds it.
+  const p = { latitude: -17, longitude: -179.99 };
+  assert.deepEqual(
+    index
+      .nearest(p, { limit: 2 })
+      .map((h) => h.entry.id)
+      .sort(),
+    ['east-of-180', 'west-of-180'],
+  );
+  assert.deepEqual(
+    index.nearest(p, { limit: 2 }).map((h) => h.entry.id),
+    memory.nearest(p, { limit: 2 }).map((h) => h.entry.id),
+  );
+  // Kinds are asked of the index, not filtered after a cut.
+  for (const h of index.nearest(
+    { latitude: 10, longitude: 10 },
+    { limit: 5, kinds: ['airport'], maxDistanceM: 2_000_000 },
+  ))
+    assert.equal(h.entry.kind, 'airport');
 });

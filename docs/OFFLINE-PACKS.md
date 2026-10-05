@@ -12,15 +12,16 @@ installed under the app's data directory. Nothing in a pack is executed — ever
 
 A `.worldpack` is a ZIP archive with a fixed layout:
 
-| Path                  | Kind           | Notes                                                                                            |
-| --------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
-| `manifest.json`       | —              | The `WorldPackManifest` (below). Always present; never listed in its own `contents`.             |
-| `maps/<name>.pmtiles` | `pmtiles`      | Vector basemap extract (PMTiles v3). Stored, not deflated. The 2D map's offline basemap (below). |
-| `data/<name>.geojson` | `geojson`      | Place / airport / infrastructure layers (FeatureCollection of Point features, flat properties).  |
-| `data/<name>.ndjson`  | `ndjson`       | History rows (`HistoryRow`, one JSON object per line), e.g. `data/earthquakes.ndjson`.           |
-| `data/<name>.parquet` | `parquet`      | Reserved for the DuckDB history backend.                                                         |
-| `search/index.json`   | `search-index` | Serialized `PlaceIndex` (entries only; postings are rebuilt on load).                            |
-| `licenses/NOTICES.md` | `notices`      | Attribution and licence text for every source in the pack. Exactly one.                          |
+| Path                    | Kind           | Notes                                                                                                          |
+| ----------------------- | -------------- | -------------------------------------------------------------------------------------------------------------- |
+| `manifest.json`         | —              | The `WorldPackManifest` (below). Always present; never listed in its own `contents`.                           |
+| `maps/<name>.pmtiles`   | `pmtiles`      | Vector basemap extract (PMTiles v3). Stored, not deflated. The 2D map's offline basemap (below).               |
+| `data/<name>.geojson`   | `geojson`      | Place / airport / infrastructure layers (FeatureCollection of Point features, flat properties).                |
+| `data/<name>.ndjson`    | `ndjson`       | History rows (`HistoryRow`, one JSON object per line), e.g. `data/earthquakes.ndjson`.                         |
+| `data/<name>.parquet`   | `parquet`      | Reserved for the DuckDB history backend.                                                                       |
+| `search/index.json`     | `search-index` | Serialized `PlaceIndex` (entries only; postings are rebuilt on load).                                          |
+| `licenses/NOTICES.md`   | `notices`      | Attribution and licence text for every source in the pack. Exactly one.                                        |
+| `definitions/<id>.json` | `definitions`  | A connector definition (ADR-013) — a signed definition set (§4b). Loaded only from a trusted publisher's pack. |
 
 **The 2D basemap.** The installed app serves the newest enabled pack's PMTiles archive to
 its own window at `worldview://app/__pack/basemap.pmtiles`, answering the byte ranges the
@@ -210,6 +211,46 @@ Keep it; anyone holding it can sign packs as you. Share only the `.worldpack-pub
 blessed — then rewrites it with the same entries, the same compression and the manifest
 byte for byte, and replaces any earlier signature.
 
+## 4b. Signed definition sets
+
+A pack can carry **connector definitions** — sources configured as data (ADR-013,
+docs/connectors/) — as `definitions/<id>.json`, so a set of sources can be handed out with the
+same integrity and the same signature as a map or a place layer. Definitions are not data from
+a source: they say where the app may fetch it, under what terms. That is why the rule is
+stricter than for a pack's data:
+
+- **Only a trusted publisher's set loads.** The runtime reads `definitions/` of an enabled,
+  valid pack only when its signature verifies with one of the operator's publishers (§4a). An
+  unsigned pack, or one signed by a key that is not a publisher, has its definitions listed in
+  Sources → Definitions as refused, with the reason, and nothing from them runs.
+- **As the operator's own, never as reviewed.** Each file is validated by its connector like a
+  file in the operator's folder and loaded as `review: user-configured`, whatever it declares:
+  policy fails closed, offline packs and history follow the operator's rules, and a source
+  starts switched off unless the operator switches it on.
+- **Shipped ids come first.** A pack cannot take the id of a shipped source or of another
+  pack's definition; the operator's folder cannot take a pack's.
+- **The pack decides their life.** Installing, removing or switching off the pack, or trusting
+  or removing its publisher, re-reads the definition folders: the sources appear, restart or
+  leave as their files do. A pack's definitions cannot be edited in the app; they change with a
+  new version of the pack (an update pack carries only the files that changed, §5b).
+
+Sources → Definitions names each one `<file> (pack <id>)`, with "From pack _name_ · signed by
+_publisher_". Building one:
+
+```
+pnpm worldpack build --region hawaii --include definitions --definitions my-sources/ \
+  --id hawaii-sources --name "Hawaii sources" --sign ~/.worldview/pack-keys/example.worldpack-key
+```
+
+`my-sources/` holds `<id>.json` files (a `*.test.json` sidecar is a fixture and is left out);
+each must be a JSON object whose `id` is its file name, within the app's 256 KiB cap. The build
+refuses the whole set on the first file that is not, and warns when the pack is not signed.
+Whether a definition validates against its connector is checked by the app when it loads it,
+as for any definition: `pnpm connector:test` on the folder before building catches it earlier.
+A definitions-only pack still names a region (`--region`/`--bbox`); it carries no data and no
+source policies. An app from before 0.3 refuses such a pack (its manifest schema does not know
+the `definitions` kind) — it fails closed.
+
 ## 5. Building a pack
 
 ```
@@ -341,8 +382,10 @@ importance" is rowid order, which FTS5 returns without a sort, and the token tab
 two- and three-letter prefix indexes; one statement returns every candidate with its entry.
 100,000 synthetic places build in about 1.2 s; a two-letter prefix answers in ~16 ms, a
 longer query in ~5 ms on the build container (`place-sqlite.test.ts`, `pnpm perf:budget`).
-The index format is versioned (`SQLITE_INDEX_VERSION`, now 2): an older file is rebuilt on
-the next start. Without `node:sqlite` the in-memory index is used.
+The index format is versioned (`SQLITE_INDEX_VERSION`, now 3: each place's latitude,
+longitude and kind in indexed columns, for the nearest place to a point — What's here and the
+HUD's NEAR row): an older file is rebuilt on the next start. Without `node:sqlite` the
+in-memory index is used.
 
 ## 8. Limits and non-goals
 

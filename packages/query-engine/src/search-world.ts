@@ -14,7 +14,7 @@ import { parseSearch, type SearchIntent } from './parse-search.js';
 import { tokenize } from './text-match.js';
 import { DEFAULT_COMMANDS, STOP_WORDS, type CommandDefinition } from './vocabulary.js';
 import { geometryRepresentativePoint } from './geometry.js';
-import { collapseDuplicatePlaces } from './place-duplicates.js';
+import { cityBeforeItsRegion, collapseDuplicatePlaces, placeResultKind } from './place-duplicates.js';
 
 /**
  * searchWorld — merges parser intents into ranked SearchResults (ipc-contract shape).
@@ -77,7 +77,7 @@ export function searchWorld(text: string, opts: SearchWorldOptions): SearchResul
   out.sort(
     (a, b) => b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
-  return collapseDuplicatePlaces(out).slice(0, opts.limit ?? 20);
+  return cityBeforeItsRegion(collapseDuplicatePlaces(out), placeResultKind, (r) => r.title).slice(0, opts.limit ?? 20);
 }
 
 /** The part of the search that stays free text: the query intent's `text`, or the whole input when nothing structured parsed. */
@@ -95,6 +95,16 @@ function biasBonus(bias: GeoPosition | undefined, p: GeoPosition | undefined): n
   return 0;
 }
 
+/**
+ * Up to 0.008 off a less prominent place, so that of two places that match the same way the
+ * larger is listed first ("Paris": France before Texas). Curated entries carry no importance
+ * and lose nothing, so every existing score stays as it was. Smaller than any step between
+ * match kinds (0.045) and than the nearest bias step (0.01): a nearby town still wins.
+ */
+function prominence(hit: GazetteerHit): number {
+  return hit.importance === undefined ? 0 : -0.008 * (1 - hit.importance);
+}
+
 function clamp(score: number): number {
   return Math.round(Math.max(0, Math.min(1, score)) * 1000) / 1000;
 }
@@ -104,7 +114,7 @@ function placeResult(intent: SearchIntent, bias: GeoPosition | undefined): Searc
   const subtitle =
     hit.kind === 'coordinate'
       ? 'Coordinates'
-      : `${capitalize(hit.kind)}${hit.countryCode ? ` · ${hit.countryCode}` : ''}`;
+      : [capitalize(hit.kind), hit.region, hit.countryCode].filter(Boolean).join(' · ');
   return {
     kind: 'place',
     id: hit.id,
@@ -113,7 +123,7 @@ function placeResult(intent: SearchIntent, bias: GeoPosition | undefined): Searc
     position: hit.position,
     ...(hit.bounds ? { bounds: hit.bounds } : { zoom: PLACE_ZOOM[hit.kind] }),
     source: hit.kind === 'coordinate' ? 'parser' : 'local-index',
-    score: clamp(0.5 + 0.45 * hit.score + biasBonus(bias, hit.position)),
+    score: clamp(0.5 + 0.45 * hit.score + biasBonus(bias, hit.position) + prominence(hit)),
   };
 }
 

@@ -27,12 +27,23 @@ import {
   createHistoryBackend,
   type HistoryBackendKind,
 } from '@worldview/history-store';
-import { EventEngine, FeedBuilder, WatchZoneEvaluator, mayInterrupt, severityAtLeast } from '@worldview/event-engine';
+import {
+  DEFAULT_RULES,
+  EventEngine,
+  FeedBuilder,
+  WatchZoneEvaluator,
+  mayInterrupt,
+  readingLimitRule,
+  severityAtLeast,
+  type LimitedReading,
+} from '@worldview/event-engine';
 import {
   BuiltinGazetteer,
   CompositeGazetteer,
   isReferenceLabelsFile,
+  isReferencePlacesFile,
   referenceGazetteer,
+  type ReferencePlacesFile,
   type Gazetteer,
   type HistoryReader,
 } from '@worldview/query-engine';
@@ -91,6 +102,7 @@ import { createMqtt } from './support/mqtt-client.js';
 import { createLocalListener } from './support/local-listener.js';
 import { ConnectorDefinitions } from './support/definitions.js';
 import { LateGazetteer, PlaceIndexGazetteer } from './support/gazetteer.js';
+import { PASS_ALERT_REFRESH_MS, PassAlerts } from './support/pass-alerts.js';
 import { SubscriptionRegistry, deltaFor, diffObjectSets, filterObjects } from './support/subscriptions.js';
 import { SnapshotPages } from './support/snapshot-pages.js';
 import {
@@ -119,6 +131,8 @@ const FIRST_RETENTION_DELAY_MS = 2 * 60_000;
 const SOURCES_UPDATE_THROTTLE_MS = 5_000;
 const SIZE_CAP_CHECK_MS = 10 * 60_000;
 const TIMELINE_TICK_MS = 1_000;
+/** How often events whose object has gone quiet are looked at (an aircraft's emergency, a distress beacon). */
+const END_QUIET_MS = 60_000;
 const PROBE_HOST = 'earthquake.usgs.gov';
 const PROBE_URL = `https://${PROBE_HOST}/earthquakes/feed/v1.0/summary/all_hour.geojson`;
 const PROBE_MIN_INTERVAL_MS = 30_000;
@@ -185,6 +199,9 @@ class MemoryCredentialStore implements RuntimeCredentialStore {
  */
 const defaultSpawn: SpawnFn = (command, args, opts) =>
   nodeSpawn(command, args, { cwd: opts.cwd, shell: false, stdio: 'ignore', windowsHide: true });
+
+/** A historical snapshot read slower than this is logged with its time and size. */
+const SLOW_PROJECTION_MS = 500;
 
 export class RuntimeCore {
   /** A Martin tile server as 2D basemaps (offline-basemaps B4), read for `map.providers.list`. */
@@ -273,6 +290,7 @@ export class RuntimeCore {
   /** Bumped when the timeline returns to live: a projection begun before it is not published. */
   private projectionEpoch = 0;
   private timers: Array<ReturnType<typeof setInterval>> = [];
+  private passAlerts: PassAlerts | undefined;
   private detach: Array<() => void> = [];
   private started = false;
   private stopped = false;
@@ -425,6 +443,38 @@ export class RuntimeCore {
     return loaded;
   }
 
+  /**
+   * The readings of an object whose sources declare limits (a manifest's telemetry series with
+   * `limits`), for the reading-limit rule: from each provider the object came from, the first
+   * declaration of a key wins. A source with no limits gives the rule nothing to do.
+   */
+  private limitedReadings(o: WorldObject): LimitedReading[] {
+    const out: LimitedReading[] = [];
+    const keys = new Set<string>();
+    const providers = [...o.sourceRefs.map((r) => r.providerId), o.provenance.providerId];
+    for (const id of new Set(providers)) {
+      for (const s of this.providerHost.manifest(id)?.telemetry?.series ?? []) {
+        if (!s.limits || keys.has(s.key)) continue;
+        keys.add(s.key);
+        out.push({ key: s.key, name: s.name, ...(s.units ? { units: s.units } : {}), limits: s.limits });
+      }
+    }
+    return out;
+  }
+
+  /** Re-read the definition folders after the packs changed; a failure is logged, never thrown. */
+  private async reloadPackDefinitions(reason: string): Promise<void> {
+    if (this.demo || this.deps.providerInstances || this.deps.providers?.connectorDefinitions) return;
+    try {
+      await this.definitions.reload();
+    } catch (err) {
+      this.log.warn('connector definitions not reloaded', {
+        reason,
+        error: err instanceof Error ? err.message.slice(0, 160) : 'error',
+      });
+    }
+  }
+
   /** The operator's connector definitions, live (ADR-013 amendment, `sources.definitions.*`). */
   get definitions(): ConnectorDefinitions {
     if (!this.definitionsManager) {
@@ -436,6 +486,9 @@ export class RuntimeCore {
           ? { bundledDir: path.join(this.deps.resourcesDir, 'connectors', 'enabled') }
           : {}),
         ...(!composed ? { userDir: path.join(this.dirs.root, 'connectors') } : {}),
+        // Packs are scanned after the providers are built; the first reload after the scan
+        // brings in their definition sets (buildOffline), and each pack change reloads.
+        ...(!composed ? { packSets: () => (this.packs ? this.packs.definitionSets() : []) } : {}),
         reservedIds: () => bundledProviderIds(),
         enabledSetting: (id) =>
           (this.deps.disabledProviders ?? []).includes(id) ? false : this.settings.get().providers[id]?.enabled,
@@ -510,7 +563,11 @@ export class RuntimeCore {
   }
 
   private buildEvents(): void {
-    this.events = new EventEngine({ clock: this.clock, sourceHealth: this.providerHost.health });
+    this.events = new EventEngine({
+      clock: this.clock,
+      sourceHealth: this.providerHost.health,
+      rules: [...DEFAULT_RULES, readingLimitRule((o) => this.limitedReadings(o))],
+    });
     this.feed = new FeedBuilder();
     this.watchZones = new WatchZoneEvaluator({ clock: this.clock });
   }
@@ -528,6 +585,7 @@ export class RuntimeCore {
       }),
     });
     await this.packs.refresh();
+    if (this.packs.definitionSets().length) await this.reloadPackDefinitions('startup');
     const builtin = new BuiltinGazetteer();
     this.gazetteer = new CompositeGazetteer([
       new PlaceIndexGazetteer(() => this.packs.placeIndex()),
@@ -647,12 +705,10 @@ export class RuntimeCore {
   }
 
   /**
-   * Re-register the cameras from `cameras.json` into their gateways. Without this a
-   * camera survived a restart as a marker on the map (the provider draws it from its
-   * own settings) but had no registration behind it, so every snapshot and stream
-   * request failed with NOT_FOUND — visible, and broken.
+   * Read the map's label file (countries, regions) and the populated places (cities) and make
+   * them searchable; search works without them meanwhile. A missing or bad places file costs
+   * only the cities.
    */
-  /** Read the map's label file and make its places searchable; search works without it meanwhile. */
   private async loadReferencePlaces(builtin: BuiltinGazetteer): Promise<void> {
     const file = this.deps.referenceLabelsPath;
     if (!file) return;
@@ -662,12 +718,17 @@ export class RuntimeCore {
         this.log.warn('reference places not loaded', { reason: 'not a reference labels file' });
         return;
       }
+      const places = await this.readReferenceCities();
       // What the built-in gazetteer already has (it carries bounds) is left to it.
       const known = (name: string, kind: import('@worldview/query-engine').PlaceKind) =>
         builtin.lookup(name, { kinds: [kind], limit: 1 }).some((h) => h.score >= 1 && h.name === name);
-      const gazetteer = referenceGazetteer(parsed, known);
+      const gazetteer = referenceGazetteer(parsed, known, places);
       this.referencePlaces.set(gazetteer);
-      this.log.info('reference places loaded', { countries: parsed.countries.length, regions: parsed.states.length });
+      this.log.info('reference places loaded', {
+        countries: parsed.countries.length,
+        regions: parsed.states.length,
+        cities: places?.cities.length ?? 0,
+      });
     } catch (err) {
       this.log.warn('reference places not loaded', {
         reason: err instanceof Error ? err.message.slice(0, 160) : 'error',
@@ -675,6 +736,27 @@ export class RuntimeCore {
     }
   }
 
+  private async readReferenceCities(): Promise<ReferencePlacesFile | undefined> {
+    const file = this.deps.referencePlacesPath;
+    if (!file) return undefined;
+    try {
+      const parsed: unknown = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (isReferencePlacesFile(parsed)) return parsed;
+      this.log.warn('reference cities not loaded', { reason: 'not a reference places file' });
+    } catch (err) {
+      this.log.warn('reference cities not loaded', {
+        reason: err instanceof Error ? err.message.slice(0, 160) : 'error',
+      });
+    }
+    return undefined;
+  }
+
+  /**
+   * Re-register the cameras from `cameras.json` into their gateways. Without this a
+   * camera survived a restart as a marker on the map (the provider draws it from its
+   * own settings) but had no registration behind it, so every snapshot and stream
+   * request failed with NOT_FOUND — visible, and broken.
+   */
   private async restoreCameras(): Promise<void> {
     const stored = await this.cameraStore.list();
     if (stored.length === 0) return;
@@ -841,6 +923,8 @@ export class RuntimeCore {
     this.detach.push(
       this.packs.on('changed', () => {
         this.emitter.emit('offline.changed', this.offlineStatus());
+        // A pack installed, removed, switched or trusted can bring or take a definition set.
+        void this.reloadPackDefinitions('packs changed');
       }),
     );
     this.detach.push(
@@ -1074,7 +1158,22 @@ export class RuntimeCore {
       do {
         this.projectAgain = false;
         const epoch = this.projectionEpoch;
+        const startedMs = this.clock.now();
         const objects = await this.timeline.snapshotAt(this.timeline.cursor);
+        const tookMs = this.clock.now() - startedMs;
+        // A slow read is what a scrub feels like (up to twelve seconds before 2026-10-04).
+        if (tookMs >= SLOW_PROJECTION_MS)
+          this.log.info('historical projection slow', {
+            ms: tookMs,
+            objects: objects.length,
+            ...(this.history.lastSnapshot
+              ? {
+                  reads: this.history.lastSnapshot.reads.map(
+                    (r) => `${r.types} ${r.lookbackSeconds}s ${r.rows} rows ${r.ms} ms`,
+                  ),
+                }
+              : {}),
+          });
         // Back to live while history was read: live state is what the shell must hold.
         if (epoch !== this.projectionEpoch || isLiveMode(this.timeline.currentMode) || this.stopped) return;
         const next = new Map(objects.map((o) => [o.id, o] as const));
@@ -1155,6 +1254,43 @@ export class RuntimeCore {
         this.onTimelineTick();
       }, TIMELINE_TICK_MS),
     );
+    // An aircraft's emergency or a distress beacon that has gone quiet is ended even while
+    // nothing else of its type reports (event-engine `endsWhenQuiet` rules).
+    this.timers.push(
+      interval(() => {
+        this.events.endQuiet();
+      }, END_QUIET_MS),
+    );
+    // Satellite pass alerts (support/pass-alerts.ts): looked at again every twenty minutes,
+    // shortly after start (once the satellites have arrived), and whenever the settings change.
+    this.passAlerts = new PassAlerts({
+      now: () => this.clock.now(),
+      settings: () => this.settings.get().passAlerts,
+      home: () => {
+        const view = this.settings.get().home?.view;
+        return view ? { latitude: view.latitude, longitude: view.longitude } : undefined;
+      },
+      details: (objectId, observer) => this.objectDetails(objectId, observer),
+      notify: (n) => {
+        this.emitter.emit('notification', { id: n.id, title: n.title, body: n.body, severity: 'INFO' });
+        if (n.desktop)
+          try {
+            this.hostBridge.showNotification({ title: n.title, body: n.body, severity: 'INFO' });
+          } catch {
+            /* the shell may not support it */
+          }
+      },
+      setTimer: (fn, ms) => later(fn, ms),
+      clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    });
+    const lookForPasses = () =>
+      void this.passAlerts
+        ?.refresh()
+        .catch((err: unknown) => this.log.warn('pass alerts failed', { error: errorText(err) }));
+    this.timers.push(interval(lookForPasses, PASS_ALERT_REFRESH_MS));
+    this.timers.push(later(lookForPasses, 45_000));
+    this.timers.push(later(lookForPasses, 3 * 60_000));
+    this.detach.push(this.settings.onChange(() => lookForPasses()));
     this.log.info('runtime started', {
       demo: this.demoMode(),
       providers: this.providerHost.list().length,
@@ -1174,6 +1310,7 @@ export class RuntimeCore {
     this.stopped = true;
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+    this.passAlerts?.stop();
     for (const off of this.detach) {
       try {
         off();

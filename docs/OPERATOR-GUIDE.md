@@ -84,6 +84,27 @@ fields and worked examples are in [connectors/OVERVIEW.md](connectors/OVERVIEW.m
 developer machine can draft one from a URL with `pnpm connector:add --url …` and check it
 with `pnpm connector:test`.
 
+## Working offline
+
+Settings → Network → **Work offline** makes WorldView ask nothing of the internet, whether
+or not the computer is connected. Sources on the internet pause (Sources says Offline), the
+top bar reads OFFLINE, and every request that would leave the computer — a map tile, an
+imagery frame, a place lookup, an update check, the reachability probe — is refused before
+it is sent (`apps/desktop/src/main/network-gate.ts`; the log notes each host once under
+`offline`). What keeps working:
+
+- the map from what is on disk: the bundled Natural Earth world, the tile cache (Settings →
+  Map tile cache; the preload fills it for the whole globe down to zoom 7 where the source
+  allows it) and an installed pack's basemap;
+- the timeline, replay, tracks and History, from recorded history;
+- search, from the objects you have and the built-in places (countries, regions, 7,342
+  cities and towns) plus a pack's places;
+- satellites, moved on from the last element sets by SGP4;
+- sources on this computer or your own network (a local receiver, an MQTT broker, Home
+  Assistant, the camera relay).
+
+Turn it off to go back online; sources resume on their next poll.
+
 ## Offline packs
 
 Settings → Offline → Install pack, or:
@@ -116,6 +137,49 @@ ICAO24 without duplicating.
 For a receiver on another machine on your LAN, set the trusted host explicitly; plain
 HTTP is allowed only to loopback and to a host you name.
 
+## Meshtastic (your own mesh)
+
+If one of your Meshtastic nodes has Wi-Fi or Ethernet with its network API on (or you run
+`meshtasticd` on this computer), Settings → Sources → Meshtastic mesh reads your mesh through
+it: set the node's name or address (blank = this computer) and the port (4403 unless you
+changed it), then switch the source on. WORLDVIEW connects to that one node — it never
+searches your network — asks it once for its node list, and from then on draws every node
+that shares its position as a sensor, with its name, battery, voltage, signal, hops and any
+environment readings, updated as the node hears them. A position the sender coarsened is drawn
+with its uncertainty. Nodes without a position are counted in Source Health but not drawn.
+
+Text messages are never read: their words reach no record, log or observation. The mesh can
+carry other people's nodes, so this source's data stays on the computer — no export, packs or
+redistribution. A node over Bluetooth or USB is not read yet.
+
+## NMEA 2000 (your boat)
+
+If your boat's NMEA 2000 network has a gateway that serves it as Yacht Devices RAW over TCP
+(a Yacht Devices YDWG-02 or YDEN-02, or another gateway or multiplexer that offers "YD RAW"),
+Settings → Sources → Your boat (NMEA 2000 gateway) reads it: on the gateway's web page set one
+of its servers to TCP and RAW, then give the gateway's address and that server's port here
+(blank = this computer; 1457 by default) and switch the source on. WORLDVIEW connects to that
+one gateway, never searches the network, and only reads: nothing is sent onto the boat's bus.
+
+The boat appears as a vessel at its GNSS position with its course and speed over ground, its
+heading (magnetic headings are made true when the network gives the variation), depth, speed
+through water, apparent and true wind, water and air temperature and pressure — whatever its
+instruments send — and the Readings tab plots them over time. With two GNSS receivers on the
+bus, one is used until it falls silent for 30 seconds. Ships your boat's own AIS receiver hears
+are drawn as from any AIS source, named once their static reports arrive. Give your boat's MMSI
+(optional) and it is the same object as when another AIS source hears it, its flag is shown,
+and your transponder's reports of itself are not drawn as a second ship. Only RAW over TCP is
+read: Actisense and other formats, and gateways on USB, are not.
+
+With the boat on the map, another vessel's panel opens with **From your boat**: its range and
+bearing now, and its closest point of approach (CPA) and how long until it — "2.3 nm 045° NE ·
+CPA 0.4 nm in 12 min", or "opening" once it is past, or "range holding" when the two move
+together. Both are carried forward from their last report on their course and speed over
+ground (not their heading), and a report more than ten minutes old gives nothing. "Close" marks
+a CPA under half a nautical mile within half an hour. It is worked out here, in a flat plane
+round the boat, from what the two broadcast: no alarm sounds, and it is no substitute for a
+lookout, radar or the AIS display's own CPA.
+
 ## Cameras
 
 Public catalogs (Fintraffic, Live Traffic NSW, QLDTraffic, TfL JamCams, Ontario 511, DriveBC, City of Calgary, Hong Kong
@@ -135,10 +199,23 @@ nothing analyses their content.
 
 The box at the top searches as you type, on this machine only: objects on the map (callsign,
 registration, MMSI, name), events, places in the built-in gazetteer (cities, airports by
-name or code, coordinates such as `21.3, -157.9`), commands ("switch to 3D", "source
-health", "aviation lens") and queries ("M5+ earthquakes last 24 hours", "earthquakes near
+name or code, coordinates such as `21.3, -157.9`, `21°18'25"N 157°51'30"W`, an MGRS reference
+such as `4QFJ1234567890` or a UTM one such as `4Q 612345 2358765`), your own places — the
+locations in your collections, by title or tag ("Collected · Big Island trip"), and your watch
+zones by name — commands ("switch to 3D", "source health", "aviation lens") and queries ("M5+ earthquakes last 24 hours", "earthquakes near
 Japan"). Enter picks the first row: a command or query named in full runs (a query with one
 match selects it, with several frames them); a place or an object flies there.
+
+An MGRS reference goes to the middle of the square it names (1 m for ten figures, 1 km for
+four). The letters are checked against the zone and latitude band, and a UTM coordinate's
+point against its band letter; one that cannot be right is not flown to, and the line under
+the list says why. N and S after a UTM zone are read as the hemisphere only when they cannot be
+the band: `18S 585628 4511322` (S for band S, or for south?) is refused as ambiguous — write the
+band (`18T`) or use MGRS. Settings → Rendering → Grid reference in the HUD shows the view
+centre in MGRS or UTM and gives the pointer's position (CUR) in it. Beyond 84° N and 80° S the
+polar grid takes over: MGRS's bands Y and Z (north) and A and B (south), and UPS in place of
+UTM. A polar MGRS reference typed in the search box needs six figures or more, or spaces
+(`Z AB 12 34`), so that a callsign such as `BAW1234` is still a flight.
 
 Nothing leaves the machine while you type. For an address or a place the gazetteer does not
 know, the list offers **Search places online for …**; Enter (or a click) on it sends that one
@@ -146,6 +223,89 @@ request to OpenStreetMap's Nominatim (or Photon, Settings → Search), at most o
 and the answer is kept for a day. "fly to", "go to" and "take me to" are not sent: "fly to
 Hilo" asks for Hilo, and "fly to" alone asks where to. Settings → Search switches online
 search off. Ctrl+K opens the command palette; `/` puts the cursor in the search box.
+
+## Map tools
+
+- **HUD** (H, Settings → Rendering): the view centre in degrees and degrees-minutes-seconds,
+  the point under the pointer (CUR), altitude or zoom, heading, pitch and the UTC time of what
+  the map shows. Closer in than 2,000 km (zoom 4 in 2D), NEAR says where the middle of the view
+  is from the nearest town (`41.4 KM WNW HILO`), looked up offline once the view rests. With something selected, RNG gives the distance and bearing from it to the
+  pointer. Settings → Rendering → Grid reference in the HUD adds the centre's MGRS or UTM
+  reference and gives CUR, and the selection's Position, in it.
+- **Grid** (G): latitude and longitude lines spaced for the view, each named once.
+- **Day and night** (N): the night side shaded, and two points on it — where the Sun stands
+  overhead, and where the Moon does, with how much of it is lit — moved once a minute. With the
+  timeline replaying or scrubbed back, they are for the timeline's time.
+- **Satellite footprint**: a selected satellite gets two rings round the point beneath it —
+  where it is above the horizon (dashed) and where it is at least 10° up, the elevation its
+  listed passes start at. A selected aircraft in the air (300 m up or more) gets one dashed
+  ring, its **radio horizon**: inside it a receiver at sea level has a line of sight to it
+  with standard refraction — about 425 km at 35,000 ft — the best an ADS-B receiver on the
+  ground could do; hills, the antenna and the receiver's own height change it.
+- **Range rings** (R): four rings round the selection at a round spacing chosen from the view,
+  each labelled with its distance; they follow the selection as it moves.
+- **Course vector**: a selected ship or aircraft that is moving gets a dashed line from its last
+  report to where it will be if nothing changes — 12 minutes ahead for a ship along its course
+  over ground, with a tick every 3; 5 minutes for an aircraft along its track, a tick every
+  minute. Nothing is drawn on the ground, for a ship under 1 knot or one that sends no course,
+  or from a report more than ten minutes old. With your boat on the map (NMEA 2000) and another
+  vessel selected, the boat's vector is drawn too, and where the two will be at their closest
+  point of approach, joined and named ("CPA 0.4 nm · 12 min"; red under half a mile within half
+  an hour).
+- **Measure** (M, or the ruler beside 2D/3D): every click adds a point; the panel gives each
+  leg's distance and initial bearing and the total. **Area** closes the shape back to the first
+  point and gives the area it encloses (hectares and acres for a field, nmi² and mi² beyond),
+  or says the outline crosses itself. Distances, bearings and areas are on the WGS84 ellipsoid
+  and agree with GeographicLib (areas within 0.01% for a shape 1,000 km across, 0.2% for one
+  the size of a continent); within a fraction of a degree of the antipode a distance is the
+  spherical one, within 0.1%. The line is drawn along the great circle. **Export** saves the
+  line — or with Area on, the shape — as a GPX route, KML (Google Earth, ATAK) or GeoJSON.
+  With Area on, **Watch** makes the shape a watch zone (not across the 180° meridian).
+- **The map by keyboard**: Tab to the map (or click it); then the arrow keys move the view, the
+  plus and minus keys zoom, and Shift with the arrows turns and tilts it — on the globe and the
+  2D map alike. `]` selects the next object out from the middle of the view and `[` the one
+  before (a screen reader hears what was selected). What's here is in the command palette
+  (Ctrl+K) for the middle of the view.
+- **What's here** (right-click the map, or "What's here?" in the command palette for the
+  middle of the view): a card beside the point naming the nearest town and how far and which
+  way the point is from it ("41.4 km WNW of Hilo"), the point's coordinates in degrees and
+  degrees-minutes-seconds and its MGRS (or UTM, as chosen for the HUD) — click one to select it
+  whole, then Ctrl+C — how far it is from home and from the selection, and where the Sun and the
+  Moon are there; with a satellite selected, its next pass over the point and whether it can be
+  seen with the eye. From it: **Centre here**, **Measure from here** (starts the measure tool at
+  the point), **Watch here** (a 50 km watch zone round it) and **Collect** (into the active
+  collection). Esc, its close button or a click on the map puts it away. The town comes from
+  the lists bundled with the app (the built-in places and Natural Earth's 7,342 cities and
+  towns) and, within 100 km, the places of an installed worldpack — all offline.
+- **Sun and Moon** (in the selection panel, for anything with a position but a satellite):
+  where the Sun and the Moon stand from there — degrees up or below the horizon, and bearing —
+  the next sunset, sunrise, and civil dusk and dawn (the Sun 6° down), how much of the Moon is
+  lit and its phase, and the next moonrise and moonset. Times are UTC to the minute, with how
+  long until each. Where the Sun or the Moon does not rise or set in the next two days (polar
+  day or night, white nights) the panel says so. Replaying or scrubbed back, it is for the
+  timeline's time (What's here too; a satellite's next passes stay from now). Worked out offline, for the
+  ground at sea level; it agrees with Astronomy Engine within seconds for the Sun and a couple
+  of minutes for the Moon, more loosely beyond the polar circles.
+
+## The sky overhead
+
+The **Sky** tab (on in the Space lens; anywhere from the command palette, "Open the sky")
+shows the satellites above the horizon now, from your home view or the middle of the map: a
+polar plot — the zenith in the middle, the horizon round the edge, north up and east right,
+as on the map — with the Sun and the Moon when they are up, and the highest thirty listed
+with how high they stand, their bearing and how far away they are. A bright dot is lit by the
+Sun, a dim one is in the Earth's shadow; "could be seen" marks one sunlit, 10° up or more, in
+a sky dark enough (the Sun 6° or more down). **Leave out Starlink** thins the plot; **Only
+those you could see** keeps the ones to look up for. Both are applied before anything is
+counted or cut, so the line under the title counts the whole sky with them; up to 500 are
+drawn (the tab says when there are more) and **Show all** lists every one drawn. Picking one
+selects it. It is worked out on this computer every five seconds from the positions the
+satellite source propagated, for the CelesTrak groups it loads (Sources), carried to now;
+nothing is looked up. A satellite whose position is more than a minute behind (the source has
+stopped working positions out — see Sources) is left out rather than drawn where it was, and
+the tab says how many. From the middle of the map, the place is taken once the view has
+rested for a moment, and every five seconds while it keeps moving (following a satellite).
+It is always the sky now: with the timeline replaying, the tab says so.
 
 ## Watch zones and notifications
 
@@ -161,6 +321,38 @@ feed. Whether it also interrupts you is the zone's to say:
 
 The same object or event in the same zone notifies once in six hours unless its severity
 rises.
+
+Zones also come from elsewhere: **What's here → Watch here** (50 km round a point), the measure
+tool's **Watch** (its shape, with Area on), and the tab's **import** button, which reads the
+shapes of a KML or GeoJSON file — an area drawn in Google Earth, ATAK or QGIS — as new zones
+(points, lines and shapes across the 180° meridian are left out, and the notice says so). The
+**export** button writes every zone to KML or GeoJSON; a circle goes out as a polygon, and from
+GeoJSON comes back a circle.
+
+**Pass alerts.** On a satellite's panel, **Alert me before it passes over home** (a home view
+must be set) gives a notice a few minutes before it rises over your home view — by default
+only for passes you can see with the eye (the satellite sunlit, the sky dark), 10 minutes
+ahead, in the app; the same switches choose the lead (2–60 minutes), every pass, and a Windows
+notification too. Up to 20 satellites; Settings → Home view lists them and stops any. The
+passes are worked out on this computer from the element sets it keeps, and the alerts come
+only while WorldView is running.
+
+**Aircraft emergencies.** An aircraft that squawks 7700 (general emergency), 7600 (radio
+failure) or 7500 (unlawful interference), or sends the ADS-B emergency status (minimum fuel,
+downed among them), is an event in the feed and on the map, red, under the Overview and
+Aviation lenses, named by its callsign: "UAL123: general emergency (squawk 7700)". It is drawn
+on the aircraft, and only while it goes on; it ends when the code is cleared or the aircraft
+has not been heard for fifteen minutes, and an aircraft heard again within half an hour
+carries on the same event. Tick **An aircraft broadcasts an emergency** in a zone to be told of
+one inside it. It is what the aircraft broadcasts: a squawk is set by hand and is sometimes
+set by mistake and cleared within minutes.
+
+**Distress beacons.** An AIS-SART, a man-overboard device or an EPIRB-AIS that any AIS source
+hears transmitting as active is an event, SEVERE, under the Overview and Maritime lenses:
+"Man overboard: 972111222". It is drawn on the beacon as it drifts, and ends when the beacon
+stops or has not been heard for ten minutes. Their test transmissions, and reports that do not say
+the beacon is active, raise nothing. WorldView tells no coastguard: on the water, the VHF and
+the coastguard come first.
 
 ## Diagnostics
 
@@ -188,6 +380,24 @@ directory while the app is closed. To move to another machine, copy it across �
 `credentials.json` will not decrypt there (it is bound to the Windows account), so
 re-enter keys. Collections and lenses can also be exported individually from the
 Collections panel.
+
+A collection's export button offers four files: the **collection file** (everything in it,
+to import again — a collected object whose sources do not allow export, or that has left the
+map, keeps its name but not its position), and its places as **GPX** waypoints (GPS units and navigation apps),
+**KML** placemarks (Google Earth, ATAK) or **GeoJSON** points (QGIS). Your own places always
+go out; a collected aircraft, ship or other object only while it is on the map and every
+source behind it allows export — the notice says how many were left out. **Import** takes
+the same files back: a collection file as it was, or a GPX, KML or GeoJSON file as a new
+collection of its waypoints, placemarks or points (named after the file; tracks, routes and
+shapes are not places and are left out, and the notice says how many). Importing the same
+file again changes nothing.
+
+What is on the map goes to a file from the command palette (Ctrl+K): **Export visible objects**
+as GeoJSON, CSV or KML (placemarks for Google Earth or ATAK, a folder per type), and **Export
+last search** the same way; a selected object's recorded track goes out from its History
+section as GPX (each point timed, for GPS tools and replay elsewhere), KML, GeoJSON or CSV.
+Each source's terms decide: objects from a source that does not
+allow export are left out, and the notice names it.
 
 To reset a corrupt installation: close the app, rename `settings.json`, reopen.
 WORLDVIEW preserves a corrupt file as `settings.corrupt-<timestamp>.json`, starts from

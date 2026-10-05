@@ -1,3 +1,4 @@
+import { subsolarPoint } from '@worldview/world-model';
 import type { GpElements } from './elements.js';
 import type { Propagator } from './propagator.js';
 
@@ -16,7 +17,9 @@ import type { Propagator } from './propagator.js';
  * last a few minutes; a minute for higher ones), bisect each crossing of the threshold to a
  * second, and golden-section search between rise and set for the highest point. A pass so
  * brief and low that it rises and sets between two samples (a few seconds just above the
- * threshold) can be missed; nothing the operator could watch is lost.
+ * threshold) shows as a local peak within two degrees below it at the samples; the
+ * elevation between those samples is searched for its highest point, and the pass is kept
+ * when that is above the threshold.
  */
 export interface LookAngles {
   /** Degrees above the horizon (negative below). */
@@ -43,6 +46,12 @@ export interface SatellitePass {
   /** Undefined when the search window ended before it set. */
   setAt?: number;
   setAzimuthDeg?: number;
+  /**
+   * The part of the pass that can be seen with the eye (passVisibility): the satellite in
+   * sunlight while the sky at the observer is dark. Undefined when none of it can.
+   */
+  visibleFrom?: number;
+  visibleUntil?: number;
 }
 
 export interface PassSearch {
@@ -65,6 +74,8 @@ export interface PassOptions {
 }
 
 const DEG = Math.PI / 180;
+/** How far below the threshold a sampled local peak is still searched between samples. */
+const GRAZE_MARGIN_DEG = 2;
 // WGS84 — the ellipsoid satellite.js's eciToGeodetic uses for the latitude/height it returns.
 const A_KM = 6378.137;
 const F = 1 / 298.257223563;
@@ -143,6 +154,8 @@ export function nextPasses(
   const passes: SatellitePass[] = [];
   let prevT = startMs;
   let prev = at(startMs);
+  // The sample before `prev`, for a pass that peaks between two samples below the threshold.
+  let prev2: { t: number; el: number } | undefined;
   if (!prev) return { passes, alwaysAbove: false, searchedUntil: startMs };
   let current: { riseAt?: number; riseAz?: number; bestT: number; bestEl: number } | undefined =
     prev.elevationDeg >= min ? { bestT: startMs, bestEl: prev.elevationDeg } : undefined;
@@ -165,7 +178,31 @@ export function nextPasses(
       const setAt = crossing(at, prevT, t, min, false);
       passes.push(complete(current, setAt, at(setAt)?.azimuthDeg ?? now.azimuthDeg, stepMs));
       current = undefined;
+    } else if (
+      !wasAbove &&
+      !isAbove &&
+      prev2 &&
+      prev!.elevationDeg > prev2.el &&
+      prev!.elevationDeg >= now.elevationDeg &&
+      prev!.elevationDeg > min - GRAZE_MARGIN_DEG
+    ) {
+      // A peak just below the threshold at the samples may be above it between them: a pass
+      // of a few seconds, which sampling alone missed.
+      const peakT = goldenMax(at, prev2.t, t, prevT);
+      const peak = at(peakT);
+      if (peak && peak.elevationDeg >= min) {
+        const riseAt = crossing(at, prev2.t, peakT, min, true);
+        const setAt = crossing(at, peakT, t, min, false);
+        const graze = {
+          riseAt,
+          riseAz: at(riseAt)?.azimuthDeg ?? peak.azimuthDeg,
+          bestT: peakT,
+          bestEl: peak.elevationDeg,
+        };
+        passes.push(complete(graze, setAt, at(setAt)?.azimuthDeg ?? now.azimuthDeg, stepMs));
+      }
     }
+    prev2 = { t: prevT, el: prev!.elevationDeg };
     prev = now;
     prevT = t;
   }
@@ -199,6 +236,20 @@ export function nextPasses(
     if (setAt !== undefined) {
       pass.setAt = setAt;
       pass.setAzimuthDeg = round(setAz ?? 0, 1);
+    }
+    // A pass still up when the window ends is looked at for its first twelve hours at most.
+    const from = c.riseAt ?? startMs;
+    const seen = passVisibility(
+      propagator,
+      elements,
+      observer,
+      from,
+      Math.min(setAt ?? endMs, from + 12 * 3_600_000),
+      min,
+    );
+    if (seen) {
+      pass.visibleFrom = seen.from;
+      pass.visibleUntil = seen.until;
     }
     return pass;
   }
@@ -254,4 +305,74 @@ function goldenMax(at: (t: number) => LookAngles | undefined, lo: number, hi: nu
 function round(v: number, digits: number): number {
   const f = 10 ** digits;
   return Math.round(v * f) / f;
+}
+
+// ---- visibility -----------------------------------------------------------------------
+
+/**
+ * The Sun this far below the horizon or more counts as a dark enough sky to see a sunlit
+ * satellite: the end of civil twilight, the line Heavens-Above and NASA's Spot the Station
+ * use for a naked-eye pass.
+ */
+export const DARK_SKY_SUN_DEG = -6;
+/** The Earth's shadow is taken as a cylinder of the mean radius behind it (no penumbra). */
+const SHADOW_RADIUS_KM = 6371;
+const VISIBILITY_STEP_MS = 10_000;
+
+/** Unit vector to the Sun, Earth-fixed (the Sun taken as infinitely far). */
+export function sunDirectionEcef(atMs: number): [number, number, number] {
+  const sun = subsolarPoint(atMs);
+  const lat = sun.latitude * DEG,
+    lon = sun.longitude * DEG;
+  return [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)];
+}
+
+/** Whether a point (Earth-fixed, km) is in sunlight: not inside the Earth's shadow cylinder. */
+export function isSunlit(p: readonly [number, number, number], sun: readonly [number, number, number]): boolean {
+  const along = p[0] * sun[0] + p[1] * sun[1] + p[2] * sun[2];
+  if (along >= 0) return true;
+  const off = Math.hypot(p[0] - along * sun[0], p[1] - along * sun[1], p[2] - along * sun[2]);
+  return off > SHADOW_RADIUS_KM;
+}
+
+/** The Sun's elevation at the observer, degrees (geometric, on the ellipsoid normal). */
+export function sunElevationAt(observer: Observer, sun: readonly [number, number, number]): number {
+  const lat = observer.latitude * DEG,
+    lon = observer.longitude * DEG;
+  const up = [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)];
+  return Math.asin(Math.max(-1, Math.min(1, up[0]! * sun[0] + up[1]! * sun[1] + up[2]! * sun[2]))) / DEG;
+}
+
+/**
+ * The part of a pass that can be seen with the eye: the satellite above the pass threshold,
+ * in sunlight, while the Sun is DARK_SKY_SUN_DEG or more below the observer's horizon.
+ * Sampled every ten seconds from rise to set, so the ends are good to ten seconds. It says
+ * nothing about cloud, the Moon or how bright the satellite is.
+ */
+export function passVisibility(
+  propagator: Propagator,
+  elements: GpElements,
+  observer: Observer,
+  fromMs: number,
+  untilMs: number,
+  minElevationDeg: number,
+): { from: number; until: number } | undefined {
+  let from: number | undefined;
+  let until: number | undefined;
+  for (let t = fromMs; t <= untilMs; t += VISIBILITY_STEP_MS) {
+    const sun = sunDirectionEcef(t);
+    if (sunElevationAt(observer, sun) > DARK_SKY_SUN_DEG) continue;
+    let state;
+    try {
+      state = propagator.propagate(elements, t);
+    } catch {
+      continue;
+    }
+    if (!state || ![state.latitude, state.longitude, state.altitudeM].every(Number.isFinite)) continue;
+    if (lookAngles(observer, state).elevationDeg < minElevationDeg) continue;
+    if (!isSunlit(geodeticToEcef(state.latitude, state.longitude, state.altitudeM), sun)) continue;
+    from ??= t;
+    until = t;
+  }
+  return from !== undefined && until !== undefined ? { from, until } : undefined;
 }

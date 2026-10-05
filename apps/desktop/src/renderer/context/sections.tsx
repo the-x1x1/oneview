@@ -25,6 +25,7 @@ import type { ShellActions } from '../store/actions.js';
 import { readMjpeg } from './mjpeg.js';
 import { SatelliteKnowledge } from './satellite-details.js';
 import { feltText, intensityText, magnitudeText, pagerText, vesselRows } from './object-knowledge.js';
+import { cpa, cpaText } from './cpa.js';
 import { AircraftDetails } from './flight.js';
 import { useAppState } from '../store/store.js';
 
@@ -900,11 +901,29 @@ function CameraSection({ object, actions }: { object: WorldObject; actions: Shel
 const vessel: ContextSection = {
   id: 'vessel',
   title: 'Vessel',
-  render: ({ object }) => {
+  render: ({ object, ownVessel, nowMs, shownAtMs }) => {
     const rows = vesselRows(object);
     const broadcast = rows.some((r) => r.label.endsWith('(as broadcast)') && r.value !== undefined);
+    const approach = ownVessel ? cpa(ownVessel, object, shownAtMs ?? nowMs) : undefined;
     return (
       <div className="wv-ctx-stack">
+        {approach ? (
+          <FieldList
+            rows={[
+              {
+                label: 'From your boat',
+                title:
+                  'Range and bearing now, and the closest point of approach if both hold their course and speed over ground. Worked out here from the two positions; not a collision warning.',
+                value: (
+                  <>
+                    {approach.close ? <strong>Close · </strong> : null}
+                    {cpaText(approach)}
+                  </>
+                ),
+              },
+            ]}
+          />
+        ) : null}
         <FieldList rows={rows} />
         {/* No line is drawn to the destination: the text is free-form (a port name, a code,
             "FOR ORDERS"), and no bundled port list could resolve it without guessing. */}

@@ -5,6 +5,275 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Closest point of approach from your boat.** With your boat on the map from its NMEA 2000
+  gateway, another vessel's panel gives its range and bearing from the boat and how close it
+  will pass, and when, if both hold their course and speed over ground — marked "Close" under
+  half a mile within half an hour. Worked out here from the two positions; not a collision
+  warning.
+- **The sky overhead.** A Sky tab (Space lens, or "Open the sky" in the command palette): the
+  satellites above the horizon now from your home view or the middle of the map, on a polar
+  plot with the Sun and the Moon, the highest listed with elevation, bearing and range — each
+  sunlit or in the Earth's shadow, and which you could see with the eye. Picking one selects
+  it. "Leave out Starlink" and "Only those you could see" are applied before anything is
+  counted or cut, so the counts are over the whole sky; the highest 30 are listed ("Show all"
+  for the rest, up to 500 drawn). The middle of the map is asked about once the view rests
+  (and every five seconds while following something). A satellite whose position is more than
+  a minute behind — its source has stopped working positions out — is left out and the tab
+  says how many. Replaying, the tab says it is the sky now.
+- **Distress beacons as events.** An AIS-SART, man-overboard device or EPIRB-AIS heard
+  transmitting as active is a SEVERE event (Overview and Maritime), followed as it drifts;
+  test transmissions raise nothing.
+- **Aircraft emergencies as events.** An aircraft squawking 7700, 7600 or 7500, or sending
+  the ADS-B emergency status, is an event in the feed and on the map (Overview and Aviation),
+  followed once a minute and ended when cleared or no longer heard; a watch zone can subscribe
+  to it.
+- **Course vectors.** A selected ship or aircraft that is moving gets a dashed line to where it
+  will be in 12 minutes (a ship, on its course over ground) or 5 (an aircraft, on its track,
+  drawn at its altitude on the globe), ticked by the minutes; with your boat on the map and another vessel selected, the boat's
+  vector too and the closest point of approach between them.
+- **Day and night at the time shown.** With the timeline replaying or scrubbed back, the night
+  shading and the Sun and Moon overhead points (N), a selection's Sun and Moon section and
+  What's here give the sky at the timeline's time, not the clock's: replaying last night's
+  storm shows it at night. Paused, the live world keeps coming, and so does now.
+- **Satellite pass alerts.** "Alert me before it passes over home" on a satellite's panel: a
+  notice a few minutes before it rises over your home view — visible passes only unless you
+  say otherwise, optionally as a Windows notification too.
+- **The HUD names the nearest town.** A NEAR row gives where the middle of the view is from the
+  nearest town, looked up offline once the view rests.
+- **A recorded track as GPX or KML.** History's Export track offers a GPX track with each
+  point's time and elevation (GPS tools, replay elsewhere) and a KML line, beside GeoJSON and
+  CSV, under the same export rules.
+- **Objects on the map as KML.** "Export visible objects as KML" and "Export last search as
+  KML" (command palette) write placemarks for Google Earth or ATAK, a folder per type, under
+  the same export rules as GeoJSON and CSV.
+- **Watch zones to and from KML and GeoJSON.** Export every zone for Google Earth, ATAK or QGIS;
+  import the shapes of a KML or GeoJSON file as new zones.
+- **Your own places in search.** The search box finds the locations kept in your collections
+  (by title or tag) and your watch zones (by name), and flies to them.
+- **A measured line or shape to a file, or a shape to watch.** The measure panel's Export
+  saves the line (or, with Area on, the shape) as a GPX route, KML or GeoJSON; with Area on,
+  Watch makes the shape a watch zone.
+- **A collection's places as GPX, KML or GeoJSON, both ways.** Export a collection as
+  waypoints for a GPS unit, placemarks for Google Earth or ATAK, or GeoJSON for QGIS, beside
+  the collection file; import such a file as a new collection of its places. Collected objects
+  go out only while their sources allow export.
+- **Where the Sun and the Moon are overhead.** With day and night on (N), the map marks the
+  point beneath the Sun and the point beneath the Moon (with how much of it is lit), moved
+  once a minute.
+- **An aircraft's radio horizon.** A selected aircraft in the air gets a dashed ring where a
+  receiver on the ground has a line of sight to it (standard refraction; about 425 km at
+  35,000 ft) — the best an ADS-B receiver could hear it from.
+- **The map by keyboard.** Tab to the globe (or click it) and the arrow keys move the view,
+  the plus and minus keys zoom, and Shift with the arrows turns and tilts it, as the 2D map
+  already did; a ring shows when the globe has the keys. On either map `]` selects the next
+  object out from the middle of the view and `[` the one before, and a screen reader hears
+  what was selected. Keys pressed quickly add up: each one moves on from where the last was
+  going, not from where the globe had got to (a held key moves on from where the globe is,
+  and a drag or the wheel takes over from a key's move).
+- **What's here.** Right-click the map (or choose "What's here?" in the command palette) for a
+  card beside the point: the nearest town and how far and which way the point is from it, its
+  coordinates, degrees-minutes-seconds and MGRS or UTM to select and copy, how far it is from
+  home and from the selection, the Sun and Moon there, and with a satellite selected its next
+  pass over the point — with Centre here, Measure from here, Watch here and Collect. The nearest town is looked up offline, from the places bundled
+  with the app.
+- **Sun and Moon.** The selection panel has a Sun and Moon section for anything with a
+  position (but a satellite): how high the Sun and the Moon stand from there and in which
+  direction, the next sunset, sunrise and civil dusk and dawn, how much of the Moon is lit and
+  its phase, and the next moonrise and moonset — UTC, to the minute, with how long until each,
+  and plain words where nothing rises or sets for two days (polar day and night). Worked out
+  offline; checked against Astronomy Engine.
+- **Your boat, from its NMEA 2000 network.** A new source, off by default (Settings → Sources
+  → Your boat), reads the boat's NMEA 2000 network through a gateway serving Yacht Devices RAW
+  over TCP: the boat appears with its GNSS position, course and speed, heading, depth, wind,
+  water and air temperature and pressure (plotted in Readings), and the ships its own AIS
+  receiver hears appear named as from any AIS source. The boat is drawn in a colour of its own.
+  Read only — nothing is sent onto the bus — and only the one gateway named is contacted.
+- **A satellite's footprint.** Selecting a satellite draws two rings round the point beneath
+  it: where it is above the horizon right now (dashed), and where it is at least 10° up — the
+  elevation its listed passes start at. They follow it as it moves. For the ISS the inner ring
+  reaches about 1,400 km from the point beneath it; for a geostationary satellite it covers
+  most of a hemisphere. Its Next passes also say where it is in the sky right now from the
+  place they were worked out for ("Now 34° up from there, bearing 047° NE, 1,120 km away").
+- **MGRS and UTM.** The search box reads military grid references — `4QFJ1234567890`,
+  `4Q FJ 12345 67890`, two to ten figures — and UTM coordinates (`4Q 612345 2358765`), and
+  flies to them; one that cannot be right (square letters that are not in their zone and
+  latitude band, a point outside its band, an "S" that could be a band or the southern
+  hemisphere) is not guessed at: the list says what is wrong with it. Settings → Rendering →
+  Grid reference in the HUD adds the view centre's MGRS or UTM reference to the HUD and gives
+  the point under the pointer, and the selection's position, in it. WGS84; beyond 84° N and
+  80° S the polar grid (UPS, and MGRS's bands A, B, Y and Z) takes over. The conversions agree
+  with GeographicLib to well under a millimetre.
+- **Range rings and range to the pointer.** R (or the palette) draws four evenly spaced rings
+  round the selected object — a round spacing chosen from the view, each ring labelled with its
+  distance — following it as it moves. With the HUD on and something selected, an RNG row gives
+  the distance and bearing (on the ellipsoid, as the measure tool) from the selection to the
+  point under the pointer.
+- **A latitude and longitude grid.** G (or the palette, or Settings → Rendering) draws lines every so
+  many degrees over the globe and the flat map — 30° for the whole Earth down to fractions of a
+  degree close in, about a dozen across the view — each parallel and meridian named once near
+  the middle of the view.
+- **Your Meshtastic mesh.** A new source, off by default (Settings → Sources → Meshtastic
+  mesh), reads the nodes of your own Meshtastic mesh through one of your nodes over its TCP
+  client API (a node with Wi-Fi or Ethernet, or `meshtasticd`; port 4403): every node sharing
+  its position appears as a sensor with its name, battery, signal, hops and environment
+  readings. Text messages are never read; the data is not exportable. Only the one node you
+  name is contacted.
+- **Where the pointer is.** The HUD (H) has a CUR row: the latitude and longitude under the
+  pointer, on the globe and the flat map, following the pointer and the view as either moves,
+  and a dash when the pointer is off the map.
+- **Measure distances and areas.** The ruler beside the 2D/3D switch (or M, or the palette)
+  turns the measure tool on: each click on the globe or the flat map adds a point, and a panel
+  gives the total (km, with nautical and statute miles) and each leg's distance and initial
+  bearing, on the WGS84 ellipsoid — the figures GeographicLib gives, to well under a millimetre.
+  Area closes the shape back to its first point (dashed) and gives the area it encloses, or says
+  the outline crosses itself. Undo, Clear, Area and Done, or Esc. While measuring a click
+  selects nothing.
+- **Save a picture of the map.** The app menu and the command palette save the map as it is
+  on screen — globe or flat map, overlays, labels, HUD and the on-screen credits — as a PNG
+  where you choose.
+- **History in DuckDB/Parquet by default.** The app now stores history in Parquet files read
+  by DuckDB (columnar, compact, fast to scrub), with NDJSON as the fallback and as a choice in
+  Settings → History → Storage. History already recorded as NDJSON stays where it is and is
+  read beside the Parquet files until it ages out — nothing is converted or deleted.
+- **Work offline.** Settings → Network → Work offline: WorldView asks nothing of the
+  internet — sources pause, map tiles come only from the cache, packs and the bundled
+  world, search uses the built-in places, update checks wait — and refuses every request
+  that would leave the computer before it is sent. History, the timeline, satellites and
+  sources on this computer or your own network keep working.
+- **Satellites keep moving offline.** Without a network (or working offline) satellites were
+  paused with the other internet sources and stood still; they are now moved on from the
+  kept element sets for up to seven days, labelled cached. The kept catalogue survives a
+  restart for the same seven days.
+- **A host's request budget shared between definitions.** Definitions that call the same
+  host — layers of one ArcGIS server, endpoints of one API — can state what the host allows
+  this computer (`hostRequestsPerMinute`); they then share one budget for that host instead
+  of each spending its own, and the smallest stated budget holds.
+- **Which satellite passes can be seen.** Each predicted pass now says whether, and from when
+  to when, the satellite is in sunlight while the sky where you are is dark (the Sun 6° or
+  more below the horizon) — "Visible to the eye 00:25:44–00:29:44 UTC", or not visible: in
+  daylight or in the Earth's shadow.
+- **Point-and-radius sources in REST JSON.** With `boundsQuery`, an endpoint can take where
+  the view is centred (`{lat}` `{lon}`) and the radius that reaches the edge of the view
+  (`{radiusKm}`, `{radiusNm}` or `{radiusM}`), capped at the source's own limit
+  (`boundsMaxRadiusKm`). A source of that shape needed a bespoke provider before.
+- **Signed definition sets.** A world pack can carry connector definitions
+  (`definitions/<id>.json`, built with `pnpm worldpack build --include definitions`), so a
+  set of sources is handed out with the pack's integrity and signature.
+  The app loads them only from a pack signed by one of your publishers, as your own
+  (user-configured: policy fails closed, switched off until you switch them on); an untrusted
+  pack's definitions are listed in Sources → Definitions as refused, with the reason.
+  Installing, removing, switching off or trusting the pack brings or takes its sources
+  without a restart (docs/OFFLINE-PACKS.md §4b).
+- **Offline search knows 7,342 cities and towns**, not 61: Natural Earth's populated places
+  (public domain) in 228 countries and territories — every capital, 505 cities over a
+  million and 3,089 over 100,000 — shipped with the app (`reference/places.json`, 425 KB)
+  and searched without a network. Helsinki and Kansas City, which only the online search
+  found on 2026-10-03, are found offline. A city's result names its region and country
+  ("City · Missouri · US"), so two Springfields can be told apart, and the larger of two
+  places that match the same way is listed first. Former and ASCII names match too:
+  "Bombay" finds Mumbai, "Kiev" Kyiv. Where a region is named after the city it surrounds
+  (Paris, Tokyo, London, Hamburg), the city is listed first; New York State, whose label
+  point is far from the city, keeps its place.
+
+- **Replay of a multi-day window.** Two faster speeds, 600× (an hour in six seconds) and
+  3600× (a day in 24); at those the map moves in steps, as fast as history is read. A
+  track's history reaches back 3 or 7 days (aircraft and ships are kept 30), and "Replay
+  track" picks the slowest speed that plays it in two and a half minutes.
+- **What changed is a tab of the Overview**, beside the feed, not only a palette command.
+
+- **A watch zone can act on a reading past its limit.** Where a source declares limits for
+  its readings (a telemetry series' `warnHigh`, `critHigh`, `warnLow`, `critLow`), a sensor
+  or weather station past one raises "A reading passes its limit": one event per episode,
+  MINOR past a warning limit and MODERATE past a critical one, ended when the reading is back
+  inside with a small margin (docs/architecture/EVENT-RULES.md). A zone subscribes to it like
+  any other event type; it is listed as unavailable until an enabled source declares limits.
+
+- **Export a track.** The track history section's "Export track" writes the selected
+  object's recorded track over the shown window as a GeoJSON LineString (with each point's
+  time and the sources' attribution) or CSV — only when every source of the track allows
+  export; otherwise it says which do not (`export.track`). The Readings section's "Export CSV" does the same
+  for a sensor's or station's readings over the shown window (`export.readings`).
+
+- **A mainshock lists its aftershocks.** Selecting an earthquake that others name as their
+  mainshock shows how many there are, the largest and over what span, with the newest twelve
+  to select in turn. A fire cluster's History draws its detections over time, and a
+  storm's its wind, as a small line with the first and last values.
+
+- **Sources as data: pagination by `Link` header.** A REST definition can page through an
+  API that names its next page in an RFC 8288 `Link: <…>; rel="next"` header
+  (`"pagination": { "strategy": "link-header" }`), followed on the endpoint's own origin only.
+
+### Fixed
+
+- **A ship's "not defined" status from your own receiver or boat.** Navigational status 15
+  was dropped by the local AIS and NMEA 2000 sources, so a ship kept the last status it had
+  sent — and a distress beacon switched from active to test would have read active. It is
+  kept now, as the other AIS sources already did.
+- **Satellites when CelesTrak is down.** The element sets kept on disk were used only while the
+  app worked offline; when CelesTrak answered an error or timed out (503s and timeouts on the
+  test laptop on 2026-10-05) a restart left the map with no satellites at all. They are now
+  propagated from the kept elements (up to seven days old, labelled cached), the source reads
+  STALE with CelesTrak's error, and CelesTrak is asked again every ten minutes (after a 403,
+  the two hours it asks for). ADR-003 amendment: a provider may declare
+  `answersFromCacheWhenUnavailable`.
+- **A stale track or a faded marker is as faint on the flat map as on the globe.** The 2D map
+  applied a feature's opacity twice — once in its colour and again in its layer — so a stale
+  object's trail or dot showed at a quarter strength in 2D against half on the globe.
+
+- **The infrared clouds cross-fade at 180° too.** Himawari and GOES-West met along a straight
+  line at the antimeridian, the one seam without the 5° blend the others have, because neither
+  map draws a box across 180°. Each slice's fade past 180° is now a second layer on the other
+  side, on the globe and the flat map.
+
+- **A Windows-1252 file keeps its euro signs and curly quotes.** A local file that is not
+  UTF-8 (a spreadsheet's CSV export on Windows), or a GPX/KML file that declares Latin-1, is
+  read by the Windows-1252 table itself: some Node builds decode that encoding as plain
+  Latin-1, which turned €, “ ” and – into invisible control characters.
+
+- **A very long search text gets an answer instead of silence.** A paste of more than 200
+  characters into the search field was sent as it was and refused by the main process (the
+  log said "ipc: invalid request"), with nothing shown. The field now takes 200 characters,
+  and a longer text is cut (local search) or answered "too long to look up online".
+- **A satellite pass of a few seconds is no longer missed.** Passes are found by sampling
+  the elevation every 20 s; one that rose and set between two samples was lost. A local
+  peak within 2° under the threshold is now searched between its samples, and kept when it
+  reaches the threshold.
+- **A timeline scrub reads NDJSON history about three times faster.** The read for "where
+  was everything at this time" now takes the newest partitions first and skips, without
+  parsing, every row that is outside the window or older than the position already found
+  for its object; lines are split by hand rather than through readline. The answer is the
+  same row for row (a test compares it with a full read). A selected object's track, the
+  per-type counts and a range read skip, unparsed, the rows outside their window (and, for a
+  track, every other object's rows) in the same way. On a synthetic 370 MB satellite
+  history: 3.1 s before, 0.95 s after; on the test laptop's own history, 7.2 s before and
+  2.2–2.9 s after.
+- **A full world feed drops the least relevant item, not the oldest.** The engine's feed and
+  the app's copy are each bounded to 500 items and used to drop the oldest, so on a busy day
+  a few hundred minor marine advisories pushed a severe warning from the morning out before
+  the relevance ranking ever saw it. Both now drop the item worth least — severity halved
+  for every six hours of age, the weights the ranking already used — and the app's first
+  request for the feed gets the 200 weightiest rather than the 200 newest.
+- **The thin dark line down the Pacific along 180° is gone** (V&V 2026-10-04 #17). NASA GIBS
+  draws the last pixel column of its easternmost tiles darker than the one beside it
+  (Himawari at zoom 5: 58 against 116), and the brightness fade turned a darker pixel into a
+  more transparent one, so that column showed the base map through the clouds. The column is
+  now taken from its neighbour before the fade, on the globe and in 2D.
+- **Importing a collection never overwrites one you have.** A file whose collection id you
+  already have replaced that collection, edits and all. The same file twice still changes
+  nothing; over a collection that differs, the import is added beside it as "_name_
+  (imported)".
+- **Scrubbing the timeline reads less.** With no types named, the snapshot behind the
+  timeline read every type for the last 30 days and then kept each type's own window — a
+  month of aircraft to keep their last ten minutes. Each type is now read only as far back as
+  it lasts, and a read over half a second is logged with each read's rows and time. On the
+  laptop's history the satellites still take most of it (KNOWN-LIMITATIONS).
+- **The performance budget no longer fails the gate on Windows tidying up.** Removing its
+  scratch data folder could fail with ENOTEMPTY while Windows still held a file in it (the
+  test laptop's gate on 2026-10-05); the removal is now retried and a leftover folder is not a
+  failure.
+
 ## [0.2.1] — 2026-10-04
 
 A security release: Electron 44.

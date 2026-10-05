@@ -52,6 +52,12 @@ export const EventTypes = {
   Storm: 'storm',
   /** Unhealthy air at an air-quality sensor, one event per episode (event-engine airQualityRule). */
   AirQuality: 'air-quality',
+  /** A sensor's or station's reading past a limit its source declares (event-engine readingLimitRule). */
+  ReadingLimit: 'reading-limit',
+  /** An aircraft broadcasting an emergency: squawk 7700/7600/7500 or its ADS-B status (event-engine aircraftEmergencyRule). */
+  AircraftEmergency: 'aircraft-emergency',
+  /** An AIS distress beacon (AIS-SART, MOB, EPIRB-AIS) transmitting as active (event-engine distressBeaconRule). */
+  DistressBeacon: 'distress-beacon',
   Launch: 'launch',
   SatelliteDecay: 'satellite-decay',
   WatchZoneEntry: 'watch-zone-entry',

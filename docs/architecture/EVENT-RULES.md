@@ -103,6 +103,71 @@ second bad afternoon is a new event.
 | end      | AQI ≤ **90** (hysteresis: a reading hovering at 100 does not flap), or the sensor is gone           |
 | ignored  | a reading whose laser channels disagree (`channels: 'disagree'`) neither raises, moves nor ends     |
 
+## reading-limit (`event:reading-limit:<namespace>:<value>.<key>-<episode start, epoch s>`)
+
+A sensor's or weather station's reading past a limit its source declares: a provider
+manifest's telemetry series with `limits` (`warnLow`, `warnHigh`, `critLow`, `critHigh`;
+provider-sdk `TelemetrySeries`), for instance a connector definition's `telemetry` block.
+Scope: all `sensor` and `weather-station` objects each run; one event per episode of one
+reading at one object. A source that declares no limits raises nothing, and the AQI is left
+to air-quality. `events.types.list` lists the type as unavailable until an enabled source
+declares limits, so a watch zone can subscribe only where it can fire.
+
+| rule     | value                                                                                           |
+| -------- | ----------------------------------------------------------------------------------------------- |
+| raised   | the reading above `warnHigh`/`critHigh` or below `warnLow`/`critLow`                            |
+| severity | past a warning limit MINOR · past a critical limit MODERATE, following the reading              |
+| title    | `<reading> above its limit at <name>` (or `below`)                                              |
+| summary  | the value and units, which limit, since when, the episode's peak (or lowest)                    |
+| end      | back inside the warning limit by 2 % of it (at least 0.1), the reading gone, or the object gone |
+
+## aircraft-emergency (`event:aircraft-emergency:<namespace>:<value>-<episode start, epoch s>`)
+
+An aircraft broadcasting an emergency: squawk 7700, 7600 or 7500, or the ADS-B emergency
+status adsb.lol and readsb pass on (`emergency`: `general`, `minfuel`, `nordo`, `unlawful`,
+`downed`). Scope: the aircraft that changed in the batch; one event per episode of one
+aircraft. `lifeguard` (a medical flight's priority) and `reserved` are not emergencies and
+raise nothing. A property a report leaves out keeps its last value in the world, and the
+status is not in every report: the general, radio-failure and unlawful statuses follow the
+squawk in a transponder, so a known squawk that is none of 7500/7600/7700 overrules them.
+
+Both this rule and distress-beacon are built on `episodeRule` (`rules/episodes.ts`) and are
+`endsWhenQuiet`: besides the changed objects, they are evaluated with none while they have open
+events — on a change that only removes objects, and on the engine's `endQuiet()`, which the
+runtime calls every minute — so a quiet object's event ends even while nothing else of its
+type reports. A report counts as heard only when it is newer than the last one counted (a
+source that lists an object's last position again does not keep it heard). An episode ended
+for quiet goes on — same id, open again — when the object is heard saying it again within the
+reopening window: adsb.lol's coverage of a wide view comes round every 8–12 minutes.
+
+| rule     | value                                                                                                              |
+| -------- | ------------------------------------------------------------------------------------------------------------------ |
+| raised   | a report with squawk 7700/7600/7500 or an emergency status; the most serious names it                              |
+| severity | unlawful interference, general emergency, downed SEVERE · radio failure, minimum fuel MODERATE                     |
+| title    | `<callsign, else registration, else ICAO address>: <what> (squawk <code>)`                                         |
+| summary  | what it broadcasts since when, and that a squawk is set by hand and sometimes by mistake                           |
+| follows  | the aircraft's position and when it was last heard, at most once a minute; at once when what it broadcasts changes |
+| end      | a report without it (cleared), or not heard for 15 min (no longer heard, ended when last heard)                    |
+| reopens  | heard saying it again within 30 min of a quiet end: the same event                                                 |
+
+## distress-beacon (`event:distress-beacon:<namespace>:<mmsi>-<episode start, epoch s>`)
+
+An AIS distress beacon transmitting in earnest: an AIS-SART (MMSI 970…), a man-overboard
+device (972…) or an EPIRB-AIS (974…) whose position reports carry navigational status 14
+("active", ITU-R M.1371). Test transmissions carry 15 ("not defined") and raise nothing, nor
+does a report without a status — a beacon serviced in a marina is not a person in the water.
+Scope: the vessels that changed in the batch; one event per episode of one beacon.
+
+| rule     | value                                                                                     |
+| -------- | ----------------------------------------------------------------------------------------- |
+| raised   | a 970/972/974 MMSI with navigational status 14                                            |
+| severity | SEVERE                                                                                    |
+| title    | `Man overboard: <mmsi>` · `AIS-SART active: <mmsi>` · `EPIRB-AIS active: <mmsi>` (+ name) |
+| summary  | what it is, since when, last heard; that the app tells no coastguard                      |
+| follows  | the beacon's position (it drifts) and when it was last heard, at most once a minute       |
+| end      | a report no longer active (stopped), or not heard for 10 min (ended when last heard)      |
+| reopens  | heard active again within 30 min of a quiet end: the same event                           |
+
 ## launch (`event:launch:<namespace>:<value>`)
 
 INFO. `startAt` = `properties.net | windowStart | launchAt | observedAt`, `endAt` =
@@ -133,7 +198,14 @@ For each enabled zone (circle | polygon | bounds; `admin` only when it carries b
 Relevance: `severity ≥ MINOR` by default; INFO only for `source-status-change`; never an
 event with `properties.supersededBy` (the chain shows once, as its latest message). One item
 per event id (updates replace, an update that drops below relevance removes). Bounded to
-**500** (oldest dropped). Sorted newest first by `at` (= `startAt`), id tie-break.
+**500**; past that the item worth least goes — its severity weight (INFO ½, MINOR 1,
+MODERATE 2, SEVERE 4, EXTREME 8) halved for every six hours of age (`feedRetention`,
+`packages/world-model/src/feed-weight.ts`) — so a severe warning from the morning outlasts an
+evening of minor advisories. `feed.recent` with a limit returns the weightiest items by the
+same measure; the renderer's copy (also 500) is trimmed the same way, and its relevance
+ranking uses the same weights plus nearness to the view. Sorted newest first by `at`
+(`feedTime`: the start, or when issued for a message whose start was still ahead), id
+tie-break.
 `recorded: true` when `provenance.origin === 'recorded'`. `position` = point or centroid.
 
 ## whatChanged({ region, time })
@@ -155,6 +227,9 @@ per event id (updates replace, an update that drops below relevance removes). Bo
 | cluster severity                                                           | 50 detections · 500 MW · 10 detections |
 | `GROWTH_WINDOW_MS` / growing                                               | 6 h / ×1.5 +10 detections · ×2 +5 km²  |
 | `AIR_QUALITY_RAISE_AQI` / `AIR_QUALITY_CLEAR_AQI`                          | 101 / 90                               |
+| `READING_LIMIT_CLEAR_MARGIN`                                               | 2 % of the limit (≥ 0.1)               |
+| `AIRCRAFT_EMERGENCY_QUIET_MS` / `_FOLLOW_MS` / `_REOPEN_MS`                | 15 min / 1 min / 30 min                |
+| `DISTRESS_BEACON_QUIET_MS` / `_FOLLOW_MS` / `_REOPEN_MS`                   | 10 min / 1 min / 30 min                |
 | `SOURCE_STATUS_THROTTLE_MS`                                                | 10 min                                 |
 | `WATCH_ZONE_DEDUPE_MS`                                                     | 6 h                                    |
 | `FEED_MAX_ITEMS`                                                           | 500                                    |

@@ -174,6 +174,11 @@ function DefinitionItem({
             </span>
             {row.connector ? <ConnectorBadge connector={row.connector} /> : null}
           </span>
+          {row.origin ? (
+            <span className="wv-sources__locality" style={WRAP}>
+              {row.origin}
+            </span>
+          ) : null}
         </div>
         {row.switchable ? (
           <Toggle

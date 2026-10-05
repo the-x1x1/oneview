@@ -42,6 +42,8 @@ export interface MapEventMap {
   moveend: unknown;
   error: MapErrorEventLike;
   click: MapMouseEventLike;
+  /** A right-click; MapLibre leaves it out after a right-drag (which turns the map). */
+  contextmenu: MapMouseEventLike;
   mousemove: MapMouseEventLike;
   mouseout: unknown;
   webglcontextlost: unknown;
@@ -149,6 +151,8 @@ export interface MapLike {
   getCanvas(): HTMLCanvasElement;
   /** A longitude and latitude to CSS pixels on the canvas (MapLibre `Map.project`). */
   project(lngLat: [number, number]): { x: number; y: number };
+  /** CSS pixels on the canvas to a longitude and latitude (MapLibre `Map.unproject`); the longitude is unwrapped. */
+  unproject(point: [number, number]): { lng: number; lat: number };
   addControl(control: ControlLike, position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): unknown;
   removeControl(control: ControlLike): unknown;
   /** Change the canvas pixel density without rebuilding the map (MapLibre ≥ 2). */

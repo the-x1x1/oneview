@@ -13,11 +13,15 @@ import { contextRegistry, displayName } from '../context/index.js';
 import { useActions, useAppState } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { isCollected } from '../store/collections.js';
-import { eventHistory, eventLinks } from './event-links.js';
+import { displaySettings } from '../store/display.js';
+import { aftershockSequence, eventHistory, eventLinks, eventSeries, seriesPath } from './event-links.js';
+import { ownVesselFor } from '../context/cpa.js';
+import { pastShownAtMs } from '../store/shown-time.js';
 
 /** Selection panel: composed from the context registry for objects; event details for events. */
 export function SelectionPanel() {
-  const { world, sources, collections } = useAppState();
+  const { world, sources, collections, session, timeline } = useAppState();
+  const hudGrid = displaySettings(session.settings).hudGrid;
   const actions = useActions();
   const nowMs = useNow(5000);
 
@@ -92,6 +96,7 @@ export function SelectionPanel() {
         </Section>
         {eventHistory(ev).rows.length ? (
           <Section title="History">
+            <SeriesChart series={eventSeries(ev)} />
             <ul className="wv-ctx-history">
               {eventHistory(ev).rows.map((r) => (
                 <li key={r.at}>
@@ -104,6 +109,10 @@ export function SelectionPanel() {
             </ul>
           </Section>
         ) : null}
+        <AftershockSection
+          sequence={aftershockSequence(ev, [...world.events.values(), ...world.related.events])}
+          onSelect={(id) => void actions.select(id, { kind: 'event', fly: true })}
+        />
         {eventLinks(ev).length ? (
           <Section title="Related events">
             <ul className="wv-ctx-related">
@@ -147,14 +156,18 @@ export function SelectionPanel() {
   const object = world.selectedObject;
   if (!object) return <LoadingState label="Loading object" />;
   const sections = contextRegistry.sectionsFor(object.type);
+  const own = ownVesselFor(object, world);
   const props = {
     object,
     track: world.track,
     flight: world.flight,
     related: world.related,
+    ...(own ? { ownVessel: own } : {}),
     sources: sources.entries,
     actions,
     nowMs,
+    shownAtMs: pastShownAtMs(timeline.control) ?? nowMs,
+    ...(hudGrid && hudGrid !== 'none' ? { gridReference: hudGrid } : {}),
   };
   return (
     <Panel title={displayName(object)} subtitle={formatObjectType(object.type)} actions={addTo}>
@@ -168,5 +181,67 @@ export function SelectionPanel() {
         );
       })}
     </Panel>
+  );
+}
+
+/** A mainshock's aftershocks: how many, the largest, over what span, the newest twelve. */
+function AftershockSection({
+  sequence,
+  onSelect,
+}: {
+  sequence: ReturnType<typeof aftershockSequence>;
+  onSelect: (eventId: string) => void;
+}) {
+  if (!sequence) return null;
+  const n = sequence.count;
+  return (
+    <Section title="Aftershocks">
+      <p className="wv-ctx-summary">
+        {n} aftershock{n === 1 ? '' : 's'}
+        {sequence.largest ? `, the largest M${sequence.largest.magnitude.toFixed(1)}` : ''}, from{' '}
+        {formatUtcDateTime(sequence.first)} to {formatUtcDateTime(sequence.last)}.
+      </p>
+      <ul className="wv-ctx-history">
+        {sequence.rows.map((r) => (
+          <li key={r.eventId}>
+            <span className="wv-ctx-muted">{formatUtcDateTime(r.at)}</span>{' '}
+            <button type="button" className="wv-ctx-link" onClick={() => onSelect(r.eventId)}>
+              {r.magnitude !== undefined ? `M${r.magnitude.toFixed(1)}` : r.title}
+            </button>
+          </li>
+        ))}
+        {sequence.earlier ? <li className="wv-ctx-muted">and {sequence.earlier} earlier</li> : null}
+      </ul>
+    </Section>
+  );
+}
+
+/** A small line of an event's own number over time (a fire's detections, a storm's wind). */
+function SeriesChart({ series }: { series: ReturnType<typeof eventSeries> }) {
+  if (!series) return null;
+  const first = series.points[0]!;
+  const last = series.points[series.points.length - 1]!;
+  const unit = series.unit ? ` ${series.unit}` : '';
+  const caption = `${series.label}: ${first.v}${unit} → ${last.v}${unit}`;
+  return (
+    <figure className="wv-event-series" style={{ margin: '0 0 8px' }}>
+      <svg
+        viewBox="0 0 1000 60"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={caption}
+        style={{ width: '100%', height: 48, display: 'block' }}
+      >
+        <path
+          d={seriesPath(series.points, 1000, 56)}
+          transform="translate(0,2)"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <figcaption className="wv-ctx-muted">{caption}</figcaption>
+    </figure>
   );
 }

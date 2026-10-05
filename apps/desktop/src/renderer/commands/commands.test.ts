@@ -209,6 +209,13 @@ test('keyboard map: H, V / Shift+V, N, O, F and C; never with a modifier or in a
   assert.equal(key('o'), 'toggleOrbit');
   assert.equal(key('f'), 'toggleFollow');
   assert.equal(key('c'), 'toggleCleanView');
+  assert.equal(key('m'), 'toggleMeasure');
+  assert.equal(key('M'), 'toggleMeasure', 'Caps Lock is not Shift');
+  assert.equal(key('g'), 'toggleGrid');
+  assert.equal(key('r'), 'toggleRangeRings');
+  assert.equal(key('R'), 'toggleRangeRings', 'Caps Lock is not Shift');
+  assert.equal(key('G'), 'toggleGrid', 'Caps Lock is not Shift');
+  assert.equal(key('g', { inEditable: true }), null, 'typing a G in the search box');
   assert.equal(key('c', { ctrlKey: true }), null, 'Ctrl+C still copies');
   assert.equal(key('v', { metaKey: true }), null, 'Cmd+V still pastes');
   assert.equal(key('h', { inEditable: true }), null, 'typing an H in the search box');
@@ -225,6 +232,8 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   applyKey('toggleDayNight', s, actions);
   applyKey('toggleOrbit', s, actions);
   applyKey('goHome', s, actions);
+  applyKey('toggleGrid', s, actions);
+  applyKey('toggleRangeRings', s, actions);
   assert.deepEqual(calls, [
     'toggleHud()',
     'cycleVisualStyle(1)',
@@ -232,6 +241,8 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
     'toggleDayNight()',
     'setOrbit(true)',
     'goHome()',
+    'toggleGrid()',
+    'toggleRangeRings()',
   ]);
   assert.equal(applyKey('toggleFollow', s, actions), false, 'nothing selected, nothing to follow');
   s = rootReducer(s, { type: 'world/select', id: 'event:quake', kind: 'event' });
@@ -246,11 +257,39 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   applyKey('toggleCleanView', s, actions);
   assert.equal(calls.at(-1), 'setCleanView(true)');
   s = rootReducer(s, { type: 'ui/cleanView', on: true });
+  s = rootReducer(s, {
+    type: 'ui/whatsHere',
+    whatsHere: { position: { latitude: 19.7, longitude: -155.1 }, screen: { x: 10, y: 20 } },
+  });
+  applyKey('escape', s, actions);
+  assert.equal(calls.at(-1), 'closeWhatsHere()', "Esc puts What's here away first");
+  s = rootReducer(s, { type: 'ui/whatsHere', whatsHere: null });
   applyKey('escape', s, actions);
   assert.equal(calls.at(-1), 'setCleanView(false)', 'Esc leaves clean view first');
   s = rootReducer(s, { type: 'ui/cleanView', on: false });
+  applyKey('toggleMeasure', s, actions);
+  assert.equal(calls.at(-1), 'toggleMeasure()');
+  s = rootReducer(s, { type: 'ui/measure', measure: { points: [] } });
+  applyKey('escape', s, actions);
+  assert.equal(calls.at(-1), 'toggleMeasure()', 'Esc ends measuring before it clears the selection');
+  s = rootReducer(s, { type: 'ui/measure', measure: null });
   applyKey('escape', s, actions);
   assert.equal(calls.at(-1), 'clearSelection()', 'then clears the selection');
+  assert.equal(
+    resolveKey({ key: ']', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }),
+    'nextNearby',
+  );
+  assert.equal(
+    resolveKey({ key: '[', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: true }),
+    null,
+    'not while typing',
+  );
+  const k = { ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false };
+  assert.equal(resolveKey({ ...k, key: ']', repeat: true }), null, 'held down: one step, not thirty a second');
+  assert.equal(resolveKey({ ...k, key: '[', ctrlKey: true, altKey: true }), 'previousNearby', 'typed with AltGr');
+  assert.equal(resolveKey({ ...k, key: ']', ctrlKey: true }), null, 'Ctrl+] is not it');
+  applyKey('previousNearby', s, actions);
+  assert.equal(calls.at(-1), 'selectNearby(-1)');
 });
 
 test('commands: display commands show their keys, name the style they go to, and respect reduced motion', async () => {

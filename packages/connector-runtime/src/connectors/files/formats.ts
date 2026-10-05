@@ -57,7 +57,10 @@ export function decodeText(bytes: Uint8Array, xml: boolean): DecodedText {
     const declared = declaredEncoding(head);
     if (declared && declared !== 'utf-8' && declared !== 'utf8') {
       try {
-        return { text: new TextDecoder(declared).decode(bytes), encoding: declared };
+        const decoder = new TextDecoder(declared);
+        // Every Latin-1 label is Windows-1252 to the Encoding Standard; read by the table below.
+        const text = decoder.encoding === 'windows-1252' ? decodeWindows1252(bytes) : decoder.decode(bytes);
+        return { text, encoding: declared };
       } catch {
         /* an encoding TextDecoder does not know: fall through to UTF-8, which most such files really are */
       }
@@ -66,8 +69,38 @@ export function decodeText(bytes: Uint8Array, xml: boolean): DecodedText {
   try {
     return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes), encoding: 'utf-8' };
   } catch {
-    return { text: decode('windows-1252', bytes), encoding: 'windows-1252', fallback: true };
+    return { text: decodeWindows1252(bytes), encoding: 'windows-1252', fallback: true };
   }
+}
+
+/**
+ * What Windows-1252 puts at 0x80–0x9F (the Encoding Standard's table; the five bytes it leaves
+ * unassigned stay the C1 control of the same number). Everything else is Latin-1, byte for
+ * code point.
+ */
+const WINDOWS_1252_HIGH = [
+  0x20ac, 0x81, 0x201a, 0x192, 0x201e, 0x2026, 0x2020, 0x2021, 0x2c6, 0x2030, 0x160, 0x2039, 0x152, 0x8d, 0x17d, 0x8f,
+  0x90, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x2dc, 0x2122, 0x161, 0x203a, 0x153, 0x9d, 0x17e, 0x178,
+];
+
+/**
+ * Windows-1252 by the table, not by `TextDecoder`: Node 22.22's decoder (and other builds with
+ * its Latin-1 fast path) reads this encoding as plain Latin-1, so € (0x80), the curly quotes
+ * and the dashes a spreadsheet writes came out as invisible C1 controls.
+ */
+export function decodeWindows1252(bytes: Uint8Array): string {
+  const CHUNK = 8192;
+  let out = '';
+  for (let start = 0; start < bytes.length; start += CHUNK) {
+    const slice = bytes.subarray(start, Math.min(bytes.length, start + CHUNK));
+    const codes = new Uint16Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      const b = slice[i]!;
+      codes[i] = b >= 0x80 && b < 0xa0 ? WINDOWS_1252_HIGH[b - 0x80]! : b;
+    }
+    out += String.fromCharCode(...codes);
+  }
+  return out;
 }
 
 function decode(encoding: string, bytes: Uint8Array): string {

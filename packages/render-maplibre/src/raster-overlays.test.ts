@@ -12,6 +12,7 @@ import {
   rasterOverlaySpec,
 } from './raster-overlays.js';
 import { createFakeMapLibre, fakeImageCanvasFactory } from './testing/fake-maplibre.js';
+import { resolveWmtsProtocolUrl } from './wmts-protocol.js';
 
 /**
  * The 2D map keeps overlay layers by identity and hands a new radar or satellite frame over on
@@ -160,6 +161,38 @@ test('2D: a new radar frame loads over the old one, which leaves after the hando
   renderer.setOverlays([topo, ir('10:20')]);
   assert.deepEqual(rasters(), ['wv-raster:topo:layer', 'wv-raster:ir:10:20:layer']);
   assert.equal(handovers().length, 0);
+  renderer.dispose();
+});
+
+test('2D: a cross-faded slice that ends on 180° is drawn past it by a second source, through the same tile protocol', async () => {
+  const { renderer, map, rasters } = await mounted();
+  const slice = (id: string, west: number, east: number): RasterOverlay => ({
+    ...ir('10:00'),
+    id,
+    providerId: id,
+    bounds: { west, south: -60, east, north: 60 },
+    featherDeg: 5,
+    fadeBelow: { from: 135, to: 195, monochrome: true },
+  });
+  renderer.setOverlays([slice('goes-west', -180, -106), slice('himawari', 93, 180)]);
+  assert.deepEqual(rasters(), [
+    'wv-raster:goes-west:layer',
+    'wv-raster:goes-west#past180:layer',
+    'wv-raster:himawari:layer',
+    'wv-raster:himawari#past180:layer',
+  ]);
+  const spec = (id: string) => map.getSource(`wv-raster:${id}`)!.spec as { bounds?: number[]; tiles?: string[] };
+  assert.deepEqual(spec('goes-west').bounds, [-180, -60, -103.5, 60]);
+  assert.deepEqual(spec('goes-west#past180').bounds, [177.5, -60, 180, 60]);
+  assert.deepEqual(spec('himawari').bounds, [90.5, -60, 180, 60]);
+  assert.deepEqual(spec('himawari#past180').bounds, [-180, -60, -177.5, 60]);
+  assert.deepEqual(spec('himawari#past180').tiles, ['wvwmts://himawari%23past180/{z}/{x}/{y}']);
+  assert.match(resolveWmtsProtocolUrl('wvwmts://himawari%23past180/6/20/0') ?? '', /^https:\/\/gibs\.example\//);
+  assert.equal(
+    resolveWmtsProtocolUrl('wvwmts://himawari%23past180/6/20/0'),
+    resolveWmtsProtocolUrl('wvwmts://himawari/6/20/0'),
+    'the part past 180° asks the same service for its tiles',
+  );
   renderer.dispose();
 });
 

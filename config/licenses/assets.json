@@ -673,6 +673,16 @@
       "notes": "As borders.json."
     },
     {
+      "path": "apps/desktop/assets/reference/places.json",
+      "description": "7,342 cities and towns for offline place search, not drawn (ne_10m_populated_places_simple: name, ASCII and former names, country, region, largest population, capital flag)",
+      "sourceUrl": "https://github.com/nvkelso/natural-earth-vector/tree/ca96624a56bd078437bca8184e78163e5039ad19/geojson",
+      "license": "Public domain",
+      "attribution": "Made with Natural Earth (courtesy)",
+      "sizeBytes": 425333,
+      "decision": "bundle",
+      "notes": "As borders.json."
+    },
+    {
       "path": "apps/desktop/assets/fonts/Noto Sans Regular",
       "description": "Noto Sans Regular signed-distance-field glyph ranges (MapLibre .pbf) for Latin, Greek and Cyrillic: 0-255 … 1535, 7680-8703",
       "sourceUrl": "https://github.com/protomaps/basemaps-assets/tree/main/fonts/Noto%20Sans%20Regular",

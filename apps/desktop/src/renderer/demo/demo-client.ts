@@ -8,7 +8,14 @@ import type {
   WorldQueryResult,
   SeverityClass,
 } from '@worldview/world-model';
-import { SEVERITY_ORDER, boundsContain, regionContains } from '@worldview/world-model';
+import {
+  SEVERITY_ORDER,
+  boundsContain,
+  geodesicInverse,
+  lookAngles,
+  regionContains,
+  sunPosition,
+} from '@worldview/world-model';
 import type {
   AppSettings,
   CameraListEntry,
@@ -16,6 +23,8 @@ import type {
   EventChannel,
   FeedItem,
   RequestChannel,
+  NearbyPlaceResult,
+  SkyOverheadAnswer,
   PlaceSearchAnswer,
   RequestOf,
   ResponseOf,
@@ -426,6 +435,65 @@ export class DemoClient implements WorldClient {
           attribution: '',
           message: 'The demo build searches its recorded data and the built-in gazetteer only.',
         } satisfies PlaceSearchAnswer;
+      case 'search.nearest': {
+        // The recorded place index stands in for the gazetteer: cities, nearest first.
+        const { position, limit = 1, maxDistanceM = Infinity } = request as RequestOf<'search.nearest'>;
+        return DEMO_PLACES.map((p) => ({ p, g: geodesicInverse(p.position, position) }))
+          .filter(({ g }) => g.distanceM <= maxDistanceM)
+          .sort((a, b) => a.g.distanceM - b.g.distanceM)
+          .slice(0, limit)
+          .map(({ p, g }) => ({
+            id: `place:${p.id}`,
+            name: p.name,
+            kind: 'city',
+            position: p.position,
+            region: p.region,
+            distanceM: Math.round(g.distanceM),
+            bearingDeg: Math.round(g.initialBearingDeg * 10) / 10,
+          })) satisfies NearbyPlaceResult[];
+      }
+      case 'sky.overhead': {
+        // The recorded satellites where they were recorded: look angles, the Sun's height and
+        // the categories as the runtime gives them; no shadow model (every one counts as lit).
+        const {
+          observer,
+          minElevationDeg = 0,
+          limit = 200,
+          excludeCategories = [],
+          visibleOnly = false,
+        } = request as RequestOf<'sky.overhead'>;
+        const sunElevationDeg = Math.round(sunPosition(nowMs, observer).altitudeDeg * 10) / 10;
+        const above = this.visibleObjects(nowMs)
+          .filter((o) => o.type === 'satellite' && o.position?.altitudeM !== undefined)
+          .filter((o) => !excludeCategories.includes(String(o.properties['satelliteCategory'] ?? '')))
+          .map((o) => ({ o, look: lookAngles(observer, o.position!) }))
+          .filter(({ look }) => look.elevationDeg >= minElevationDeg)
+          .sort((a, b) => b.look.elevationDeg - a.look.elevationDeg)
+          .map(({ o, look }) => {
+            const category = o.properties['satelliteCategory'];
+            return {
+              id: o.id,
+              name: o.labels['name'] ?? o.id,
+              ...(typeof category === 'string' ? { category } : {}),
+              azimuthDeg: Math.round(look.azimuthDeg * 10) / 10,
+              elevationDeg: Math.round(look.elevationDeg * 10) / 10,
+              rangeM: Math.round(look.rangeM),
+              altitudeM: Math.round(o.position!.altitudeM!),
+              sunlit: true,
+            };
+          });
+        const eye = (s: { elevationDeg: number }) => sunElevationDeg <= -6 && s.elevationDeg >= 10;
+        const visible = above.filter(eye).length;
+        return {
+          at: new Date(nowMs).toISOString(),
+          observer: { latitude: observer.latitude, longitude: observer.longitude },
+          total: above.length,
+          visible,
+          stale: 0,
+          sunElevationDeg,
+          satellites: (visibleOnly ? above.filter(eye) : above).slice(0, limit),
+        } satisfies SkyOverheadAnswer;
+      }
       case 'lenses.list':
         return [...BUILT_IN_LENSES, ...this.customLenses];
       case 'lenses.save': {
@@ -458,9 +526,10 @@ export class DemoClient implements WorldClient {
         return this.collections;
       }
       case 'collections.export': {
-        const { id } = request as RequestOf<'collections.export'>;
+        const { id, format } = request as RequestOf<'collections.export'>;
         const c = this.collections.find((x) => x.id === id);
-        if (!c || !this.downloadHook) return { cancelled: true };
+        // The browser demo writes the collection file only (GPX, KML and GeoJSON are the app's).
+        if (!c || !this.downloadHook || (format && format !== 'json')) return { cancelled: true };
         const path = this.downloadHook(
           `${c.name.replace(/[^a-z0-9-]+/gi, '_')}.worldview-collection.json`,
           'application/json',
@@ -478,6 +547,11 @@ export class DemoClient implements WorldClient {
         this.watchzones = [...this.watchzones.filter((x) => x.id !== z.id), z];
         return this.watchzones;
       }
+      case 'watchzones.export':
+        // Files are the app's; the browser demo writes none.
+        return { cancelled: true };
+      case 'watchzones.import':
+        return { zones: [], issues: ['Importing zones needs a file picker; not available in the browser demo'] };
       case 'watchzones.delete': {
         const { id } = request as RequestOf<'watchzones.delete'>;
         this.watchzones = this.watchzones.filter((z) => z.id !== id);
@@ -510,10 +584,19 @@ export class DemoClient implements WorldClient {
           issues: ['Adding a publisher key needs a file picker; not available in the browser demo'],
         };
 
+      case 'export.readings':
+      case 'export.track':
+        // The browser demo records no history to export.
+        return { cancelled: true };
+      case 'export.line':
+        // GPX, KML and GeoJSON files are the app's; the browser demo writes none.
+        return { cancelled: true };
+
       case 'export.objects': {
         const { query, format } = request as RequestOf<'export.objects'>;
         const result = this.queryObjects(query, nowMs);
-        if (!this.downloadHook) return { cancelled: true };
+        // KML is the app's; the browser demo writes GeoJSON, JSON and CSV.
+        if (!this.downloadHook || format === 'kml') return { cancelled: true };
         const body =
           format === 'csv'
             ? [
@@ -666,6 +749,9 @@ export class DemoClient implements WorldClient {
         return { available: false, bytes: 0, tiles: 0, maxBytes: 0, preload: { state: 'off', done: 0, total: 0 } };
       case 'tiles.prefetch':
         return undefined;
+      // The browser demo has no window to capture or disk to save to.
+      case 'view.capture':
+        return { cancelled: true };
     }
     throw new Error(`unknown channel ${String(channel)}`);
   }

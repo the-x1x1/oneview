@@ -1,17 +1,24 @@
 import { useEffect, useState } from 'react';
+import { geodesicInverse, type GeoPosition } from '@worldview/world-model';
 import type { ViewState, VisualStyleId } from '@worldview/render-core';
 import type { RendererHostLike } from '../renderer-host-like.js';
 import { useNow } from '../hooks/use-now.js';
 import { VISUAL_STYLE_NAMES } from '../store/display.js';
 import {
+  wrapLongitude,
   formatAltitude,
   formatDecimal,
   formatDms,
+  formatGridReference,
   formatHeading,
   formatPitch,
   formatUtc,
   formatZoom,
 } from './hud-format.js';
+import { formatDistance } from './measure.js';
+import type { NearbyPlaceResult } from '@worldview/ipc-contract';
+import { compassPoint } from '../context/object-knowledge.js';
+import { useActions } from '../store/store.js';
 
 /**
  * The view as the renderer reports it, at most once an animation frame.
@@ -50,12 +57,101 @@ function useHostView(host: RendererHostLike | null): ViewState | null {
   return view;
 }
 
+/**
+ * The ground under the pointer, as the renderer reports it (at most once a frame), or `null`
+ * while the pointer is off the map. A new renderer (a switch between 2D and 3D) starts with
+ * none until the pointer moves over it.
+ */
+function useHostPointer(host: RendererHostLike | null): GeoPosition | null {
+  const [at, setAt] = useState<GeoPosition | null>(null);
+  useEffect(() => {
+    if (!host) return;
+    const offPointer = host.on('pointer', (p) => setAt(p ? p.position : null));
+    const offMode = host.on('modeChanged', () => setAt(null));
+    return () => {
+      offPointer();
+      offMode();
+      setAt(null);
+    };
+  }, [host]);
+  return at;
+}
+
+/**
+ * The range row's text: distance and initial bearing from the selection to the ground under
+ * the pointer (`412 km 047°`) on the WGS84 ellipsoid, as the measure tool gives them, or
+ * undefined unless both are known.
+ */
+export function rangeReadout(from: GeoPosition | undefined, to: GeoPosition | null): string | undefined {
+  if (!from || !to) return undefined;
+  const g = geodesicInverse(from, to);
+  return `${formatDistance(g.distanceM)} ${formatHeading(g.initialBearingDeg)}`;
+}
+
+/**
+ * The cursor row's text: the ground under the pointer — in the HUD's grid reference when one is
+ * chosen, otherwise degrees — or a dash while it is off the map.
+ */
+export function cursorReadout(at: GeoPosition | null, grid?: HudGrid): string {
+  if (!at) return '—';
+  return grid ? formatGridReference(at.latitude, at.longitude, grid) : formatDecimal(at.latitude, at.longitude);
+}
+
+/** Above this (3D) or below zoom 4 (2D) the nearest town says nothing about the view: no NEAR row. */
+export const NEAR_MAX_ALTITUDE_M = 2_000_000;
+export const NEAR_MIN_ZOOM = 4;
+
+/** The NEAR row: `41.4 KM WNW HILO` — where the middle of the view is from the nearest town. */
+export function nearReadout(place: NearbyPlaceResult | null | undefined): string | undefined {
+  if (!place) return undefined;
+  const name = place.name.toUpperCase();
+  return place.distanceM < 1000
+    ? name
+    : `${formatDistance(place.distanceM).toUpperCase()} ${compassPoint(place.bearingDeg)} ${name}`;
+}
+
+/**
+ * The nearest town to the middle of the view, asked again only once the view has rested for
+ * half a second a kilometre or more from where it was asked (offline: `search.nearest`).
+ */
+function useNearestTown(at: GeoPosition | undefined, enabled: boolean): NearbyPlaceResult | null | undefined {
+  const actions = useActions();
+  const [place, setPlace] = useState<NearbyPlaceResult | null | undefined>(undefined);
+  // The flat map reports an unwrapped centre past ±180° (188° after a drag east); fold it.
+  const key = enabled && at ? `${at.latitude.toFixed(2)}|${wrapLongitude(at.longitude).toFixed(2)}` : '';
+  useEffect(() => {
+    if (!key) {
+      setPlace(undefined);
+      return undefined;
+    }
+    const [lat, lon] = key.split('|').map(Number) as [number, number];
+    let live = true;
+    const timer = setTimeout(() => {
+      void actions.nearestPlace({ latitude: lat, longitude: lon }).then((p) => {
+        if (live) setPlace(p);
+      });
+    }, 500);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [actions, key]);
+  return place;
+}
+
+/** The grid reference the HUD adds (Settings → Rendering → Grid reference in the HUD). */
+export type HudGrid = 'mgrs' | 'utm';
+
 export interface HudProps {
   host: RendererHostLike | null;
   mode: '2D' | '3D';
   visualStyle: VisualStyleId;
   orbit: boolean;
   following: boolean;
+  /** Where the selection is, if anything is selected: the RNG row measures from it to the pointer. */
+  selection?: GeoPosition;
+  /** A grid reference row for the view centre, and the pointer given in it (absent: degrees only). */
+  grid?: HudGrid;
   /** The timeline's mode and the moment the map shows (paused, replaying or in history). */
   timeMode?: 'LIVE' | 'PAUSED' | 'REPLAY' | 'HISTORICAL';
   shownAtMs?: number;
@@ -77,8 +173,10 @@ export function hudClock(
 }
 
 /**
- * Heads-up display over the map (Settings → Map → HUD, or H): the ground at the middle of
- * the view in decimal degrees and degrees-minutes-seconds, the camera's altitude (3D) or
+ * Heads-up display over the map (Settings → Rendering → HUD, or H): the ground at the middle of
+ * the view in decimal degrees and degrees-minutes-seconds — and as an MGRS or UTM reference
+ * when one is chosen — the ground under the pointer (CUR, in that reference if chosen), the
+ * range and bearing to it from the selection (RNG), the camera's altitude (3D) or
  * zoom (2D), heading and pitch, the UTC clock, the visual style, and a small reticle on the
  * point the coordinates are for.
  *
@@ -88,11 +186,15 @@ export function hudClock(
  * hidden from assistive technology: a readout that changes on every frame of camera motion
  * would be read out without end.
  */
-export function Hud({ host, mode, visualStyle, orbit, following, timeMode, shownAtMs }: HudProps) {
+export function Hud({ host, mode, visualStyle, orbit, following, selection, grid, timeMode, shownAtMs }: HudProps) {
   const view = useHostView(host);
+  const cursor = useHostPointer(host);
+  const range = rangeReadout(selection, cursor);
   const now = useNow(1000);
   const clock = hudClock(now, timeMode, shownAtMs);
   const at = view?.focus ?? view?.center;
+  const nearEnabled = !!view && (mode === '3D' ? view.altitudeM <= NEAR_MAX_ALTITUDE_M : view.zoom >= NEAR_MIN_ZOOM);
+  const near = nearReadout(useNearestTown(at, nearEnabled));
   return (
     <div className="wv-hud" data-style={visualStyle} aria-hidden="true">
       <div className="wv-hud__reticle" />
@@ -111,6 +213,26 @@ export function Hud({ host, mode, visualStyle, orbit, following, timeMode, shown
         <dd>{at ? formatDecimal(at.latitude, at.longitude) : '—'}</dd>
         <dt>DMS</dt>
         <dd>{at ? formatDms(at.latitude, at.longitude) : '—'}</dd>
+        {grid ? (
+          <>
+            <dt>{grid.toUpperCase()}</dt>
+            <dd>{at ? formatGridReference(at.latitude, at.longitude, grid) : '—'}</dd>
+          </>
+        ) : null}
+        {near ? (
+          <>
+            <dt>NEAR</dt>
+            <dd>{near}</dd>
+          </>
+        ) : null}
+        <dt>CUR</dt>
+        <dd>{cursorReadout(cursor, grid)}</dd>
+        {range ? (
+          <>
+            <dt>RNG</dt>
+            <dd>{range}</dd>
+          </>
+        ) : null}
         {mode === '3D' ? (
           <>
             <dt>ALT</dt>

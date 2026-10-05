@@ -38,7 +38,14 @@ import {
   MAX_FLIGHT_ROUTE_AIRPORTS,
   isFlightRouteSource,
 } from '@worldview/provider-sdk';
-import { HttpClient, backoffDelay, type Logger, type LoggerHub, type CredentialResolver } from '@worldview/core';
+import {
+  HttpClient,
+  SharedHostBudget,
+  backoffDelay,
+  type Logger,
+  type LoggerHub,
+  type CredentialResolver,
+} from '@worldview/core';
 import { SourceHealthRegistry } from '@worldview/source-health';
 
 /**
@@ -190,9 +197,12 @@ export class ProviderHost {
   private viewportCenter: { latitude: number; longitude: number } | undefined;
   private started = false;
   private disposed = false;
+  /** Per-host budgets that providers declaring `sharedHostRequestsPerMinute` share. */
+  private readonly hostBudget: SharedHostBudget;
 
   constructor(private readonly deps: ProviderHostDeps) {
     this.clock = deps.clock ?? systemClock;
+    this.hostBudget = new SharedHostBudget(this.clock);
     this.log = deps.loggerHub.logger('provider');
     this.health = new SourceHealthRegistry(this.clock);
     deps.credentials.onChange?.((key) => this.onCredentialChange(key));
@@ -236,6 +246,14 @@ export class ProviderHost {
       maxTimeoutMs: Math.max(manifest.refreshPolicy.timeoutMs, 60_000),
       maxRetries: Math.min(manifest.refreshPolicy.maxRetries, 3),
       requestsPerMinute: manifest.refreshPolicy.maxRequestsPerMinute,
+      ...(manifest.refreshPolicy.sharedHostRequestsPerMinute
+        ? {
+            sharedHostBudget: {
+              budget: this.hostBudget,
+              requestsPerMinute: manifest.refreshPolicy.sharedHostRequestsPerMinute,
+            },
+          }
+        : {}),
       staleWhileErrorMs: manifest.dataPolicy.cacheAllowed ? manifest.refreshPolicy.staleWhileErrorMs : 0,
       cacheEnabled: manifest.dataPolicy.cacheAllowed,
       online: () =>
@@ -447,6 +465,8 @@ export class ProviderHost {
     this.health.setNetworkOnline(online);
     for (const h of this.hosted.values()) {
       if (!h.running || !isRemote(h.manifest)) continue;
+      // A source that answers from its cache offline keeps its schedule either way.
+      if (h.manifest.capabilities.answersFromCacheOffline) continue;
       if (online && (h.waitingForSetup || h.waitingForKey)) continue;
       if (!online) {
         this.cancelPoll(h);
@@ -873,7 +893,7 @@ export class ProviderHost {
 
   private async poll(h: Hosted): Promise<ObservationBatch | undefined> {
     if (!h.running || !h.provider.query || h.polling) return undefined;
-    if (isRemote(h.manifest) && !this.online) {
+    if (isRemote(h.manifest) && !this.online && !h.manifest.capabilities.answersFromCacheOffline) {
       await this.publishHealth(h, { status: 'OFFLINE', message: 'network offline' });
       return undefined;
     }

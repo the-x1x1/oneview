@@ -56,6 +56,13 @@ export interface RefreshPolicy {
   maxRetries: number;
   /** Max requests per minute the provider will issue (client-side rate limit). */
   maxRequestsPerMinute: number;
+  /**
+   * A per-host budget shared with every other provider that declares one for the same host
+   * (ADR-013 amendment 2026-10-05): the requests per minute the host allows this computer,
+   * across all of them. Where two declare different budgets for a host, the smaller holds.
+   * Absent: the provider counts only against its own `maxRequestsPerMinute`.
+   */
+  sharedHostRequestsPerMinute?: number;
   /** Serve last good data for this long when upstream fails (0 = never). Bounded by dataPolicy. */
   staleWhileErrorMs: number;
   /** Object-type freshness overrides (seconds). */
@@ -93,6 +100,22 @@ export interface ProviderManifest {
     historical: boolean;
     offline: boolean;
     boundsQuery: boolean;
+    /**
+     * (additive, ADR-003 amendment 2026-10-05) An internet source that can still answer from
+     * what it has kept while the application is offline — satellites moved on from cached
+     * element sets. The host keeps polling it offline (its HTTP client refuses the network
+     * and serves only its cache); one without it is paused as before.
+     */
+    answersFromCacheOffline?: boolean;
+    /**
+     * (additive, ADR-003 amendment 2026-10-05, "answering through an upstream failure") The
+     * source may answer from what it has kept when its upstream fails — an error status, a
+     * timeout, a refusal — rather than with nothing: no observation in such an answer is
+     * labelled live, the failure is still its last error, and its status says STALE (or
+     * RATE_LIMITED). The contract checklist's Timeout scenario accepts that answer from a
+     * provider that declares it.
+     */
+    answersFromCacheWhenUnavailable?: boolean;
   };
 
   credentials: CredentialRequirement[];
@@ -200,6 +223,7 @@ export const refreshPolicySchema: Schema<RefreshPolicy> = s.refine(
     pollBudgetMs: s.optional(s.number({ min: 100, max: 600_000 })),
     maxRetries: s.number({ min: 0, max: 20, integer: true }),
     maxRequestsPerMinute: s.number({ min: 0, max: 100_000 }),
+    sharedHostRequestsPerMinute: s.optional(s.number({ min: 1, max: 100_000, integer: true })),
     staleWhileErrorMs: s.number({ min: 0 }),
     freshness: s.optional(
       s.record(
@@ -245,6 +269,8 @@ export const manifestSchema: Schema<ProviderManifest> = s.refine(
       historical: s.boolean(),
       offline: s.boolean(),
       boundsQuery: s.boolean(),
+      answersFromCacheOffline: s.optional(s.boolean()),
+      answersFromCacheWhenUnavailable: s.optional(s.boolean()),
     }),
     credentials: s.array(
       s.object({

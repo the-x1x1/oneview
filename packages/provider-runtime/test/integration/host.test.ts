@@ -1449,3 +1449,34 @@ test('cleanDetailsAnswer: a label, JSON under the size cap, and a link only to a
     undefined,
   );
 });
+
+test('offline: a source that answers from its cache keeps being polled — from its cache, with nothing sent', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-09-21T08:05:00.000Z'));
+  let calls = 0;
+  const { host } = makeHost(
+    clock,
+    fakeFetch(() => {
+      calls++;
+      return new Response(fixture('normal.geojson'), {
+        status: 200,
+        headers: { 'content-type': 'application/geo+json' },
+      });
+    }),
+  );
+  const provider = createProvider();
+  Object.defineProperty(provider, 'manifest', {
+    value: { ...provider.manifest, capabilities: { ...provider.manifest.capabilities, answersFromCacheOffline: true } },
+  });
+  host.register(provider);
+  await host.start();
+  assert.equal((await host.pollNow('usgs-earthquakes'))?.observations.length, 8);
+  const before = calls;
+  host.setOnline(false);
+  assert.notEqual(host.health.get('usgs-earthquakes')?.health.status, 'OFFLINE', 'not paused');
+  clock.advance(120_000);
+  const offline = await host.pollNow('usgs-earthquakes');
+  assert.equal(offline?.observations.length, 8, 'answered from the cache');
+  assert.equal(offline?.observations[0]?.provenance.origin, 'cached');
+  assert.equal(calls, before, 'nothing sent while offline');
+  await host.stop();
+});

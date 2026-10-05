@@ -164,6 +164,14 @@ export function Readings({ object, nowMs }: Pick<ContextSectionProps, 'object' |
       cursorMs={cursorMs}
       windowMs={windowMs}
       onWindow={setWindowMs}
+      onExport={() =>
+        void actions.exportReadings(
+          object.id,
+          resolved.series.map((x) => x.key),
+          new Date(window.startMs).toISOString(),
+          new Date(untilMs).toISOString(),
+        )
+      }
       onSeek={(ms) => actions.seekTo(ms)}
       origin={resolved.origin}
       loading={!usable}

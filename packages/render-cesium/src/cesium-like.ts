@@ -748,6 +748,7 @@ export interface CesiumLike {
   ScreenSpaceEventHandler: new (canvas: HTMLCanvasElement) => ScreenSpaceEventHandlerLike;
   ScreenSpaceEventType: {
     LEFT_CLICK: number;
+    RIGHT_CLICK: number;
     MOUSE_MOVE: number;
     LEFT_DOWN: number;
     RIGHT_DOWN: number;

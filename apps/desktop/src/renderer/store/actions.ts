@@ -8,7 +8,9 @@ import type {
   WorldObject,
   WorldQuery,
 } from '@worldview/world-model';
-import { geometryCentroid, regionBounds } from '@worldview/world-model';
+import { geometryCentroid, haversineMeters, regionBounds } from '@worldview/world-model';
+import { MEASURE_MAX_POINTS, densifyRing } from '../map/measure.js';
+import { keyboardBounds, nearbyOrder } from './nearby.js';
 import type {
   AppSettings,
   CameraListEntry,
@@ -36,7 +38,7 @@ import {
   type VisualStyleId,
 } from '@worldview/render-core';
 import { timelineReducer, type TimelineAction, type TimelineControlState, type TimelineSpeed } from '@worldview/ui';
-import type { WorldClient } from '@worldview/ipc-contract';
+import type { NearbyPlaceResult, PassAlertSettings, SkyOverheadAnswer, WorldClient } from '@worldview/ipc-contract';
 import type { ContextTab, DialogId, RootAction, RootState } from './types.js';
 import { describeError } from './sync.js';
 import { isCollected } from './collections.js';
@@ -49,6 +51,14 @@ import { WEATHER_GROUP_ID, isImageryView, visibleOverlays, withWeatherImagery } 
 import { stormsTarget, stormsViewHidden } from '../storms-view.js';
 import { displaySettings } from './display.js';
 import { NO_HOME, describeHome, homeFlyOptions, homeFlyTarget, homeFromView } from './home.js';
+
+/** Pass alerts before the operator has set any: ten minutes ahead, visible passes, in the app. */
+export const DEFAULT_PASS_ALERTS: PassAlertSettings = Object.freeze({
+  satellites: [],
+  leadMinutes: 10,
+  visibleOnly: true,
+  desktop: false,
+}) as PassAlertSettings;
 
 export interface FlyTarget {
   position: GeoPosition;
@@ -519,7 +529,8 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async search(text: string, limit = 12): Promise<SearchResult[]> {
       const center = getState().world.view.center;
       try {
-        return await client.request('search.query', { text, bias: center, limit });
+        // The channel takes at most 500 characters; past that nothing is found anyway.
+        return await client.request('search.query', { text: text.slice(0, 500), bias: center, limit });
       } catch (err) {
         fail('Search unavailable', err);
         return [];
@@ -533,6 +544,14 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * looking, and the same text is the same cached answer wherever the map is.
      */
     async searchPlaces(text: string, limit = 6): Promise<PlaceSearchAnswer> {
+      // The geocoder channel takes at most 200 characters: say so rather than send a refusal.
+      if (text.length > 200)
+        return {
+          status: 'unavailable',
+          results: [],
+          attribution: '',
+          message: 'Too long to look up online (200 characters at most).',
+        };
       try {
         return await client.request('search.places', { text, limit });
       } catch (err) {
@@ -885,18 +904,26 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         });
       }
     },
-    async addLocationToCollection(collectionId: string, title?: string): Promise<void> {
-      const view = getState().world.view;
+    /** A place to a collection: `position`, or the middle of the view. */
+    async addLocationToCollection(collectionId: string, title?: string, position?: GeoPosition): Promise<void> {
+      const at = position ?? getState().world.view.center;
       await actions.addToCollection(collectionId, {
         kind: 'location',
-        title: title ?? `${view.center.latitude.toFixed(3)}, ${view.center.longitude.toFixed(3)}`,
-        position: view.center,
+        title: title ?? `${at.latitude.toFixed(3)}, ${at.longitude.toFixed(3)}`,
+        position: { latitude: at.latitude, longitude: at.longitude },
       });
     },
-    async exportCollection(id: string): Promise<void> {
+    /** To the WorldView collection file, or its places as GPX, KML or GeoJSON. */
+    async exportCollection(id: string, format: 'json' | 'gpx' | 'kml' | 'geojson' = 'json'): Promise<void> {
       try {
-        const r = await client.request('collections.export', { id });
-        if ('path' in r) notify('Collection exported', r.path);
+        const r = await client.request('collections.export', { id, ...(format !== 'json' ? { format } : {}) });
+        if ('path' in r) {
+          const places = r.places === undefined ? '' : `${r.places} place${r.places === 1 ? '' : 's'} · `;
+          const left = r.skipped
+            ? ` · ${r.skipped} collected object${r.skipped === 1 ? '' : 's'} ${r.places === undefined ? 'saved without a position' : 'left out'}: gone from the map, or a source that does not allow export`
+            : '';
+          notify('Collection exported', `${places}${r.path}${left}`);
+        }
       } catch (err) {
         fail('Export failed', err);
       }
@@ -915,11 +942,14 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     },
 
     // ---- watch zones ----
-    async saveWatchZone(zone: WatchZone): Promise<void> {
+    /** Save a zone; false (and a notice) when the runtime refused it. */
+    async saveWatchZone(zone: WatchZone): Promise<boolean> {
       try {
         dispatch({ type: 'watchzones/list', zones: await client.request('watchzones.save', zone) });
+        return true;
       } catch (err) {
         fail('Watch zone not saved', err);
+        return false;
       }
     },
     async deleteWatchZone(id: string): Promise<void> {
@@ -930,14 +960,17 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
     },
     async createCircleZoneAtCenter(radiusM = 50_000, name?: string): Promise<void> {
-      const view = getState().world.view;
+      await actions.createCircleZoneAt(getState().world.view.center, radiusM, name);
+    },
+    /** A circular watch zone round `center` (the middle of the view, or a point What's here was asked about). */
+    async createCircleZoneAt(center: GeoPosition, radiusM = 50_000, name?: string): Promise<void> {
       const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
       await actions.saveWatchZone({
         id: `zone-${now().toString(36)}`,
-        name: name ?? `Zone near ${view.center.latitude.toFixed(2)}, ${view.center.longitude.toFixed(2)}`,
+        name: name ?? `Zone near ${center.latitude.toFixed(2)}, ${center.longitude.toFixed(2)}`,
         geometry: {
           kind: 'circle',
-          center: { latitude: view.center.latitude, longitude: view.center.longitude },
+          center: { latitude: center.latitude, longitude: center.longitude },
           radiusM,
         },
         eventTypes: zoneEventTypes(lens?.eventTypes, getState().session.eventTypes),
@@ -946,6 +979,92 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         createdAt: new Date(now()).toISOString(),
       });
       dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+    },
+    /**
+     * A watch zone whose outline is the measured shape (the measure tool with Area on). The
+     * zone is tested in plain longitude and latitude, so an outline across the 180° meridian is
+     * refused, and one that crosses itself encloses nothing.
+     */
+    async createPolygonZone(points: readonly GeoPosition[], name: string): Promise<boolean> {
+      if (points.length < 3) return false;
+      for (let i = 0; i < points.length; i++) {
+        const a = points[i]!;
+        const b = points[(i + 1) % points.length]!;
+        if (Math.abs(b.longitude - a.longitude) > 180) {
+          notify(
+            'Not watched',
+            'A zone cannot cross the 180° meridian; draw it as two shapes, one each side.',
+            'MINOR',
+          );
+          return false;
+        }
+      }
+      const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
+      // The outline as the map drew it: each leg along its great circle.
+      const outline = densifyRing(points);
+      const saved = await actions.saveWatchZone({
+        id: `zone-${now().toString(36)}`,
+        name,
+        geometry: { kind: 'polygon', polygon: outline.map((p) => [p.longitude, p.latitude] as [number, number]) },
+        eventTypes: zoneEventTypes(lens?.eventTypes, getState().session.eventTypes),
+        notifications: { inApp: true, desktop: false },
+        enabled: true,
+        createdAt: new Date(now()).toISOString(),
+      });
+      if (saved) dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+      return saved;
+    },
+    /** Every zone to a KML or GeoJSON file. */
+    async exportWatchZones(format: 'kml' | 'geojson'): Promise<void> {
+      try {
+        const r = await client.request('watchzones.export', { format });
+        if ('path' in r)
+          notify(
+            'Watch zones exported',
+            `${r.zones} zone${r.zones === 1 ? '' : 's'} · ${r.path}${r.skipped ? ` · ${r.skipped} without an outline left out` : ''}`,
+          );
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
+    /** Shapes from a KML or GeoJSON file as new zones, listening for what a new zone would. */
+    async importWatchZones(): Promise<void> {
+      try {
+        const r = await client.request('watchzones.import', undefined);
+        if (r.issues.includes('cancelled')) return;
+        const lens = lensById(getState().lenses.activeId, getState().lenses.lenses);
+        const eventTypes = zoneEventTypes(lens?.eventTypes, getState().session.eventTypes);
+        const at = now();
+        let saved = 0;
+        for (const [i, draft] of r.zones.entries())
+          if (
+            await actions.saveWatchZone({
+              id: `zone-${at.toString(36)}-${i}`,
+              name: draft.name,
+              geometry: draft.geometry,
+              eventTypes,
+              notifications: { inApp: true, desktop: false },
+              enabled: true,
+              createdAt: new Date(at).toISOString(),
+            })
+          )
+            saved++;
+        if (saved) dispatch({ type: 'ui/contextTab', tab: 'watchzones' });
+        const refused = r.zones.length - saved;
+        notify(
+          saved ? 'Watch zones imported' : 'No zones imported',
+          [
+            saved ? `${saved} zone${saved === 1 ? '' : 's'}` : undefined,
+            refused ? `${refused} not saved` : undefined,
+            ...r.issues,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          saved ? 'INFO' : 'MINOR',
+        );
+      } catch (err) {
+        fail('Import failed', err);
+      }
     },
     flyToZone(zone: WatchZone): void {
       const b = regionBounds(zone.geometry);
@@ -973,6 +1092,10 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     // ---- display: HUD, visual style, day/night (saved), clean view, orbit, follow (session) ----
     async toggleHud(): Promise<void> {
       await setDisplay({ hud: !displaySettings(getState().session.settings).hud });
+    },
+    /** G: the latitude and longitude grid (map/graticule.ts). */
+    async toggleGrid(): Promise<void> {
+      await setDisplay({ grid: !(displaySettings(getState().session.settings).grid ?? false) });
     },
     async setVisualStyle(id: VisualStyleId): Promise<void> {
       await setDisplay({ visualStyle: id });
@@ -1025,6 +1148,127 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       }
       dispatch({ type: 'ui/imageryCompare', split });
     },
+    /** Range rings round the selected object on or off (R). */
+    toggleRangeRings() {
+      dispatch({ type: 'ui/rangeRings', on: !getState().ui.rangeRings });
+    },
+    /**
+     * What's here: a card for a point — the one right-clicked, or with no point the middle of
+     * the view (the palette) — naming the nearest town and giving the point's references, how
+     * far it is from home and the selection, and the Sun and Moon there.
+     */
+    showWhatsHere(position?: GeoPosition, screen?: { x: number; y: number } | null) {
+      // The middle of the view is the ground there (`focus`), not the point under a tilted camera.
+      const view = hosts.get()?.getView() ?? getState().world.view;
+      const at = position ?? view.focus ?? view.center;
+      dispatch({
+        type: 'ui/whatsHere',
+        whatsHere: {
+          // The flat map's centre can be unwrapped past ±180°: fold it.
+          position: { latitude: at.latitude, longitude: ((((at.longitude + 180) % 360) + 360) % 360) - 180 },
+          screen: screen ?? null,
+        },
+      });
+    },
+    closeWhatsHere() {
+      if (getState().ui.whatsHere) dispatch({ type: 'ui/whatsHere', whatsHere: null });
+    },
+    /** The satellites above a place's horizon now (`sky.overhead`); null when the runtime did not answer. */
+    async skyOverhead(
+      observer: GeoPosition,
+      opts: { limit?: number; hideStarlink?: boolean; visibleOnly?: boolean } = {},
+    ): Promise<SkyOverheadAnswer | null> {
+      try {
+        return await client.request('sky.overhead', {
+          observer: { latitude: observer.latitude, longitude: observer.longitude },
+          limit: opts.limit ?? 500,
+          ...(opts.hideStarlink ? { excludeCategories: ['starlink'] } : {}),
+          ...(opts.visibleOnly ? { visibleOnly: true } : {}),
+        });
+      } catch {
+        return null;
+      }
+    },
+    /** The town nearest a point, from the offline gazetteer; null when none is known or the lookup failed. */
+    async nearestPlace(position: GeoPosition): Promise<NearbyPlaceResult | null> {
+      try {
+        const [p] = await client.request('search.nearest', {
+          position: { latitude: position.latitude, longitude: position.longitude },
+          limit: 1,
+        });
+        return p ?? null;
+      } catch {
+        return null;
+      }
+    },
+    /** Start measuring from a point: the measure tool on, with it as the first point. */
+    measureFrom(position: GeoPosition) {
+      dispatch({
+        type: 'ui/measure',
+        measure: { points: [{ latitude: position.latitude, longitude: position.longitude }] },
+      });
+    },
+    /** The measured line (or, with Area on, the shape) to a GPX, KML or GeoJSON file. */
+    async exportMeasure(format: 'gpx' | 'kml' | 'geojson'): Promise<void> {
+      const m = getState().ui.measure;
+      if (!m || m.points.length < 2) return;
+      try {
+        const r = await client.request('export.line', {
+          points: m.points.slice(0, 500).map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+          closed: (m.area ?? false) && m.points.length >= 3,
+          format,
+        });
+        if ('path' in r) notify(m.area ? 'Shape exported' : 'Line exported', `${r.points} points · ${r.path}`);
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
+    /**
+     * The map by keyboard: select the next object out from the middle of the view (`]`), or the
+     * previous one back towards it (`[`) — among the objects in view, nearest first. The view
+     * stays where it is. False when there is nothing in view to select.
+     */
+    selectNearby(step: 1 | -1): boolean {
+      const s = getState();
+      const view = hosts.get()?.getView() ?? s.world.view;
+      const middle = view.focus ?? view.center;
+      const list = nearbyOrder(s.world.objects.values(), middle, keyboardBounds(view.center, view.bounds));
+      if (!list.length) return false;
+      const at = s.world.selectedId ? list.indexOf(s.world.selectedId) : -1;
+      const next = at < 0 ? (step > 0 ? 0 : list.length - 1) : (at + step + list.length) % list.length;
+      void actions.select(list[next]!, { kind: 'object' });
+      return true;
+    },
+    /** The measure tool on (empty) or off (M, the ruler, Esc). */
+    toggleMeasure() {
+      dispatch({ type: 'ui/measure', measure: getState().ui.measure ? null : { points: [] } });
+    },
+    /** A point clicked while measuring (at most MEASURE_MAX_POINTS). */
+    addMeasurePoint(position: GeoPosition) {
+      const m = getState().ui.measure;
+      if (!m || m.points.length >= MEASURE_MAX_POINTS) return;
+      // A second click on the same spot (a double click) adds nothing: a leg of 0 m.
+      const last = m.points.at(-1);
+      if (last && haversineMeters(last, position) < 1) return;
+      dispatch({
+        type: 'ui/measure',
+        measure: { ...m, points: [...m.points, { latitude: position.latitude, longitude: position.longitude }] },
+      });
+    },
+    /** Take back the last point, or clear them all. */
+    undoMeasurePoint() {
+      const m = getState().ui.measure;
+      if (m?.points.length) dispatch({ type: 'ui/measure', measure: { ...m, points: m.points.slice(0, -1) } });
+    },
+    clearMeasure() {
+      const m = getState().ui.measure;
+      if (m) dispatch({ type: 'ui/measure', measure: { ...m, points: [] } });
+    },
+    /** Close the measured shape back to its first point and give its area, or open it again. */
+    toggleMeasureArea() {
+      const m = getState().ui.measure;
+      if (m) dispatch({ type: 'ui/measure', measure: { ...m, area: !m.area } });
+    },
     /** The comparison's sides or divider changed (the divider commits here when a drag ends). */
     setImageryCompare(split: ImagerySplit | null) {
       dispatch({ type: 'ui/imageryCompare', split });
@@ -1054,6 +1298,31 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
       const view = homeFromView(host.getView());
       await updateSettings({ home: { ...(current.home ?? NO_HOME), view } });
       notify('Home view set', `${describeHome(view)}. Home or Shift+H returns here.`);
+    },
+    /**
+     * Pass alerts (Settings `passAlerts`): add or take a satellite off the list, or change how
+     * the alerts are given. A notice comes `leadMinutes` before each listed satellite rises over
+     * the home view (runtime support/pass-alerts.ts).
+     */
+    async setPassAlert(satellite: { objectId: string; name: string }, on: boolean): Promise<void> {
+      const current = getState().session.settings?.passAlerts ?? DEFAULT_PASS_ALERTS;
+      const others = current.satellites.filter((s) => s.objectId !== satellite.objectId);
+      if (on && others.length >= 20) {
+        notify('Pass alerts', 'At most 20 satellites can be watched for passes.', 'MINOR');
+        return;
+      }
+      await updateSettings({
+        passAlerts: {
+          ...current,
+          satellites: on ? [...others, { objectId: satellite.objectId, name: satellite.name.slice(0, 200) }] : others,
+        },
+      });
+    },
+    async setPassAlertOptions(
+      options: Partial<Pick<PassAlertSettings, 'leadMinutes' | 'visibleOnly' | 'desktop'>>,
+    ): Promise<void> {
+      const current = getState().session.settings?.passAlerts ?? DEFAULT_PASS_ALERTS;
+      await updateSettings({ passAlerts: { ...current, ...options } });
     },
     async clearHome(): Promise<void> {
       await updateSettings({ home: { view: null, flyOnStart: false } });
@@ -1310,7 +1579,7 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
      * time window ("last 7 days") is answered from history as well as live state, and each
      * object is exported only where every source behind it allows export.
      */
-    async exportLastQuery(format: 'geojson' | 'json' | 'csv'): Promise<void> {
+    async exportLastQuery(format: 'geojson' | 'json' | 'csv' | 'kml'): Promise<void> {
       const last = getState().ui.lastQuery;
       if (!last) {
         notify('Nothing to export yet', 'Run a search such as "M5+ earthquakes last 7 days" first.');
@@ -1328,7 +1597,53 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Export failed', err);
       }
     },
-    async exportVisible(format: 'geojson' | 'json' | 'csv'): Promise<void> {
+    /** An object's recorded readings of `keys` between two times, to a CSV file (export.readings). */
+    async exportReadings(objectId: string, keys: string[], start: string, end: string): Promise<void> {
+      try {
+        const r = await client.request('export.readings', { objectId, keys: keys.slice(0, 32), time: { start, end } });
+        if ('path' in r) notify('Readings exported', `${r.rows} rows: ${r.path}`);
+        else if ('refused' in r)
+          notify('Readings not exported', `Their sources do not allow export: ${r.refused.join(', ')}`, 'MINOR');
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
+    /** The selected object's recorded track between two times, to a file (export.track). */
+    async exportTrack(
+      objectId: string,
+      start: string,
+      end: string,
+      format: 'geojson' | 'csv' | 'gpx' | 'kml' = 'geojson',
+    ): Promise<void> {
+      try {
+        const r = await client.request('export.track', { objectId, time: { start, end }, format });
+        if ('path' in r) notify('Track exported', `${r.points} points: ${r.path}`);
+        else if ('refused' in r)
+          notify('Track not exported', `Its sources do not allow export: ${r.refused.join(', ')}`, 'MINOR');
+      } catch (err) {
+        fail('Export failed', err);
+      }
+    },
+    /**
+     * A picture of the map as it is on screen — globe or flat map, overlays, labels, HUD and
+     * the on-screen credits — saved as a PNG where the operator chooses (view.capture).
+     */
+    async savePicture(): Promise<void> {
+      // Let a menu or the palette that asked for it close first: it is not part of the picture.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const box = globalThis.document?.querySelector('.wv-map')?.getBoundingClientRect();
+      const rect =
+        box && box.width > 0 && box.height > 0
+          ? { x: Math.max(0, box.left), y: Math.max(0, box.top), width: box.width, height: box.height }
+          : undefined;
+      try {
+        const r = await client.request('view.capture', rect ? { rect } : {});
+        if ('path' in r) notify('Picture saved', `${r.width} × ${r.height}: ${r.path}`);
+      } catch (err) {
+        fail('Picture not saved', err);
+      }
+    },
+    async exportVisible(format: 'geojson' | 'json' | 'csv' | 'kml'): Promise<void> {
       const s = getState();
       const lens = lensById(s.lenses.activeId, s.lenses.lenses);
       const query: WorldQuery = {

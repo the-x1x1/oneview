@@ -134,16 +134,17 @@ Still open:
   string concatenation and conditional values are deliberately absent from the mapping. If
   a real source needs them they are added as named steps (`explode`, `concat`, `when`) with
   the same no-execution property, by the integrator, as an ADR-013 amendment.
-- Pagination by RFC 8288 `Link` headers and by time windows; per-host rate budgets shared
-  between definitions on the same host (each has its own limiter today).
-- Bounds queries take a bounding box only; point-and-radius and tile/quadkey sources are
-  bespoke (adsb-lol) until a `boundsQuery` shape for them is designed.
+- Pagination by time windows (RFC 8288 `Link` headers: `link-header`, 2026-10-04). Per-host
+  budgets shared between definitions are opt-in (`hostRequestsPerMinute`, 2026-10-05): a
+  definition that states none still has only its own limiter.
+- Bounds queries take a bounding box or, in REST JSON, a centre and radius (`{lat}` `{lon}`
+  `{radiusKm}`, capped by `boundsMaxRadiusKm`, 2026-10-04); tile/quadkey sources are bespoke
+  until a `boundsQuery` shape for them is designed.
 - WebSocket: binary frames, per-message compression, auth by header (the SDK's socket opens
   with a URL and a credential for the frame only).
-- Freshness defaults per object type are applied by the state engine when a definition
-  sets none; they are not listed in the connector docs yet.
 - Definitions loaded from `<userData>` are not signed; bundled ones ride on the installer's
-  integrity. Worldpack signing (roadmap) should cover a bundled definition set.
+  integrity. A signed definition set travels in a world pack (OFFLINE-PACKS.md §4b) and loads
+  only from a trusted publisher's pack, as user-configured.
 - Offline packs from connector data are refused by policy for user-configured sources; a
   reviewed definition with `offlinePackAllowed` is not yet understood by the pack builder.
 - The provider validator's 16 checks and the connector suite's 14 overlap; a bespoke

@@ -143,9 +143,10 @@ Engineering:
       on 2026-10-04, all LIVE.
 - [x] The deferred connector items: none is needed by a shipped source, so all stay for a
       later minor (the list above).
-- [ ] On the globe, a thin line along 180° where the Himawari and GOES-West infrared slices
-      meet (V&V 2026-10-04 #17). A rectangle across 180°, a cut in the tiles and a 0.05°
-      overlap were tried and reverted; the line is in KNOWN-LIMITATIONS, carried to 0.3.
+- [x] On the globe, a thin line along 180° where the Himawari and GOES-West infrared slices
+      meet (V&V 2026-10-04 #17): NASA GIBS draws the last pixel column of the easternmost
+      tiles darker, and the fade made it transparent; the column is mended before the fade
+      (on feature/next; no line at 128 km over Fiji on the laptop, 2026-10-04).
 - [ ] Worth a profile, not blocking: on the test laptop the 2D map with the world loaded
       (20–30k features) runs 20–45 fps and sits at the governor's minimal detail most of the
       time (3D runs 50–60); and the renderer's JS heap reads 1–2 GB for a single sample
@@ -187,10 +188,28 @@ defects on the way; what is left:
 
 ## 0.3.0 — Offline everywhere
 
-Bundled basemap extracts for common regions (from the `offline-basemaps` tooling); pack
-signing (and signed definition sets); incremental pack updates; offline terrain where a
-compatible source is legally clear; SQLite FTS place index at country scale; pack
-management UI (size, coverage, freshness, update).
+Already in 0.2.x, built ahead of this release: pack signing and trusted publishers
+(docs/OFFLINE-PACKS.md §4a), update packs that carry only what changed (§5b), the SQLite FTS
+place index at country scale for a pack's places (§7), and pack management in Settings
+(size, coverage, freshness, signature, install, remove).
+
+- [x] Offline search without a pack: 7,342 cities and towns from Natural Earth's populated
+      places (public domain), bundled beside the map's label file (on feature/next).
+- [ ] Bundled basemap extracts for common regions, from the `offline-basemaps` tooling: waits
+      on the operator's licence record for a pack's basemap (B1).
+- [ ] Offline terrain where a compatible source is legally clear: a source to be chosen and
+      reviewed first. The review is written (docs/roadmap/OFFLINE-TERRAIN.md: Mapterhorn's
+      PMTiles, their ~115 sources and licences, crediting, heights); four questions in it are
+      the operator's.
+- [x] Signed definition sets: a world pack carries connector definitions, loaded only from a
+      trusted publisher's pack and as user-configured (docs/OFFLINE-PACKS.md §4b; on
+      feature/next).
+- [x] The 180° infrared line on the globe (carried from 0.2.0; fixed on feature/next).
+- [x] Work offline (Settings → Network): one switch that asks nothing of the internet and
+      refuses every request that would leave the computer; satellites keep moving from the
+      kept element sets for up to seven days, offline or not (on feature/next).
+- [ ] Carried from 0.2.0 (the list above): the operator's decisions, the checklist items only
+      the operator can walk and the 2D profile.
 
 ## 0.4.0 — Historical world
 
@@ -199,6 +218,24 @@ replay of multi-day windows; per-object history views (track playback, altitude 
 speed profiles, telemetry readings over long windows); "what changed" as a first-class
 screen; export of historical queries where the source policy permits.
 
+Where it stands (audited 2026-10-04): tiered downsampling (retention.ts), the DuckDB/Parquet
+backend with an NDJSON fallback, track playback with altitude and speed profiles, readings
+over up to 7 days, What changed, and export of a time-window query's objects are built.
+
+- [x] Replay of multi-day windows: 600× and 3600× (on feature/next).
+- [x] Track history up to 7 days (on feature/next).
+- [x] What changed as a tab of the Overview lens (on feature/next).
+- [x] A timeline snapshot reads each type only as far back as it lasts (on feature/next).
+- [x] The NDJSON snapshot, track, counts and range reads parse only the rows they can use:
+      a scrub on the test laptop went from 7.2 s to 2.2–2.9 s; a CI ceiling guards it
+      (`config/perf-budgets.json` → `historySnapshot`; on feature/next).
+- [x] DuckDB/Parquet as the default in the app, with NDJSON as the fallback and a way back
+      (Settings → History → Storage). Existing NDJSON history is read beside Parquet, not
+      converted or deleted (the operator's choice, 2026-10-05; docs/roadmap/DUCKDB-DEFAULT.md;
+      on feature/next).
+- [x] Export of an object's recorded track (GeoJSON/CSV, policy-gated; on feature/next).
+- [x] Export of readings over time (CSV, policy-gated; on feature/next).
+
 ## 0.5.0 — Event intelligence
 
 Richer deterministic correlation (aftershock sequences, fire growth, storm tracks,
@@ -206,11 +243,42 @@ alert supersession); event timelines and relationships; watch-zone rules with qu
 hours, escalation and telemetry limits; a world feed that ranks by relevance rather than
 recency.
 
+Where it stands (audited 2026-10-04): aftershock linking, fire growth, storm tracks, alert
+supersession, quiet hours, escalation and the relevance-ranked feed are built (event-engine
+rules, watch-zones.ts, renderer feed-rank.ts).
+
+- [x] Telemetry limits: a reading past a limit its source declares raises `reading-limit`,
+      which a watch zone subscribes to (on feature/next).
+- [x] Event timelines: a mainshock lists its aftershock sequence (count, largest, span, the
+      newest twelve); a storm's advisories and a fire cluster's growth are listed in History
+      (on feature/next).
+- [x] A fire cluster's growth and a storm's wind charted over time in History (on
+      feature/next).
+- [x] The engine's feed and the app's copy are trimmed by relevance (severity halved every
+      six hours of age), not by time, with the weights the renderer ranks by; nearness to
+      the view stays the renderer's, which alone knows the view (on feature/next).
+- [x] Aircraft emergencies (squawk 7700/7600/7500, the ADS-B emergency status) and AIS
+      distress beacons (AIS-SART, MOB, EPIRB-AIS transmitting as active) as events a watch
+      zone can subscribe to, ended when cleared or quiet (on feature/next; unit-tested, not
+      yet seen on the air).
+
 ## 0.6.0 — Local sensor ecosystem
 
 Beyond what 0.2.0's connectors cover: Meshtastic/LoRa over serial and BLE, NMEA 2000,
 LAN device discovery that stays conservative and explicit, a local-sensor SDK with the
 same manifest/data-policy contract for devices that need code.
+
+- [x] Meshtastic over TCP: the nodes of the operator's own mesh through one of their nodes'
+      client API (port 4403), on a new binary local stream (ADR-003 amendment 2026-10-05);
+      positions, node info and telemetry, text never read; off by default (on feature/next;
+      tested against messages encoded by Meshtastic's own code, not yet against a node).
+- [ ] Meshtastic over USB serial and Bluetooth: the same decoder; needs a serial or BLE
+      transport in the main process.
+- [x] NMEA 2000 through the operator's own gateway (Yacht Devices RAW over TCP): the boat —
+      position, course, heading, depth, wind, temperatures — and the ships its AIS hears; read
+      only (on feature/next; checked against CANboat's analyzer, not yet against a boat).
+- [x] From the boat: another vessel's range, bearing and closest point of approach, and
+      course vectors for the selection and the boat (on feature/next; unit-tested only).
 
 ## 0.7.0 — Provider extensions
 
@@ -223,6 +291,19 @@ provider registry and the scaffold CLI as the supported path.
 Code signing and low-friction updates; macOS and Linux; ARM64; accessibility audit;
 performance budgets enforced in CI; documented data-retention defaults reviewed by
 legal; the commercial distribution review closed with no outstanding blockers.
+
+- [x] Accessibility audit, automated part: `a11y-audit.test.ts` renders every screen of the
+      shell (the Overview, each context tab, each dialog, a selection) and fails on a control
+      a screen reader could not name, a field without a label or an image without alt. All
+      pass on feature/next (2026-10-04).
+- [x] Contrast of the colour tokens: every text colour on every panel surface, and the
+      primary button's label, meets WCAG AA 4.5:1 (`apps/desktop/test/unit/contrast.test.ts`, on
+      feature/next).
+- [x] The globe by keyboard: arrows, + and −, Shift to turn and tilt, as the 2D map has
+      them from MapLibre (on feature/next).
+- [ ] Accessibility audit, by hand: a screen reader (NVDA or Narrator) through the main
+      tasks, keyboard-only use of the map, and the HUD's ink over the imagery in each visual
+      style (its background is the map, not a token).
 
 ## 1.10.0 — Deferred options from the OSIRIS review (each needs a decision first)
 

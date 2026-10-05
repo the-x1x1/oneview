@@ -64,6 +64,8 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'timeline.set': { speed: 1 },
   'search.query': { text: 'Honolulu' },
   'search.places': { text: 'Honolulu' },
+  'search.nearest': { position: { latitude: 19.9, longitude: -155.6 } },
+  'sky.overhead': { observer: { latitude: 21.3, longitude: -157.85 } },
   'lenses.list': undefined,
   'lenses.save': {
     id: 'user-test',
@@ -96,6 +98,8 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
     createdAt: '2026-09-21T00:00:00.000Z',
   },
   'watchzones.delete': { id: 'z1' },
+  'watchzones.export': { format: 'geojson' },
+  'watchzones.import': undefined,
   'feed.recent': { limit: 20 },
   'offline.status': undefined,
   'offline.installPack': undefined,
@@ -106,6 +110,23 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'offline.removePublisher': { keyId: '0123456789abcdef' },
   'offline.setRequireTrusted': { required: false },
   'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
+  'export.readings': {
+    objectId: 'sensor:purpleair-local:nope',
+    keys: ['pm25Ugm3'],
+    time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+  },
+  'export.track': {
+    objectId: 'aircraft:icao24:nope00',
+    time: { start: '2026-09-21T00:00:00.000Z', end: '2026-09-21T01:00:00.000Z' },
+    format: 'csv',
+  },
+  'export.line': {
+    points: [
+      { latitude: 19.7, longitude: -155.1 },
+      { latitude: 19.8, longitude: -155.5 },
+    ],
+    format: 'gpx',
+  },
   'camera.register': { name: 'Test', url: 'https://cam.example/still.jpg' },
   'camera.snapshot': { cameraId: 'public:fintraffic:NOPE' },
   'camera.stream': { cameraId: 'public:fintraffic:NOPE' },
@@ -119,6 +140,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'tiles.status': undefined,
   'tiles.clear': undefined,
   'tiles.prefetch': { sourceId: 'esri-world-imagery', bounds: { west: -1, south: -1, east: 1, north: 1 }, zoom: 3 },
+  'view.capture': {},
 };
 
 /** Channels whose benign request legitimately reports a missing thing rather than succeeding. */
@@ -131,6 +153,9 @@ const MAY_REPORT_MISSING = new Set<RequestChannel>([
   'offline.removePack',
   'offline.setPackEnabled',
   'offline.trustPublisher',
+  // No recorded track for a made-up object: an answer, not an unimplemented channel.
+  'export.track',
+  'export.readings',
   // Demo mode has no definition folder: these report that, and fetch or write nothing.
   'sources.definitions.setEnabled',
   'sources.definitions.draft',
@@ -430,6 +455,48 @@ test('search finds the states and provinces the map names (the bundled label fil
   }
 });
 
+test('search finds cities offline (the bundled populated places), and typed queries keep their meaning', async () => {
+  const labels = new URL('../../../../apps/desktop/assets/reference/labels.json', import.meta.url);
+  const places = new URL('../../../../apps/desktop/assets/reference/places.json', import.meta.url);
+  const h = await startRuntime({
+    demo: true,
+    referenceLabelsPath: fileURLToPath(labels),
+    referencePlacesPath: fileURLToPath(places),
+  });
+  try {
+    for (let i = 0; i < 100 && !h.runtime.core.referencePlaces.ready; i++) await new Promise((r) => setTimeout(r, 10));
+    assert.ok(h.runtime.core.referencePlaces.ready, 'loaded');
+    for (const [text, name, subtitle] of [
+      ['Helsinki', 'Helsinki', 'City · Southern Finland · FI'],
+      ['fly to Kansas City', 'Kansas City', 'City · Missouri · US'],
+      ['Bombay', 'Mumbai', 'City · Maharashtra · IN'],
+    ] as const) {
+      const results = await h.client.request('search.query', { text });
+      const top = results.find((r) => r.kind === 'place');
+      assert.equal(top?.title, name, text);
+      assert.equal(top?.subtitle, subtitle, text);
+    }
+    // Paris the city comes before Natural Earth's admin-1 Paris, which surrounds it.
+    const paris = (await h.client.request('search.query', { text: 'Paris' })).filter((r) => r.kind === 'place');
+    assert.equal(paris[0]?.subtitle, 'City · Île-de-France · FR');
+    assert.equal(paris[1]?.subtitle, 'Region · FRA');
+    // A country or a state is still the place a typed query means, not a town of that name.
+    const japan = await h.client.request('search.query', { text: 'earthquakes in Japan' });
+    const quakes = japan.find((r) => r.kind === 'query');
+    assert.equal(quakes?.title, 'Earthquakes in Japan (0)');
+    assert.equal(quakes?.query?.region?.kind, 'bounds', "Japan's bounds, not a town's circle");
+    const georgia = await h.client.request('search.query', { text: 'Georgia' });
+    assert.notEqual(georgia.find((r) => r.kind === 'place')?.kind, undefined);
+    assert.notEqual(
+      georgia.find((r) => r.kind === 'place')?.subtitle?.startsWith('City'),
+      true,
+      'a country or state first',
+    );
+  } finally {
+    await h.dispose();
+  }
+});
+
 test('an installed pack basemap: the offline vector basemaps get its address, versioned by the pack', async () => {
   const h = await startRuntime({ offlineBasemapUrl: 'worldview://app/__pack/basemap.pmtiles' });
   try {
@@ -483,6 +550,95 @@ test('a Martin source that does not answer is listed as two unavailable basemaps
       'Martin: http://127.0.0.1:59999/basemap could not be read (nothing is listening there — is Martin running?)',
     );
   } finally {
+    await h.dispose();
+  }
+});
+
+test('export.track: a recorded track to GeoJSON or CSV, only when every source of it allows export', async () => {
+  const { promises: fs } = await import('node:fs');
+  const os = await import('node:os');
+  const h = await startRuntime({ demo: true });
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wv-track-'));
+  try {
+    const core = h.runtime.core;
+    const time = { start: '2026-10-04T10:00:00.000Z', end: '2026-10-04T11:00:00.000Z' };
+    core.history.track = async () => [
+      { observedAt: '2026-10-04T10:00:00.000Z', latitude: 50, longitude: 8, altitudeM: 10_000 },
+      { observedAt: '2026-10-04T10:10:00.000Z', latitude: 50.5, longitude: 8.5, altitudeM: 10_500 },
+    ];
+    let providers = ['open-source'];
+    core.history.trackProviders = async () => providers;
+    const policyFor = core.policyFor.bind(core);
+    core.policyFor = (id: string) =>
+      id === 'open-source'
+        ? { ...policyFor('usgs-earthquakes')!, exportAllowed: true, attributionText: 'Open source' }
+        : id === 'closed-source'
+          ? { ...policyFor('usgs-earthquakes')!, exportAllowed: false }
+          : undefined;
+    const objectId = 'aircraft:icao24:abc123';
+
+    const geo = path.join(dir, 'track.geojson');
+    h.host.saveQueue.push(geo);
+    assert.deepEqual(await h.client.request('export.track', { objectId, time, format: 'geojson' }), {
+      path: geo,
+      points: 2,
+    });
+    const feature = JSON.parse(await fs.readFile(geo, 'utf8')) as {
+      geometry: { type: string; coordinates: number[][] };
+      properties: { times: string[]; attribution: string[] };
+    };
+    assert.equal(feature.geometry.type, 'LineString');
+    assert.deepEqual(feature.geometry.coordinates[1], [8.5, 50.5, 10_500]);
+    assert.deepEqual(feature.properties.times, ['2026-10-04T10:00:00.000Z', '2026-10-04T10:10:00.000Z']);
+    assert.deepEqual(feature.properties.attribution, ['Open source']);
+
+    const csv = path.join(dir, 'track.csv');
+    h.host.saveQueue.push(csv);
+    await h.client.request('export.track', { objectId, time, format: 'csv' });
+    assert.equal((await fs.readFile(csv, 'utf8')).trim().split('\n')[1], '2026-10-04T10:00:00.000Z,50,8,10000');
+
+    const gpx = path.join(dir, 'track.gpx');
+    h.host.saveQueue.push(gpx);
+    assert.deepEqual(await h.client.request('export.track', { objectId, time, format: 'gpx' }), {
+      path: gpx,
+      points: 2,
+    });
+    const gpxText = await fs.readFile(gpx, 'utf8');
+    assert.equal((gpxText.match(/<trkpt /g) ?? []).length, 2);
+    assert.match(
+      gpxText,
+      /<trkpt lat="50.5" lon="8.5"><ele>10500<\/ele><time>2026-10-04T10:10:00.000Z<\/time><\/trkpt>/,
+    );
+    assert.match(gpxText, /Data: Open source/);
+
+    core.history.readings = async () => ({
+      readings: [
+        { observedAt: '2026-10-04T10:00:00.000Z', values: { pm25Ugm3: 12.5, aqiUs: 52 } },
+        { observedAt: '2026-10-04T10:02:00.000Z', values: { pm25Ugm3: 13 } },
+      ],
+      truncated: false,
+    });
+    const readingsCsv = path.join(dir, 'readings.csv');
+    h.host.saveQueue.push(readingsCsv);
+    assert.deepEqual(await h.client.request('export.readings', { objectId, keys: ['pm25Ugm3', 'aqiUs'], time }), {
+      path: readingsCsv,
+      rows: 2,
+    });
+    assert.deepEqual((await fs.readFile(readingsCsv, 'utf8')).trim().split('\n'), [
+      'observedAt,pm25Ugm3,aqiUs',
+      '2026-10-04T10:00:00.000Z,12.5,52',
+      '2026-10-04T10:02:00.000Z,13,',
+    ]);
+
+    providers = ['open-source', 'closed-source'];
+    assert.deepEqual(await h.client.request('export.track', { objectId, time, format: 'csv' }), {
+      refused: ['closed-source'],
+    });
+    assert.deepEqual(await h.client.request('export.readings', { objectId, keys: ['pm25Ugm3'], time }), {
+      refused: ['closed-source'],
+    });
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
     await h.dispose();
   }
 });

@@ -685,3 +685,47 @@ test('presentation: a ship carries its AIS length for the 3D model; an implausib
   assert.equal(length('vessel:mmsi:2'), undefined, 'longer than any ship: a wrong entry');
   assert.equal(length('vessel:mmsi:3'), undefined);
 });
+
+test("an aircraft's emergency is drawn where the aircraft is now, while it goes on at the time shown", () => {
+  const view = {
+    center: { latitude: 21, longitude: -157 },
+    altitudeM: zoomToAltitudeM(6),
+    zoom: 6,
+    headingDegrees: 0,
+    pitchDegrees: -90,
+    bounds: { west: -180, south: -90, east: 180, north: 90 },
+  };
+  const plane = obj('aircraft:icao24:a1b2c3', 'aircraft', 21.5, -157.5);
+  const open = {
+    id: 'event:aircraft-emergency:icao24:a1b2c3-100',
+    type: 'aircraft-emergency',
+    title: 'UAL123: general emergency (squawk 7700)',
+    startAt: '2026-09-21T00:00:00.000Z',
+    objectIds: [plane.id],
+    observationRefs: [],
+    confidence: 'HIGH',
+    severity: 'SEVERE',
+    summary: '',
+    // Where the event last put it, a minute before.
+    geometry: { type: 'Point', coordinates: [-157.2, 21.2] },
+    provenance: plane.provenance,
+  } as unknown as WorldEvent;
+  const drawn = (events: WorldEvent[], extra: { shownAtMs?: number; selectedId?: string } = {}) =>
+    presentObjects({ objects: [plane], events, view, cullToView: false, ...extra }).upsert.find(
+      (f) => f.id === `event:${open.id}`,
+    );
+  const now = drawn([open])!;
+  assert.deepEqual(now.geometry, { kind: 'point', position: { latitude: 21.5, longitude: -157.5 } }, 'on the aircraft');
+  assert.equal(now.style.styleClass, 'event.aircraft-emergency');
+  const ended = { ...open, endAt: '2026-09-21T00:10:00.000Z' };
+  assert.equal(drawn([ended]), undefined, 'over: not drawn as if it were going on');
+  assert.ok(drawn([ended], { selectedId: open.id }), 'unless it is the selection');
+  assert.ok(drawn([ended], { shownAtMs: Date.parse('2026-09-21T00:05:00Z') }), 'replaying, while it went on');
+  assert.equal(drawn([ended], { shownAtMs: Date.parse('2026-09-21T00:15:00Z') }), undefined);
+  assert.equal(drawn([open], { shownAtMs: Date.parse('2026-09-20T23:00:00Z') }), undefined, 'before it began');
+  // The aircraft not in the world: at the event's own place.
+  const alone = presentObjects({ objects: [], events: [open], view, cullToView: false }).upsert.find(
+    (f) => f.id === `event:${open.id}`,
+  )!;
+  assert.deepEqual(alone.geometry, { kind: 'point', position: { latitude: 21.2, longitude: -157.2 } });
+});

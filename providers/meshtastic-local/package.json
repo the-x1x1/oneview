@@ -1,0 +1,21 @@
+{
+  "name": "@worldview/provider-meshtastic-local",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nodes of the user's own Meshtastic mesh, read from one of their nodes over its TCP client API. Positions, node info and telemetry; text is never read. No account, no key, nothing uploaded.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@worldview/world-model": "workspace:*",
+    "@worldview/provider-sdk": "workspace:*"
+  },
+  "sideEffects": false
+}

@@ -313,6 +313,16 @@ test('flyTo records the view it produced so a later switch keeps it', async () =
   assert.equal(Math.round(h.r3d.getView().center.latitude * 10) / 10, 51.5);
 });
 
+test('setView moves the active renderer and records the view (the globe by keyboard)', async () => {
+  const h = harness({ mode: '3D' });
+  await h.host.mount(h.container);
+  h.host.setView({ center: { latitude: -33.9, longitude: 151.2 } }, { animate: true, durationMs: 200 });
+  assert.equal(Math.round(h.r3d.getView().center.latitude * 10) / 10, -33.9);
+  h.host.setMode('2D');
+  await new Promise(setImmediate);
+  assert.equal(Math.round(h.r2d.getView().center.longitude * 10) / 10, 151.2, 'a later switch keeps it');
+});
+
 /**
  * The toggle showed the wrong mode after every switch, and this is the shape of why.
  *
@@ -445,12 +455,28 @@ test('the host forwards frame samples from the active renderer, which is what th
   assert.deepEqual(seen, [57, 60]);
 });
 
+test('the pointer readout comes from the renderer on screen only', async () => {
+  const h = harness({ mode: '2D' });
+  await h.host.mount(h.container);
+  const shellView: RendererHostLike = h.host;
+  const seen: Array<number | null> = [];
+  shellView.on('pointer', (p) => seen.push(p ? p.position.longitude : null));
+  h.r2d.emit('pointer', { position: { latitude: 1, longitude: 2 }, screen: { x: 3, y: 4 } });
+  h.r2d.emit('pointer', null);
+  assert.deepEqual(seen, [2, null]);
+  h.host.setMode('3D');
+  await new Promise(setImmediate);
+  h.r2d.emit('pointer', { position: { latitude: 1, longitude: 9 }, screen: { x: 3, y: 4 } });
+  h.r3d.emit('pointer', { position: { latitude: 1, longitude: 5 }, screen: { x: 3, y: 4 } });
+  assert.deepEqual(seen, [2, null, 5]);
+});
+
 /** Give a fake renderer the optional looks-and-camera methods, recording what it is told. */
 function withLooks(r: FakeWorldRenderer): string[] {
   const log: string[] = [];
   Object.assign(r, {
     setVisualStyle: (id: string) => log.push(`style:${id}`),
-    setDayNight: (on: boolean) => log.push(`dayNight:${on}`),
+    setDayNight: (on: boolean, atMs?: number) => log.push(`dayNight:${on}${atMs !== undefined ? `@${atMs}` : ''}`),
     setOrbit: (on: boolean) => log.push(`orbit:${on}`),
     follow: (id: string | null, opts?: { durationMs?: number }) =>
       log.push(`follow:${id}${opts?.durationMs !== undefined ? `@${opts.durationMs}` : ''}`),
@@ -467,9 +493,14 @@ test('visual style and day/night are kept for a renderer built later and handed 
   await h.host.mount(h.container);
   assert.deepEqual(log2d, ['style:thermal', 'dayNight:true'], 'in place before the first frame');
   h.host.setVisualStyle('crt');
+  h.host.setDayNight(true, 1_790_000_000_000);
   h.host.setMode('3D');
   await new Promise(setImmediate);
-  assert.deepEqual(log3d, ['style:crt', 'dayNight:true'], 'the globe arrives with the current look');
+  assert.deepEqual(
+    log3d,
+    ['style:crt', 'dayNight:true@1790000000000'],
+    "the globe arrives with the current look, at the timeline's time",
+  );
   h.host.setDayNight(false);
   assert.equal(log2d.at(-1), 'dayNight:false', 'the hidden 2D map is told too');
   assert.equal(log3d.at(-1), 'dayNight:false');

@@ -48,10 +48,13 @@ export {
   StaticGazetteer,
   CompositeGazetteer,
   normalizePlaceName,
+  compareHits,
   type Gazetteer,
   type GazetteerHit,
   type GazetteerEntry,
   type GazetteerLookupOptions,
+  type GazetteerNearestOptions,
+  type NearbyPlace,
   type PlaceKind,
 } from './gazetteer.js';
 export { BuiltinGazetteer, BUILTIN_GAZETTEER_ENTRIES } from './builtin-gazetteer.js';
@@ -61,6 +64,11 @@ export {
   isReferenceLabelsFile,
   REFERENCE_LABELS_FORMAT,
   type ReferenceLabelsFile,
+  cityEntries,
+  isReferencePlacesFile,
+  populationImportance,
+  REFERENCE_PLACES_FORMAT,
+  type ReferencePlacesFile,
 } from './reference-gazetteer.js';
 export {
   parseCoordinates,

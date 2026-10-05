@@ -266,6 +266,11 @@ export class FakeMap implements MapLike {
       y: 300 - (lngLat[1] - this.center.lat) * pxPerDeg,
     };
   }
+  /** The inverse of {@link project}. */
+  unproject(point: [number, number]): { lng: number; lat: number } {
+    const pxPerDeg = (256 * Math.pow(2, this.zoom)) / 360;
+    return { lng: this.center.lng + (point[0] - 400) / pxPerDeg, lat: this.center.lat - (point[1] - 300) / pxPerDeg };
+  }
   addControl(control: ControlLike): void {
     this.controls.push(control);
   }

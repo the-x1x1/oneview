@@ -178,7 +178,7 @@ export interface TimelineState {
   mode: TimelineMode;
   /** Current time cursor (UTC ISO). In LIVE mode equals now. */
   cursor: string;
-  speed: 0.25 | 1 | 5 | 20 | 60;
+  speed: 0.25 | 1 | 5 | 20 | 60 | 600 | 3600;
   /** Visible range of the timeline control. */
   range: TimeRange;
   /** Data availability windows per object type, from history. */
@@ -224,6 +224,66 @@ export interface PlaceSearchAnswer {
   service?: 'nominatim' | 'photon';
   /** For a status other than `ok`: what to tell the operator. */
   message?: string;
+}
+
+/**
+ * A place near a point (`search.nearest`, additive, 2026-10-05): the offline reverse lookup
+ * behind "What's here" — the built-in gazetteer and the bundled Natural Earth countries,
+ * regions and cities, not an online service. `distanceM` and `bearingDeg` say where the point
+ * is from the place (on the WGS84 ellipsoid): "23 km NNE of Hilo".
+ */
+export interface NearbyPlaceResult {
+  id: string;
+  name: string;
+  kind: 'country' | 'region' | 'city' | 'island' | 'airport' | 'port' | 'poi';
+  position: GeoPosition;
+  /** ISO 3166-1 alpha-2, when known. */
+  countryCode?: string;
+  /** The first-level region a city lies in. */
+  region?: string;
+  distanceM: number;
+  bearingDeg: number;
+}
+
+/**
+ * A satellite above a place's horizon (`sky.overhead`, additive, 2026-10-05): where it is in the
+ * sky from the place now, and whether the Sun lights it — worked out by the runtime from the
+ * positions the satellite source propagated, nothing looked up.
+ */
+export interface SkySatellite {
+  id: string;
+  name: string;
+  /** The satellite source's category (`satelliteCategory`: station, starlink, gnss, weather, …). */
+  category?: string;
+  /** Degrees clockwise from true north. */
+  azimuthDeg: number;
+  /** Degrees above the horizon. */
+  elevationDeg: number;
+  /** Straight-line distance from the place, metres. */
+  rangeM: number;
+  /** Height above the ellipsoid, metres. */
+  altitudeM: number;
+  /** Whether the Sun lights it (cylindrical shadow). Seen with the eye only when the sky is dark too. */
+  sunlit: boolean;
+}
+
+export interface SkyOverheadAnswer {
+  /** When the look angles are for (now). */
+  at: string;
+  observer: GeoPosition;
+  /** How many are above the minimum elevation, the categories left out not counted (more than `satellites` when limited). */
+  total: number;
+  /** Of those, how many could be seen with the eye: sunlit, 10° up or more, the Sun 6° or more down. */
+  visible: number;
+  /**
+   * Near enough to be above the horizon but left out: their positions, carried as far as they
+   * go, are more than a minute behind now (the satellite source has stopped propagating).
+   */
+  stale: number;
+  /** The Sun's altitude at the place, degrees (below −6: civil dusk is over). */
+  sunElevationDeg: number;
+  /** Highest first: those the request's filters keep, up to its limit. */
+  satellites: SkySatellite[];
 }
 
 export interface CollectionItem {
@@ -437,7 +497,13 @@ export interface AppSettings {
    * indefinitely are deleted first — movement tracks and satellite passes, never
    * earthquakes, infrastructure or the operator's own records.
    */
-  history: { maxMB: number };
+  /**
+   * `backend` (additive, 2026-10-05): how history is stored, read at start. Absent: DuckDB /
+   * Parquet in the app (with NDJSON as the fallback when the native module cannot load);
+   * `ndjson` is the way back. History written by the other one stays on disk; DuckDB reads
+   * NDJSON-era files beside its own (docs/roadmap/DUCKDB-DEFAULT.md).
+   */
+  history: { maxMB: number; backend?: 'duckdb-parquet' | 'ndjson' };
   /**
    * The reference layer: faint country and state borders and their names (Natural Earth,
    * bundled). Both on by default; either can be switched off in Settings → Map.
@@ -472,6 +538,14 @@ export interface AppSettings {
      * another, so only one is drawn at a time.
      */
     imagery?: string;
+    /** (additive, 2026-10-05) The latitude and longitude grid over the map (G); absent means off. */
+    grid?: boolean;
+    /**
+     * (additive, 2026-10-05) A grid reference in the HUD: with `mgrs` or `utm` the HUD adds a row
+     * for the view centre in that form and gives the pointer's position (CUR) in it too, and the
+     * selection's Position section adds it beside the coordinates. Absent or `none`: degrees only.
+     */
+    hudGrid?: 'none' | 'mgrs' | 'utm';
   };
   /**
    * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the
@@ -482,11 +556,33 @@ export interface AppSettings {
    */
   search?: { online: boolean; service?: 'nominatim' | 'photon' };
   /**
+   * (additive, 2026-10-05) Work offline: WorldView asks nothing of the internet — sources on
+   * the internet pause, map tiles come only from the tile cache, packs and the bundled world,
+   * place search uses the built-in gazetteer, update checks wait. Sources on this computer or
+   * the operator's own network keep running. Absent means off.
+   */
+  network?: { workOffline: boolean };
+  /**
    * (additive, 2026-09-28) The operator's home view: set from the current view in Settings,
    * flown to with Home or Shift+H, and at start when `flyOnStart` is on (asked on the
    * welcome screen). Absent until set. WorldView never looks up where the operator is.
    */
   home?: HomeSettings;
+  /**
+   * (additive, 2026-10-05) Satellite pass alerts: a notice `leadMinutes` before each listed
+   * satellite rises over the home view — only for passes it can be seen with the eye when
+   * `visibleOnly` — and a Windows notification too when `desktop`. Absent: none.
+   */
+  passAlerts?: PassAlertSettings;
+}
+
+export interface PassAlertSettings {
+  /** The satellites to warn of: object id, and the name to say. At most 20. */
+  satellites: Array<{ objectId: string; name: string }>;
+  /** How long before it rises, minutes (1–60). */
+  leadMinutes: number;
+  visibleOnly: boolean;
+  desktop: boolean;
 }
 
 export interface HomeSettings {
@@ -541,6 +637,9 @@ export const EVENT_TYPE_LABELS: Readonly<Record<string, string>> = Object.freeze
   'weather-alert': 'Weather alerts',
   storm: 'Tropical cyclones',
   'air-quality': 'Unhealthy air',
+  'reading-limit': 'A reading passes its limit',
+  'aircraft-emergency': 'An aircraft broadcasts an emergency',
+  'distress-beacon': 'A distress beacon is heard (AIS-SART, MOB, EPIRB)',
   launch: 'Launches',
   'satellite-decay': 'Satellite decay',
   'watch-zone-entry': 'Something enters the zone',
@@ -628,6 +727,11 @@ export interface DefinitionFileEntry {
   enabled: boolean;
   /** A shipped definition; its file cannot be edited or removed from the app. */
   bundled: boolean;
+  /**
+   * From an installed world pack's signed definition set (`pack/<id>/<file>`): loaded only
+   * when `trusted` (signed by one of the operator's publishers); removed with the pack.
+   */
+  pack?: { id: string; name: string; trusted: boolean; publisher?: string };
   problems: string[];
   warnings: string[];
 }
@@ -770,6 +874,33 @@ export interface WorldRequests {
   'search.query': { request: { text: string; bias?: GeoPosition; limit?: number }; response: SearchResult[] };
   /** Places from an online geocoder (additive, 2026-09-28): see PlaceSearchAnswer. */
   'search.places': { request: { text: string; bias?: GeoPosition; limit?: number }; response: PlaceSearchAnswer };
+  /** The places nearest a point, nearest first (additive, 2026-10-05): see NearbyPlaceResult. */
+  'search.nearest': {
+    request: {
+      position: GeoPosition;
+      /** Cities when not said. */
+      kinds?: Array<'country' | 'region' | 'city' | 'airport' | 'port'>;
+      /** 1–10, default 1. */
+      limit?: number;
+      maxDistanceM?: number;
+    };
+    response: NearbyPlaceResult[];
+  };
+  /** The satellites above a place's horizon now, highest first (additive, 2026-10-05): see SkyOverheadAnswer. */
+  'sky.overhead': {
+    request: {
+      observer: GeoPosition;
+      /** −5 to 90; 0 when not said. */
+      minElevationDeg?: number;
+      /** 1–500; 200 when not said. */
+      limit?: number;
+      /** `satelliteCategory` values left out before anything is counted or cut (e.g. `starlink`). */
+      excludeCategories?: string[];
+      /** Only those that could be seen with the eye. */
+      visibleOnly?: boolean;
+    };
+    response: SkyOverheadAnswer;
+  };
   'lenses.list': { request: void; response: LensDefinition[] };
   'lenses.save': { request: LensDefinition; response: LensDefinition[] };
   'lenses.delete': { request: { id: string }; response: LensDefinition[] };
@@ -777,12 +908,40 @@ export interface WorldRequests {
   'collections.list': { request: void; response: Collection[] };
   'collections.save': { request: Collection; response: Collection[] };
   'collections.delete': { request: { id: string }; response: Collection[] };
-  'collections.export': { request: { id: string }; response: { path: string } | { cancelled: true } };
+  /**
+   * A collection to a file. `format` (additive, 2026-10-05): `json` (the default) is the
+   * WorldView collection file, everything in it; `gpx`, `kml` and `geojson` write its places —
+   * the operator's own always, a collected object only while its sources allow export — and
+   * say how many went out and how many were left out.
+   */
+  'collections.export': {
+    request: { id: string; format?: 'json' | 'gpx' | 'kml' | 'geojson' };
+    response: { path: string; places?: number; skipped?: number } | { cancelled: true };
+  };
   'collections.import': { request: void; response: { imported: Collection | null; issues: string[] } };
 
   'watchzones.list': { request: void; response: WatchZone[] };
   'watchzones.save': { request: WatchZone; response: WatchZone[] };
   'watchzones.delete': { request: { id: string }; response: WatchZone[] };
+  /**
+   * Every zone to a file other tools draw (additive, 2026-10-05): KML (Google Earth, ATAK) or
+   * GeoJSON (QGIS). A circle goes out as a polygon (GeoJSON also keeps its centre and radius);
+   * an admin region without bounds has no outline and is counted in `skipped`.
+   */
+  'watchzones.export': {
+    request: { format: 'kml' | 'geojson' };
+    response: { path: string; zones: number; skipped: number } | { cancelled: true };
+  };
+  /**
+   * Shapes from a KML or GeoJSON file (additive, 2026-10-05), read as zone drafts — a name and
+   * an outline each — for the interface to save with the event types it chooses; nothing is
+   * saved here. `issues` says what was left out (points, lines, shapes across 180°), or
+   * `cancelled`.
+   */
+  'watchzones.import': {
+    request: void;
+    response: { zones: Array<{ name: string; geometry: GeoRegion }>; issues: string[] };
+  };
 
   'feed.recent': { request: { limit?: number; minimumSeverity?: SeverityClass }; response: FeedItem[] };
 
@@ -801,8 +960,41 @@ export interface WorldRequests {
   'offline.setRequireTrusted': { request: { required: boolean }; response: OfflineStatus };
 
   'export.objects': {
-    request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' };
+    /** `kml` (additive, 2026-10-05): objects with a position as placemarks, for Google Earth and ATAK. */
+    request: { query: WorldQuery; format: 'geojson' | 'json' | 'csv' | 'kml' };
     response: { path: string; skippedProviders: string[] } | { cancelled: true };
+  };
+  /**
+   * One object's recorded track over `time` to a file the operator picks (roadmap 0.4: history
+   * export): a GeoJSON LineString with each point's time, or CSV rows. Only when every source
+   * of the track allows export; otherwise `refused` names them and nothing is written.
+   */
+  /**
+   * One object's readings of `keys` over `time` to a CSV file the operator picks (one row per
+   * observation, one column per key), under the same export rule as `export.track`.
+   */
+  'export.readings': {
+    request: { objectId: string; keys: string[]; time: TimeRange };
+    response: { path: string; rows: number } | { cancelled: true } | { refused: string[] };
+  };
+  'export.track': {
+    /** `gpx` and `kml` (additive, 2026-10-05): a GPX track with timed points, a KML line. */
+    request: { objectId: string; time: TimeRange; format: 'geojson' | 'csv' | 'gpx' | 'kml' };
+    response: { path: string; points: number } | { cancelled: true } | { refused: string[] };
+  };
+  /**
+   * The measure tool's line (additive, 2026-10-05): the operator's own points, 2–500 of them,
+   * as a GPX route, a KML line (a polygon when `closed`) or GeoJSON. Nothing from a source is in
+   * it, so no data policy applies.
+   */
+  'export.line': {
+    request: {
+      points: Array<{ latitude: number; longitude: number }>;
+      closed?: boolean;
+      name?: string;
+      format: 'gpx' | 'kml' | 'geojson';
+    };
+    response: { path: string; points: number } | { cancelled: true };
   };
 
   'camera.register': { request: CameraSourceInput; response: CameraRegistration };
@@ -828,6 +1020,15 @@ export interface WorldRequests {
   'tiles.clear': { request: void; response: TileCacheStatus };
   /** The camera settled here: fetch the next levels of this source's tiles for it. */
   'tiles.prefetch': { request: { sourceId: string; bounds: GeoBounds; zoom: number }; response: void };
+  /**
+   * (additive, 2026-10-05) Save a picture of the map: main captures the window's pixels within
+   * `rect` (CSS pixels, the map's box; the whole window without it), asks where to save it,
+   * and writes a PNG. Nothing leaves the computer.
+   */
+  'view.capture': {
+    request: { rect?: { x: number; y: number; width: number; height: number } };
+    response: { path: string; width: number; height: number } | { cancelled: true };
+  };
 }
 
 /**
@@ -915,6 +1116,8 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'timeline.set',
   'search.query',
   'search.places',
+  'search.nearest',
+  'sky.overhead',
   'lenses.list',
   'lenses.save',
   'lenses.delete',
@@ -926,6 +1129,8 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'watchzones.list',
   'watchzones.save',
   'watchzones.delete',
+  'watchzones.export',
+  'watchzones.import',
   'feed.recent',
   'offline.status',
   'offline.installPack',
@@ -936,6 +1141,9 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'offline.removePublisher',
   'offline.setRequireTrusted',
   'export.objects',
+  'export.track',
+  'export.readings',
+  'export.line',
   'camera.register',
   'camera.snapshot',
   'camera.stream',
@@ -950,6 +1158,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'tiles.status',
   'tiles.clear',
   'tiles.prefetch',
+  'view.capture',
 ]);
 
 export const EVENT_CHANNELS: readonly EventChannel[] = Object.freeze([

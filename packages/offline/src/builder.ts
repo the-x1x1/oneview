@@ -42,13 +42,20 @@ import { ZIP_METHOD_DEFLATE, ZIP_METHOD_STORE, ZipWriter, type ZipWrittenEntry }
  * place index is derived from the place/airport layers, NOTICES.md is generated
  * from the policies' attribution, and a build report is written next to the pack.
  */
-export type WorldPackInclude = 'map' | 'places' | 'airports' | 'earthquakes';
+export type WorldPackInclude = 'map' | 'places' | 'airports' | 'earthquakes' | 'definitions';
 export const WORLDPACK_INCLUDES: readonly WorldPackInclude[] = Object.freeze([
   'map',
   'places',
   'airports',
   'earthquakes',
+  'definitions',
 ]);
+
+/** The same cap the app puts on a definition file it loads (connector-runtime MAX_DEFINITION_BYTES). */
+export const MAX_PACK_DEFINITION_BYTES = 256 * 1024;
+/** At most this many definitions in one pack. */
+export const MAX_PACK_DEFINITIONS = 256;
+const DEFINITION_ID = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
 export type WorldPackRegionInput =
   { bounds: GeoBounds } | { preset: string } | { center: GeoPosition; radiusM: number };
@@ -96,6 +103,12 @@ export interface WorldPackSources {
   /** Days of earthquake history to pack (default 365). */
   earthquakeWindowDays?: number;
   earthquakeProviderIds?: string[];
+  /**
+   * A folder of connector definitions (`<id>.json`, ADR-013) to carry as a signed definition
+   * set. They are data, not code: the app validates each when it loads them, and loads them
+   * only from a pack signed by one of the operator's publishers.
+   */
+  definitionsDir?: string;
 }
 
 export interface WorldPackBuildRequest {
@@ -140,6 +153,7 @@ export interface WorldPackBuildReport {
     places?: { sourceFeatures: number; kept: number; dropped: number; indexed: number; skipped: number };
     airports?: { sourceFeatures: number; kept: number; dropped: number; indexed: number; skipped: number };
     earthquakes?: { rows: number; providers: string[]; window: { start: string; end: string } };
+    definitions?: { files: string[] };
   };
   searchIndexEntries: number;
   /** The signing key's id when the pack was signed. */
@@ -168,6 +182,48 @@ interface PendingFile {
   content: Omit<WorldPackContent, 'sha256' | 'sizeBytes'>;
   data: Uint8Array | { file: string };
   method: typeof ZIP_METHOD_DEFLATE | typeof ZIP_METHOD_STORE;
+}
+
+/**
+ * A definition set from a folder: every `<id>.json` (not `*.test.json`), each a JSON object
+ * whose `id` is its file name, within the app's size cap. Refused whole on the first file
+ * that is not: a pack must not carry a definition the app would reject for its shape.
+ * Whether the definition validates against its connector is the app's check, at load.
+ */
+async function readDefinitionSet(dir: string): Promise<Array<{ name: string; bytes: Buffer }>> {
+  let names: string[];
+  try {
+    names = (await fs.readdir(dir))
+      .filter((f) => f.endsWith('.json') && !f.endsWith('.test.json') && !f.startsWith('.'))
+      .sort();
+  } catch (err) {
+    throw new WorldPackBuildError('SOURCE_MISSING', `definitions folder unreadable: ${errText(err)}`, { cause: err });
+  }
+  if (names.length === 0) throw new WorldPackBuildError('INVALID_SOURCE', `no *.json definitions in ${dir}`);
+  if (names.length > MAX_PACK_DEFINITIONS)
+    throw new WorldPackBuildError('INVALID_SOURCE', `more than ${MAX_PACK_DEFINITIONS} definitions`);
+  const out: Array<{ name: string; bytes: Buffer }> = [];
+  for (const name of names) {
+    const id = name.slice(0, -'.json'.length);
+    if (!DEFINITION_ID.test(id))
+      throw new WorldPackBuildError(
+        'INVALID_SOURCE',
+        `${name}: a definition file is named <id>.json, id 2–63 of a-z, 0-9 and -`,
+      );
+    const bytes = await fs.readFile(path.join(dir, name));
+    if (bytes.length > MAX_PACK_DEFINITION_BYTES)
+      throw new WorldPackBuildError('INVALID_SOURCE', `${name}: larger than ${MAX_PACK_DEFINITION_BYTES} bytes`);
+    let doc: unknown;
+    try {
+      doc = JSON.parse(bytes.toString('utf8'));
+    } catch (err) {
+      throw new WorldPackBuildError('INVALID_SOURCE', `${name}: not valid JSON: ${errText(err)}`);
+    }
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc) || (doc as { id?: unknown }).id !== id)
+      throw new WorldPackBuildError('INVALID_SOURCE', `${name}: must be a definition object whose id is "${id}"`);
+    out.push({ name, bytes });
+  }
+  return out;
 }
 
 export function resolveRegionBounds(region: WorldPackRegionInput): GeoBounds {
@@ -248,6 +304,9 @@ export class WorldPackBuilder {
         throw new WorldPackBuildError('INVALID_REQUEST', 'earthquakeProviderIds must name at least one provider');
       for (const p of quakeProviders) providerIds.add(p);
     }
+
+    if (include.includes('definitions') && !req.sources.definitionsDir)
+      throw new WorldPackBuildError('SOURCE_MISSING', 'include "definitions" needs sources.definitionsDir');
 
     const sourcePolicies = new Map<string, WorldPackSourcePolicy>();
     for (const providerId of providerIds) sourcePolicies.set(providerId, gatePolicy(providerId, req));
@@ -367,6 +426,21 @@ export class WorldPackBuilder {
       layers.earthquakes = { rows: rows.length, providers: [...byProvider.keys()], window: { start, end } };
       if (rows.length === 0)
         warnings.push(`no earthquake rows in history for the last ${days} days inside the pack bounds`);
+    }
+
+    if (include.includes('definitions')) {
+      const files = await readDefinitionSet(req.sources.definitionsDir!);
+      for (const f of files)
+        pending.push({
+          content: { path: `definitions/${f.name}`, kind: 'definitions' },
+          data: f.bytes,
+          method: ZIP_METHOD_DEFLATE,
+        });
+      layers.definitions = { files: files.map((f) => f.name) };
+      if (req.signingKeyPem === undefined)
+        warnings.push(
+          "the definitions are not signed: the app loads a pack's definitions only when one of its publishers signed it (worldpack sign)",
+        );
     }
 
     if (placeIndex.size > 0) {

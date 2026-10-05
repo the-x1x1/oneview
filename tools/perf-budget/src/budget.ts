@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { runPresentationBenchmark, type BenchmarkReport } from '@worldview/render-dense';
 import { SqlitePlaceIndex, loadSqlite, type PlaceEntry } from '@worldview/offline';
+import { NdjsonBackend, type HistoryRow } from '@worldview/history-store';
 
 /**
  * Performance budgets enforced in CI (roadmap 1.0). `config/perf-budgets.json` holds a
@@ -11,7 +12,8 @@ import { SqlitePlaceIndex, loadSqlite, type PlaceEntry } from '@worldview/offlin
  *
  * What is measured is the CPU side, which a CI runner can measure: the presentation pass and
  * its diff (what the main thread does before a frame can draw, render-dense/benchmark.ts), and
- * the SQLite place index at country scale. GPU frame time needs the operator machine and is
+ * the SQLite place index at country scale, and a timeline scrub's history read (the latest row
+ * of every object in a week of NDJSON partitions). GPU frame time needs the operator machine and is
  * read from its `renderer perf` log lines instead (docs/architecture/RENDERING.md).
  */
 export type Band = 'global' | 'regional' | 'local';
@@ -26,6 +28,7 @@ export interface PresentationBudget {
 export interface Budgets {
   presentation: { iterations: number; cases: PresentationBudget[] };
   placeSearch?: { entries: number; buildMs: number; queryMedianMs: number };
+  historySnapshot?: { objects: number; partitions: number; medianMs: number };
 }
 
 export interface BudgetResult {
@@ -95,6 +98,22 @@ export function parseBudgets(raw: unknown): Budgets {
       entries: entries as number,
       buildMs: buildMs as number,
       queryMedianMs: queryMedianMs as number,
+    };
+  }
+  const h = r['historySnapshot'] as Record<string, unknown> | undefined;
+  if (h !== undefined) {
+    const objects = h['objects'];
+    const partitions = h['partitions'];
+    const medianMs = h['medianMs'];
+    if (typeof objects !== 'number' || !Number.isInteger(objects) || objects < 100 || objects > 100_000)
+      fail('historySnapshot.objects');
+    if (typeof partitions !== 'number' || !Number.isInteger(partitions) || partitions < 1 || partitions > 48)
+      fail('historySnapshot.partitions');
+    if (typeof medianMs !== 'number' || !(medianMs > 0)) fail('historySnapshot.medianMs');
+    budgets.historySnapshot = {
+      objects: objects as number,
+      partitions: partitions as number,
+      medianMs: medianMs as number,
     };
   }
   return budgets;
@@ -183,6 +202,69 @@ export async function measurePlaceSearch(
   }
 }
 
+/** Polls per partition in the synthetic history: each object is written this many times an hour. */
+export const HISTORY_POLLS_PER_PARTITION = 4;
+
+/**
+ * A timeline scrub's read: `objects` satellites written HISTORY_POLLS_PER_PARTITION times in
+ * each of `partitions` hourly NDJSON partitions (a payload the size of an element set's), then
+ * the latest row of each, three times; the median is the measure. The write is not timed.
+ */
+export async function measureHistorySnapshot(
+  budget: NonNullable<Budgets['historySnapshot']>,
+  dir: string,
+  now: () => number = () => performance.now(),
+): Promise<BudgetResult> {
+  const dataDir = await fs.mkdtemp(path.join(dir, 'perf-history-'));
+  try {
+    const backend = new NdjsonBackend({ dataDir });
+    const payloadJson = JSON.stringify({ tle: 'x'.repeat(560), name: 'SATELLITE', group: 'active' });
+    for (let p = 0; p < budget.partitions; p++) {
+      const hour = String(p % 24).padStart(2, '0');
+      const day = `2026-09-${String(20 + Math.floor(p / 24)).padStart(2, '0')}`;
+      const rows: HistoryRow[] = [];
+      for (let poll = 0; poll < HISTORY_POLLS_PER_PARTITION; poll++)
+        for (let i = 0; i < budget.objects; i++) {
+          const at = `${day}T${hour}:${String(poll * 15).padStart(2, '0')}:00.000Z`;
+          rows.push({
+            observationId: `o${p}-${poll}-${i}`,
+            objectId: `satellite:bench:${i}`,
+            providerId: 'bench',
+            objectType: 'satellite',
+            observedAt: at,
+            receivedAt: at,
+            lat: (i % 180) - 90,
+            lon: (i % 360) - 180,
+            altitudeM: 400_000,
+            payloadJson,
+            origin: 'live',
+          });
+        }
+      await backend.append({ objectType: 'satellite', providerId: 'bench', day, slot: `${hour}00` }, rows);
+    }
+    const cursor = '2026-09-27T00:00:00.000Z';
+    const samples: number[] = [];
+    let found = 0;
+    for (let round = 0; round < 3; round++) {
+      const t = now();
+      found = (await backend.objectsAt(cursor, { lookbackSeconds: 7 * 86_400 })).length;
+      samples.push(now() - t);
+    }
+    const measured = found === budget.objects ? median(samples) : Number.POSITIVE_INFINITY;
+    return {
+      name: `history snapshot, ${budget.objects.toLocaleString('en-US')} objects × ${budget.partitions} partitions × ${HISTORY_POLLS_PER_PARTITION} (NDJSON, median of 3)`,
+      measuredMs: measured,
+      budgetMs: budget.medianMs,
+      pass: measured <= budget.medianMs,
+    };
+  } finally {
+    // Windows can hold a just-closed file for a moment (the indexer, an antivirus scan): rmdir
+    // then fails with ENOTEMPTY, and the laptop gate failed on that once (2026-10-05) with the
+    // measurement itself passed. Retried, and a scratch directory left behind is not a failure.
+    await fs.rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => undefined);
+  }
+}
+
 export async function runBudgets(budgets: Budgets, scratchDir: string): Promise<BudgetReport> {
   const sizes = [...new Set(budgets.presentation.cases.map((c) => c.objects))].sort((a, b) => a - b);
   const bench = runPresentationBenchmark({ sizes, iterations: budgets.presentation.iterations });
@@ -193,6 +275,7 @@ export async function runBudgets(budgets: Budgets, scratchDir: string): Promise<
     if (typeof place === 'string') skipped.push(place);
     else results.push(...place);
   }
+  if (budgets.historySnapshot) results.push(await measureHistorySnapshot(budgets.historySnapshot, scratchDir));
   return {
     ranAt: new Date().toISOString(),
     node: process.version,

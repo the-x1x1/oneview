@@ -84,7 +84,18 @@ type Listener<K extends keyof RendererHostEvents> = (payload: RendererHostEvents
  * `ready` is the one deliberate exception: the host's own `mount()` promise is its ready
  * signal, and a renderer built later (the second mode) must not announce the host again.
  */
-const FORWARDED_EVENTS = ['pick', 'hover', 'viewChanged', 'error', 'frame', 'cameraMode', 'modelCredits'] as const;
+const FORWARDED_EVENTS = [
+  'pick',
+  'click',
+  'contextMenu',
+  'pointer',
+  'hover',
+  'viewChanged',
+  'error',
+  'frame',
+  'cameraMode',
+  'modelCredits',
+] as const;
 type ForwardedEvent = (typeof FORWARDED_EVENTS)[number];
 type UnforwardedEvent = Exclude<keyof RendererEvents, ForwardedEvent | 'ready'>;
 const everyRendererEventIsForwarded: [UnforwardedEvent] extends [never] ? true : UnforwardedEvent = true;
@@ -129,6 +140,8 @@ export class DesktopRendererHost implements RendererHostLike {
   private graphics: GraphicsProfile | undefined;
   private visualStyle: VisualStyleId = 'standard';
   private dayNight = false;
+  /** The time the shading is for when not live (the timeline's); undefined: now. */
+  private dayNightAt: number | undefined;
   private recoveries: number[] = [];
   private recovering = false;
 
@@ -199,6 +212,13 @@ export class DesktopRendererHost implements RendererHostLike {
   getView(): ViewState {
     const renderer = this.renderers[this.active];
     return renderer ? renderer.getView() : this.view;
+  }
+
+  setView(view: Partial<ViewState>, opts?: { animate?: boolean; durationMs?: number }): void {
+    const renderer = this.renderers[this.active];
+    if (!renderer) return;
+    renderer.setView(view, opts);
+    this.view = renderer.getView();
   }
 
   async flyTo(
@@ -273,10 +293,11 @@ export class DesktopRendererHost implements RendererHostLike {
     for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setVisualStyle?.(id);
   }
 
-  /** Day/night shading: kept for a renderer built later, handed to both that exist now. */
-  setDayNight(on: boolean): void {
+  /** Day/night shading (at `atMs`, or now): kept for a renderer built later, handed to both that exist now. */
+  setDayNight(on: boolean, atMs?: number): void {
     this.dayNight = on;
-    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setDayNight?.(on);
+    this.dayNightAt = atMs;
+    for (const mode of ['2D', '3D'] as const) this.renderers[mode]?.setDayNight?.(on, atMs);
   }
 
   /**
@@ -490,7 +511,7 @@ export class DesktopRendererHost implements RendererHostLike {
       // The looks the operator chose, in place from the first frame (both renderers keep them
       // until they mount).
       renderer.setVisualStyle?.(this.visualStyle);
-      renderer.setDayNight?.(this.dayNight);
+      renderer.setDayNight?.(this.dayNight, this.dayNightAt);
       await renderer.mount(pane);
       this.renderers[mode] = renderer;
       for (const event of FORWARDED_EVENTS) {

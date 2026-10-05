@@ -80,6 +80,34 @@ export function applyBrightnessFade(
   }
 }
 
+/**
+ * NASA GIBS renders the last pixel column of the easternmost Web Mercator tiles — the column
+ * that ends on the antimeridian — darker than its neighbour: Himawari's at zoom 5 read 58
+ * against 116 next to it, GOES-West's 99 against 109 (tiles fetched on the test laptop,
+ * 2026-10-04). Through the brightness fade a darker pixel is a more transparent one, so that
+ * column became a thin line of base map down the Pacific along 180° (V&V 2026-10-04 #17).
+ * The tiles on the other side of 180° start clean. This copies the next column over the last
+ * one in a tile whose east edge is the antimeridian, before the fade; any other tile is left
+ * alone. In place over RGBA bytes, rows in any order (a flipped bitmap keeps its columns).
+ */
+export function mendAntimeridianColumn(
+  rgba: Uint8ClampedArray,
+  width: number,
+  tile: { z: number; x: number },
+): boolean {
+  if (!(width >= 2) || tile.x !== 2 ** tile.z - 1) return false;
+  const rows = Math.floor(rgba.length / 4 / width);
+  for (let r = 0; r < rows; r++) {
+    const last = (r * width + width - 1) * 4;
+    const prev = last - 4;
+    rgba[last] = rgba[prev]!;
+    rgba[last + 1] = rgba[prev + 1]!;
+    rgba[last + 2] = rgba[prev + 2]!;
+    rgba[last + 3] = rgba[prev + 3]!;
+  }
+  return true;
+}
+
 /** The longitude of the west edge of Web Mercator tile column `x` at zoom `z`. */
 function tileWest(z: number, x: number): number {
   return (x / 2 ** z) * 360 - 180;
@@ -104,11 +132,8 @@ export function featherWeights(
   const east = slice.east < slice.west ? slice.east + 360 : slice.east;
   const west = slice.west;
   if (east - west >= 360) return undefined;
-  // An edge on the antimeridian is not faded: the slice is not drawn past it (world-model
-  // `drawnBounds`), so its neighbour there has nothing to cross-fade with, and a fade would
-  // leave both at half strength along 180°. The two meet edge to edge.
-  const hardWest = slice.west <= -180;
-  const hardEast = slice.east >= 180;
+  // An edge on the antimeridian fades like any other: what lies beyond it is drawn as a layer
+  // of its own (world-model `antimeridianSpill`, bounds past ±180°, read here as the same slice).
   const centre = (west + east) / 2;
   const half = featherDeg / 2;
   const w0 = tileWest(tile.z, tile.x);
@@ -120,8 +145,8 @@ export function featherWeights(
     // The copy of this longitude nearest the slice, so a slice across 180° reads its far side.
     while (lon - centre > 180) lon -= 360;
     while (lon - centre < -180) lon += 360;
-    const fromWest = hardWest ? 1 : (lon - (west - half)) / featherDeg;
-    const fromEast = hardEast ? 1 : (east + half - lon) / featherDeg;
+    const fromWest = (lon - (west - half)) / featherDeg;
+    const fromEast = (east + half - lon) / featherDeg;
     const v = Math.max(0, Math.min(1, fromWest, fromEast));
     out[c] = v;
     if (v < 1) partial = true;

@@ -183,6 +183,12 @@ test('integration: collections and lenses round-trip through the host bridge and
       ],
     };
     await h.client.request('collections.save', collection);
+    // Search finds the collected place, saying where it is kept.
+    const found = await h.client.request('search.query', { text: 'Honolulu' });
+    assert.ok(
+      found.some((r) => r.id === 'collection:trip:i1' && r.subtitle === 'Collected · Pacific trip'),
+      JSON.stringify(found.map((r) => r.id)),
+    );
 
     // Export writes exactly where the host bridge points.
     const target = path.join(dataDir, 'exported-collection.json');
@@ -192,12 +198,79 @@ test('integration: collections and lenses round-trip through the host bridge and
     const written = JSON.parse(await fs.readFile(target, 'utf8')) as { version: number; collection: Collection };
     assert.equal(written.collection.items.length, 1);
 
+    // Its places as KML; a collected object no longer in the world is left out, and said so.
+    await h.client.request('collections.save', {
+      ...collection,
+      items: [
+        ...collection.items,
+        {
+          id: 'i2',
+          kind: 'object',
+          title: 'Gone',
+          objectId: 'aircraft:icao24:gone',
+          createdAt: '2026-09-21T00:00:00.000Z',
+          updatedAt: '2026-09-21T00:00:00.000Z',
+          position: { latitude: 20, longitude: -156 },
+        },
+      ],
+    });
+    const kmlTarget = path.join(dataDir, 'trip.kml');
+    h.host.saveQueue.push(kmlTarget);
+    assert.deepEqual(await h.client.request('collections.export', { id: 'trip', format: 'kml' }), {
+      path: kmlTarget,
+      places: 1,
+      skipped: 1,
+    });
+    // The collection file keeps the gone object by name and id, without its position.
+    const jsonTarget = path.join(dataDir, 'trip-with-gone.json');
+    h.host.saveQueue.push(jsonTarget);
+    assert.deepEqual(await h.client.request('collections.export', { id: 'trip' }), { path: jsonTarget, skipped: 1 });
+    const withGone = JSON.parse(await fs.readFile(jsonTarget, 'utf8')) as { collection: Collection };
+    const gone = withGone.collection.items.find((i) => i.id === 'i2')!;
+    assert.equal(gone.title, 'Gone');
+    assert.equal(gone.position, undefined);
+    assert.ok(withGone.collection.items.find((i) => i.id === 'i1')!.position, 'your own place keeps its position');
+    const kml = await fs.readFile(kmlTarget, 'utf8');
+    assert.match(kml, /<name>Honolulu<\/name>/);
+    assert.doesNotMatch(kml, /Gone/);
+    // And back in: a new collection of its places, once however often the file is imported.
+    h.host.openQueue.push(kmlTarget);
+    const placesBack = await h.client.request('collections.import', undefined);
+    assert.equal(placesBack.imported?.id, 'places-trip');
+    assert.deepEqual(
+      placesBack.imported?.items.map((i) => [i.kind, i.title, i.position?.latitude]),
+      [['location', 'Honolulu', 21.3]],
+    );
+    h.host.openQueue.push(kmlTarget);
+    assert.equal((await h.client.request('collections.import', undefined)).imported?.id, 'places-trip');
+    await h.client.request('collections.delete', { id: 'places-trip' });
+    await h.client.request('collections.save', collection);
+
     // Import validates the file instead of trusting it.
     await h.client.request('collections.delete', { id: 'trip' });
     h.host.openQueue.push(target);
     const imported = await h.client.request('collections.import', undefined);
     assert.equal(imported.imported?.id, 'trip');
     assert.deepEqual(imported.issues, []);
+
+    // The same file again changes nothing; over an edited collection it is added beside it.
+    h.host.openQueue.push(target);
+    assert.equal((await h.client.request('collections.import', undefined)).imported?.id, 'trip');
+    assert.equal(
+      (await h.client.request('collections.list', undefined)).length,
+      1,
+      'the same file twice: one collection',
+    );
+    await h.client.request('collections.save', { ...collection, name: 'Trip, edited since', items: [] });
+    h.host.openQueue.push(target);
+    const beside = await h.client.request('collections.import', undefined);
+    assert.equal(beside.imported?.id, 'trip-imported');
+    assert.equal(beside.imported?.name, `${collection.name} (imported)`);
+    const both = await h.client.request('collections.list', undefined);
+    assert.equal(both.find((c) => c.id === 'trip')?.name, 'Trip, edited since', 'the edited collection is kept');
+    assert.equal(both.find((c) => c.id === 'trip-imported')?.items.length, 1);
+    await h.client.request('collections.delete', { id: 'trip-imported' });
+    await h.client.request('collections.save', collection);
 
     const junk = path.join(dataDir, 'junk.json');
     await fs.writeFile(junk, '{"collection":{"id":"x"}}');
@@ -290,6 +363,14 @@ test('integration: export.objects is policy-gated per provider and reports what 
     assert.match(csv.split('\n')[0]!, /^id,type,observedAt/);
     assert.equal(csv.split('\n').filter((l) => l.trim()).length, 9);
     assert.equal(/\n[=+@]/.test(csv), false, 'no cell starts with a spreadsheet formula character');
+
+    // KML: a placemark per earthquake, credited.
+    const kmlTarget = path.join(h.dataDir, 'export.kml');
+    h.host.saveQueue.push(kmlTarget);
+    await h.client.request('export.objects', { query: { objectTypes: ['earthquake'] }, format: 'kml' });
+    const kml = await fs.readFile(kmlTarget, 'utf8');
+    assert.equal((kml.match(/<Placemark>/g) ?? []).length, 8);
+    assert.match(kml, /Data: Data courtesy of the U.S. Geological Survey/);
 
     // Without a save dialog the export is cancelled, never written somewhere unasked.
     assert.deepEqual(await h.client.request('export.objects', { query: {}, format: 'json' }), { cancelled: true });

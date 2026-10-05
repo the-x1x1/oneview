@@ -17,14 +17,22 @@ const body = (name: string) => readFileSync(path.join(fixtures, name), 'utf8');
 
 /**
  * The checklist runs every scenario against the upstream path, so the catalog
- * reuse window is set to 0 here (in production it is 2 h — CelesTrak etiquette —
- * and covered by unit tests in src/index.test.ts). The deterministic circular
+ * reuse window and the waits before asking again after a failure are off here (in
+ * production 2 h — CelesTrak etiquette — 10 min, and a refusal's own retry time; all
+ * covered by unit tests in src/index.test.ts). Through the timeout it answers from the kept catalogue, as its
+ * manifest declares (`answersFromCacheWhenUnavailable`). The deterministic circular
  * propagator replaces satellite.js so fixtures resolve to the same positions on
  * every machine.
  */
 export const plan = definePlan({
   providerDir: 'celestrak',
-  create: () => new CelestrakProvider({ propagator: new CircularOrbitPropagator(), catalogMaxAgeMs: 0 }),
+  create: () =>
+    new CelestrakProvider({
+      propagator: new CircularOrbitPropagator(),
+      catalogMaxAgeMs: 0,
+      retryAfterStaleMs: 0,
+      honourRetryAfter: false,
+    }),
   settings: { groups: ['stations', 'visual'], maxObjects: 5000 },
   fixtures: {
     normal: () => ({ status: 200, body: body('normal.json'), headers: { 'content-type': 'application/json' } }),

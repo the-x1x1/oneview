@@ -44,6 +44,7 @@ import {
   type RetentionSeconds,
 } from './retention.js';
 import { rowToWorldObject, type ProviderInfoResolver } from './reconstruct.js';
+import { lookbackRange } from './scan-queries.js';
 import { observationFingerprint, rowFingerprint } from './dedupe.js';
 
 /**
@@ -167,6 +168,14 @@ interface QueueItem {
 }
 
 const DEFAULT_SNAPSHOT_LOOKBACK = 30 * 86_400;
+
+/** One backend read of a snapshot: which types, how far back, rows found, milliseconds. */
+export interface SnapshotRead {
+  types: string;
+  lookbackSeconds: number;
+  rows: number;
+  ms: number;
+}
 /** Objects whose last-written fingerprint is remembered; past this the memory starts over (one repeat each). */
 const MAX_REMEMBERED_OBJECTS = 500_000;
 /** Past this many distinct observations the streaming dedupe gives up on a partition (memory). */
@@ -704,6 +713,12 @@ export class HistoryStore {
     return out;
   }
 
+  /** The providers whose rows make up one object's track in `range` (an export's policy gate). */
+  async trackProviders(objectId: string, range: TimeRange): Promise<string[]> {
+    const rows = await this.backend.track(objectId, range);
+    return [...new Set(rows.map((r) => r.providerId))].sort();
+  }
+
   /**
    * Every stored reading of `keys` for one object in `range`, oldest first: the numeric values
    * of its observations' payloads, one row per observation that has any of them. At most
@@ -764,16 +779,23 @@ export class HistoryStore {
     const moved = [...this.reprojectors.keys()].filter((t) => !types || types.includes(t));
     const bounded = opts.bounds !== undefined && moved.length > 0;
     const groups = new Map<number, string[] | undefined>();
-    if (opts.lookbackSeconds !== undefined || !types)
+    // Every type at once: each read with its own lookback, not all with the widest (30 days).
+    // One 30-day read of everything took up to twelve seconds on the laptop for a timeline
+    // scrub — a month of aircraft partitions, to keep the last ten minutes of them. Which
+    // types there are comes from the partition index alone.
+    const grouped = types ?? (opts.lookbackSeconds === undefined ? await this.typesWithin(cursor) : undefined);
+    if (opts.lookbackSeconds !== undefined || !grouped)
       groups.set(opts.lookbackSeconds ?? this.lookbackFor(undefined), types);
     else
-      for (const t of types) {
+      for (const t of grouped) {
         const lb = this.lookbackFor(t);
         const list = groups.get(lb);
         if (list) list.push(t);
         else groups.set(lb, [t]);
       }
     const rows: HistoryRow[] = [];
+    const reads: SnapshotRead[] = [];
+    const snapshotStart = this.clock.now();
     for (const [lookbackSeconds, objectTypes] of groups) {
       const q: ObjectsAtOptions = {
         lookbackSeconds,
@@ -781,7 +803,14 @@ export class HistoryStore {
         ...(opts.providerIds ? { providerIds: opts.providerIds } : {}),
         ...(opts.bounds ? { bounds: opts.bounds } : {}),
       };
+      const readStart = this.clock.now();
       const got = await this.backend.objectsAt(cursor, q);
+      reads.push({
+        types: (objectTypes ?? ['*']).join(','),
+        lookbackSeconds,
+        rows: got.length,
+        ms: this.clock.now() - readStart,
+      });
       rows.push(...(bounded ? got.filter((r) => !this.reprojectors.has(r.objectType)) : got));
     }
     if (bounded) {
@@ -813,8 +842,12 @@ export class HistoryStore {
       out.push(o);
       if (opts.limit !== undefined && out.length >= opts.limit) break;
     }
+    this.lastSnapshot = { reads, totalMs: this.clock.now() - snapshotStart, objects: out.length };
     return out;
   }
+
+  /** What the last snapshotAt read, group by group, and how long it took (for a slow-scrub log line). */
+  lastSnapshot: { reads: SnapshotRead[]; totalMs: number; objects: number } | undefined;
 
   /** Serves `history.query`: objects known at query.time.end (or now), region/type/provider filtered. */
   async queryObjects(query: WorldQuery): Promise<WorldQueryResult<WorldObject>> {
@@ -867,6 +900,14 @@ export class HistoryStore {
   /** Convenience for tests and tools: build a batch from observations. */
   static batchOf(providerId: string, observations: Observation[], receivedAt: IsoTimestamp): ObservationBatch {
     return { providerId, observations, snapshot: false, receivedAt, rejected: 0 };
+  }
+
+  /** The object types with a partition inside the widest lookback before `cursor` (index metadata only). */
+  private async typesWithin(cursor: IsoTimestamp): Promise<string[]> {
+    const metas = await this.backend.listPartitions({
+      overlapping: lookbackRange(cursor, DEFAULT_SNAPSHOT_LOOKBACK),
+    });
+    return [...new Set(metas.map((m) => m.objectType))].sort();
   }
 
   private lookbackFor(objectType: string | undefined): number {

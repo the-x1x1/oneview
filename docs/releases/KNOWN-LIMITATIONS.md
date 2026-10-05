@@ -52,13 +52,22 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   their limits (Nominatim: one request a second). Each installation keeps to that on its
   own; a large number of installations would need a geocoder of its own. Settings → Search
   switches it off or to the other service.
-- Offline place search knows every country, 4,557 states and regions (Natural Earth) and
-  61 major cities. Any other city — Helsinki and Kansas City among them, on 2026-10-03 — is
-  found by the online place search (Enter once to ask, again to fly) or from an installed
-  world pack's place index. A country-scale offline index is planned for 0.3.0.
-- Scrubbing the timeline back shows the state at that time only once history has been read,
-  which took up to about twelve seconds on the laptop; until then the live state stays on
-  screen under the HISTORICAL label.
+- Offline place search knows every country, 4,557 states and regions and 7,342 cities and
+  towns in 228 countries and territories (Natural Earth's populated places: every capital,
+  505 cities over a million, 3,089 over 100,000). Smaller towns, neighbourhoods and streets
+  are found by the online place search (Enter once to ask, again to fly) or from an
+  installed world pack's place index.
+- Scrubbing the timeline back shows the state at that time only once history has been read;
+  until then the live state stays on screen under the HISTORICAL label. Each type is read only
+  as far back as it lasts (aircraft ten minutes, satellites seven days), and a read over half a
+  second is logged ("historical projection slow", with each read's rows and time). On the
+  laptop on 2026-10-04 a scrub took 7–9 s, nearly all of it the satellites: the history of
+  2026-09-28/29 holds about 650,000 satellite rows (700 MB) written before write-time dedupe,
+  and they stay inside the seven-day window until 2026-10-06. Since then satellites add about
+  20 MB a day. On feature/next the NDJSON read parses only the rows that can be the answer
+  (newest partitions first; an older position of an object already found is skipped
+  unparsed) and splits lines without readline. On the laptop, same history, 2026-10-05: a
+  scrub took 2.2–2.9 s (satellites 1.2–1.9 s) against 7.2 s on the build before.
 - GDACS gives a tropical cyclone's strongest wind so far, not its wind now; the map labels it
   "peak" and the panel "Peak wind (its life so far)". NHC's storms carry their current wind.
 - Only pre-releases are published, so an update check on the stable channel reports that
@@ -76,6 +85,48 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   Norway's open AIS stream is a raw TCP connection to a public address, which providers are
   not allowed to open, and the other open sources found are historical or need membership
   (docs/legal/DATA-SOURCE-LICENSES.md, "Ship and aircraft sources considered on 2026-09-28").
+- The Meshtastic source reads a node over TCP only (Wi-Fi or Ethernet, or `meshtasticd`); a
+  node on USB or Bluetooth is not read yet. Its decoder is tested against messages encoded by
+  Meshtastic's own code, not yet against a running node. `HARDWARE_REQUIRED`
+- The NMEA 2000 source reads Yacht Devices RAW over TCP only (not Actisense or other formats,
+  not a gateway on USB) and fifteen PGNs: position (129025, 129029), course and speed, heading,
+  depth, speed through water, wind, temperatures and pressure, and AIS reports (129038/39,
+  129794, 129809/10). Its decoder was checked against CANboat's analyzer on invented frames, not
+  yet against a boat. `HARDWARE_REQUIRED`
+- Course vectors and the closest point of approach are straight lines on each one's course and
+  speed over ground from its last report (no older than ten minutes): a ship that turns, slows
+  or follows a channel is not foreseen, and a ship that sends no course gets none. They are
+  worked out here from what the ships broadcast, give no alarm, and are no substitute for a
+  lookout, radar or the AIS display's own CPA. The closest point needs the boat from NMEA
+  2000 on screen or near the selected vessel.
+- Grid references are WGS84 only, in the current MGRS lettering: a reference from an old map
+  on another datum (NAD27, ED50) comes out tens to hundreds of metres off, and one in the old
+  "AL" lettering names a different square or is refused. In the search box a polar MGRS
+  reference (bands A, B, Y, Z) needs six figures or more, or spaces in it — `BAW1234` is read
+  as a flight's callsign. UPS coordinates are shown (HUD, panel) but not read from the search
+  box; give the MGRS reference instead.
+- GPX, KML and GeoJSON: a collected aircraft, ship or other object goes out with its position
+  only while it is on the map and every source behind it allows export (in the collection file
+  too, where it otherwise keeps just its name). A watch zone cannot cross the 180° meridian —
+  the measure tool's Watch and the zone import refuse such a shape (draw one each side). A
+  GeoJSON shape across 180° is written whole (a line is cut there). Holes in an imported
+  polygon are not kept.
+- What's here names the nearest of the places bundled with the app — Natural Earth's 7,342
+  cities and towns and the built-in list — and an installed worldpack's places within 100 km,
+  so without a pack, in thinly settled country, the "nearest town" can be a long way off and a
+  village is never named. The window may not write to the clipboard, so a reference is
+  copied by selecting it (one click) and pressing Ctrl+C. Its Sun and Moon lines are for the
+  ground at sea level.
+- Distress beacons are seen only where an AIS source hears them — without a key, the Baltic
+  (Digitraffic) and your own receiver or boat — and only when their reports say "active"; a
+  beacon whose receiver chain drops the navigational status is not raised. Nothing is passed
+  to a coastguard.
+- Aircraft emergencies are what the aircraft broadcast and adsb.lol (or your own receiver)
+  passes on: one outside their coverage is not seen (a wide view is covered in turn, so an
+  emergency far from the view centre can take a pass of 8–12 minutes to appear), a squawk set
+  by mistake is raised like any other, and one whose aircraft has gone quiet ends 15 minutes
+  after it was last heard (to within a minute). An ADS-B minimum-fuel or downed status a later
+  report leaves out is kept until a report says otherwise.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.
@@ -100,10 +151,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   values, not a published one; if their clear sky looks different from the GIBS slices beside them,
   tune it (docs/connectors/hazards.md). The credit names the year 2026, as EUMETSAT's attribution
   form asks for the year of distribution: revise it with each year's release.
-- On the globe a thin dark line runs along 180° where the Himawari and GOES-West infrared
-  slices meet; in 2D the two meet without one. Three ways of drawing the two slices there
-  were tried on 2026-10-04 (a rectangle across 180°, a cut in the tiles, a small overlap) and
-  none removed it; the line is about one source pixel (2 km) wide.
+- At 180° the Himawari and GOES-West infrared slices cross-fade over 5° like the other seams
+  (each drawn past 180° as a second layer). Himawari's tiles can be coarser than GOES-West's
+  there, so the blend may mix two sharpnesses. The thin dark line that ran along 180° until
+  2026-10-04 is gone (a darkened pixel column in NASA GIBS's tiles, now mended).
 - The infrared clouds are as sharp as their source: the Meteosat tiles stop at about 2.4 km a
   pixel (Meteosat's infrared is 3 km), so closer than a few hundred kilometres the edge of a
   cloud shows its pixels as soft steps.
@@ -138,6 +189,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   source, on by default. Without a contact of your own the User-Agent api.weather.gov asks
   for names WorldView's project page; if the service ever refuses it, set a contact in
   Sources.
+- Storm reports (tornado, hail, thunderstorm wind) come from the NWS local storm reports
+  map service, not from SPC's own daily list, and show only what that service holds. On
+  2026-10-04 SPC listed 106 reports (4 tornadoes near Lubbock TX and Effingham IL, 46 hail,
+  56 wind) while the service's last 24 hours held 39 records, none of those types, so the map
+  showed no storm reports. Taking SPC's daily report files as a source would close the gap;
+  it is a new source and needs its own licence record first.
 - LICENSE_REVIEW_REQUIRED — GDACS alerts are shipped off: GDACS states no reuse licence,
   only a disclaimer and a request to credit it.
 - NWS zone-based alerts (no polygon of their own) are drawn from the outlines of the
@@ -230,11 +287,15 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   formats and have not yet been run against real hardware.
 - deck.gl is not used: the native adapters meet the performance targets, and a second
   renderer would add risk without evidence (ADR-008).
+- Pass alerts come only while WorldView is running, need a home view, and are as good as the
+  element set the passes are worked out from (minutes off for one several days old); a pass
+  is looked for up to three hours ahead, every twenty minutes.
 - A satellite's passes are computed for the middle of the view at the moment they were
   asked for, or for the home view when "Passes over my home view" is pressed, and are only as good as its element set: seconds for a fresh one, minutes for
-  one several days old. They say when the satellite is above 10°, not whether it can be seen
-  (sunlit against a dark sky). A pass that stays above 10° for only a few seconds can be
-  missed.
+  one several days old. Each pass says which part of it can be seen with the eye — the
+  satellite in sunlight while the Sun is 6° or more below the horizon — with the Earth's
+  shadow taken as a cylinder (no penumbra), to ten seconds at each end; it says nothing about
+  cloud, the Moon or how bright the satellite is.
 - The SATCAT record reader was written from CelesTrak's format documentation; the live
   query endpoint could not be read from the build environment, so the first real answers
   are to be checked on a machine with network access. Its code lists (owners, launch sites)
@@ -246,8 +307,11 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   the wrong flag.
 - The satellite propagator uses satellite.js SGP4; positions are propagated from the
   cached element set and are not a substitute for an operational catalogue.
-- History defaults to the NDJSON backend when the DuckDB native module is unavailable;
-  the fallback and its reason are shown in Diagnostics. `@duckdb/node-api` is pinned to
+- History is kept in DuckDB/Parquet (on feature/next; Settings → History → Storage, read at
+  start). History recorded as NDJSON before the switch is read beside it until it ages out,
+  never converted or deleted for the switch. When the native module cannot load, history
+  falls back to NDJSON and Diagnostics shows the reason; NDJSON then does not see what was
+  written as Parquet (it stays on disk, outside its size cap, until DuckDB runs again). `@duckdb/node-api` is pinned to
   `1.4.5-r.1` (the `lts-v1.4` line): every release of that package carries an `-r.N`
   prerelease suffix, so an ordinary semver range such as `>=1.2.0` matches nothing at
   all and fails the install. Moving to the `1.5.x` line means changing the pin, not the
@@ -266,8 +330,10 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   reported in Sources and drawn on the 3D globe only.
 - A WMS/WMTS layer without an `extent` paints its service's blank tiles outside its
   coverage; the shipped examples set one.
-- CelesTrak rate-limits by address: after several restarts in a short time it answers 403
-  and satellites stay on the last element sets until it lets requests through again.
+- CelesTrak rate-limits by address (after several restarts in a short time it answers 403)
+  and has outages (503s and timeouts on 2026-10-05). Meanwhile satellites are propagated from
+  the element sets kept on disk — up to seven days old, labelled cached, the source STALE — and
+  CelesTrak is asked again every ten minutes. Past seven days there are none.
 - The local-network sources (MQTT, Home Assistant, Traccar, HTTP ingest) have been tested
   against scripted servers and fixtures, not yet against a real broker, Home Assistant,
   Traccar server or Node-RED. Home Assistant's `person` and `device_tracker` entities are

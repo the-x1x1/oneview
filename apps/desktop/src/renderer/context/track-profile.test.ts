@@ -64,7 +64,8 @@ test('track profile: long tracks are thinned for drawing; lookup and replay spee
   assert.equal(replaySpeedFor(5 * 60_000), 5);
   assert.equal(replaySpeedFor(20 * 60_000), 20);
   assert.equal(replaySpeedFor(3_600_000), 60, 'an hour at 60x is a minute');
-  assert.equal(replaySpeedFor(24 * 3_600_000), 60);
+  assert.equal(replaySpeedFor(24 * 3_600_000), 600, 'a day at 600x is two and a half minutes');
+  assert.equal(replaySpeedFor(7 * 24 * 3_600_000), 3600, 'a week at 3600x is under three minutes');
   assert.equal(trackProfile(eastbound(1, 200)), undefined, 'one fix is not a profile');
 });
 

@@ -32,7 +32,7 @@ as text (it may start a name); "go live" is not navigation.
 
 Confidence: `HIGH` (structured, place resolved), `MEDIUM` (place unresolved, ambiguous
 identifier, callsign), `LOW` (free text only). `notes[]` explains what was recognised
-but not acted on (MGRS/UTM, unknown place, unitless threshold).
+but not acted on (a grid reference that cannot be right, unknown place, unitless threshold).
 
 ## Vocabulary
 
@@ -84,16 +84,16 @@ A unitless threshold outside an earthquake query is consumed and reported in `no
 
 ## Identifiers
 
-| pattern                                                             | result                                                                                           |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `iss` (any case)                                                    | object `satellite:norad:25544` (+ gazetteer lookup)                                              |
-| `norad 25544`, `sat 25544`, `NORAD:48274`, `#25544` after norad/sat | object `satellite:norad:N`                                                                       |
-| 9 digits                                                            | object `vessel:mmsi:N`                                                                           |
-| 6 hex chars containing a digit                                      | object `aircraft:icao24:<lower>` (MEDIUM with a–f, LOW if all digits)                            |
-| `[A-Z]{2,3}\d{1,4}[A-Z]?`                                           | query `aircraft` + `labels.callsign eq <UPPER>` — callsigns are never identity (ADR-011)         |
-| 3/4 upper-case letters                                              | airport code via gazetteer (`HNL`, `PHNL`); lower-case also resolves when the code is exact      |
-| decimal / DMS pair                                                  | coordinate place; both orders accepted when hemisphere letters say which is which; never guesses |
-| MGRS / UTM                                                          | declined with a note (no datum tables shipped)                                                   |
+| pattern                                                                                                       | result                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `iss` (any case)                                                                                              | object `satellite:norad:25544` (+ gazetteer lookup)                                                                                                                                                                                        |
+| `norad 25544`, `sat 25544`, `NORAD:48274`, `#25544` after norad/sat                                           | object `satellite:norad:N`                                                                                                                                                                                                                 |
+| 9 digits                                                                                                      | object `vessel:mmsi:N`                                                                                                                                                                                                                     |
+| 6 hex chars containing a digit                                                                                | object `aircraft:icao24:<lower>` (MEDIUM with a–f, LOW if all digits)                                                                                                                                                                      |
+| `[A-Z]{2,3}\d{1,4}[A-Z]?`                                                                                     | query `aircraft` + `labels.callsign eq <UPPER>` — callsigns are never identity (ADR-011)                                                                                                                                                   |
+| 3/4 upper-case letters                                                                                        | airport code via gazetteer (`HNL`, `PHNL`); lower-case also resolves when the code is exact                                                                                                                                                |
+| decimal / DMS pair                                                                                            | coordinate place; both orders accepted when hemisphere letters say which is which; never guesses                                                                                                                                           |
+| MGRS (`4QFJ1234567890`, `4Q FJ 12345 67890`, 2–10 figures; polar `ZAB0000044542`, 6+ figures or spaced) / UTM | coordinate place at the square's middle (world-model grid-reference.ts, WGS84); one that cannot be right — square letters outside zone and band, point outside its band, `S` both band and hemisphere — is declined with a note saying why |
 
 ## Commands
 
@@ -109,16 +109,17 @@ than asking the online place search.
 
 ## Ranking (`searchWorld` → `SearchResult[]`)
 
-| result                                             | score                                                                                         |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| object from an id hint, present in live state      | 0.97                                                                                          |
-| object matched by a label filter (callsign)        | 0.95                                                                                          |
-| place                                              | 0.5 + 0.45 × gazetteer score (+ ≤ 0.05 proximity to `bias`)                                   |
-| query intent                                       | HIGH 0.9 · MEDIUM 0.7 · LOW 0.45; title carries the live count: `Earthquakes near Japan (12)` |
-| live object by label/id prefix                     | exact label 0.9 · label prefix 0.8 · id prefix 0.7 · word prefix 0.6 (+ bias bonus)           |
-| object hint not in live state                      | 0.75                                                                                          |
-| command                                            | HIGH 0.9 · MEDIUM 0.73 · LOW 0.5                                                              |
-| event title prefix (when an event source is given) | 0.6                                                                                           |
+| result                                                | score                                                                                         |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| object from an id hint, present in live state         | 0.97                                                                                          |
+| object matched by a label filter (callsign)           | 0.95                                                                                          |
+| place                                                 | 0.5 + 0.45 × gazetteer score (+ ≤ 0.05 proximity to `bias`)                                   |
+| query intent                                          | HIGH 0.9 · MEDIUM 0.7 · LOW 0.45; title carries the live count: `Earthquakes near Japan (12)` |
+| live object by label/id prefix                        | exact label 0.9 · label prefix 0.8 · id prefix 0.7 · word prefix 0.6 (+ bias bonus)           |
+| object hint not in live state                         | 0.75                                                                                          |
+| command                                               | HIGH 0.9 · MEDIUM 0.73 · LOW 0.5                                                              |
+| event title prefix (when an event source is given)    | 0.6                                                                                           |
+| the operator's own place (runtime, not `searchWorld`) | 0.55 + 0.45 × the same name score: a collected location (title, tags) or a watch zone (name)  |
 
 Ties break by kind (object, place, query, event, command) then id. Scores are in [0, 1]
 and deterministic; the `bias` position only adds a small proximity bonus.

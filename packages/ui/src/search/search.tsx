@@ -38,6 +38,12 @@ export interface SearchProps {
   inline?: boolean | undefined;
   /** Text shown when the query is non-empty and there are no results. */
   emptyText?: string | undefined;
+  /**
+   * Longest text the field takes (default 200, what the online place search accepts): a
+   * paste past it is cut here rather than refused by the main process ("ipc: invalid
+   * request") with no answer shown.
+   */
+  maxLength?: number | undefined;
 }
 
 /** Combobox (input + listbox) with arrow-key navigation, Enter to pick and Esc to close. */
@@ -56,6 +62,7 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
     className,
     inline,
     emptyText = 'No matches',
+    maxLength = 200,
   },
   ref,
 ) {
@@ -110,6 +117,7 @@ export const Search = forwardRef<HTMLInputElement, SearchProps>(function Search(
           aria-activedescendant={active >= 0 && showList ? `${id}-opt-${active}` : undefined}
           autoComplete="off"
           spellCheck={false}
+          maxLength={maxLength}
           className="wv-search__input"
           placeholder={placeholder}
           value={value}

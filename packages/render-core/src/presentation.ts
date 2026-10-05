@@ -207,6 +207,8 @@ export const DEFAULT_RULES: RenderingRule[] = [
     lod: { global: 'points', continental: 'points', regional: 'markers', local: 'icons' },
     styleClass: 'vessel',
     icon: 'vessel',
+    // The operator's own boat (the NMEA 2000 source) in its own colour, to find it at a glance.
+    classBy: { property: 'ownVessel', suffixes: { true: 'own' } },
     basePriority: 40,
     clusterPx: 0,
     pointPx: 4.5,
@@ -365,6 +367,11 @@ export const DEFAULT_RULES: RenderingRule[] = [
 export interface PresentationInput {
   objects: Iterable<WorldObject>;
   events?: Iterable<WorldEvent>;
+  /**
+   * The time the world shown is from, when it is not now (the timeline replaying or scrubbed
+   * back); undefined: now. Only the events that follow a moving object (EPISODE_EVENTS) use it.
+   */
+  shownAtMs?: number;
   view: ViewState;
   rules?: RenderingRule[];
   /** Object types visible in the active lens (undefined = all). */
@@ -498,6 +505,22 @@ function clusterCellDeg(px: number, zoom: number, latitude: number): number {
 /** Object types (and their event types, which share the names) whose event repeats the object on the map. */
 const DRAWN_AS_OBJECTS: ReadonlySet<string> = new Set(['storm', 'weather-alert']);
 
+/**
+ * Events that are something a moving object says about itself while it says it — an aircraft's
+ * emergency, a distress beacon (event-engine episodes.ts). One is drawn only while it is going
+ * on at the time shown (or when it is the selection), and at its object's position when the
+ * object is in the world, rather than where the event last put it a minute or two before.
+ */
+const EPISODE_EVENTS: ReadonlySet<string> = new Set(['aircraft-emergency', 'distress-beacon']);
+
+/** Whether an episode event is going on at `shownAtMs` (undefined: now, where only an open one is). */
+function episodeShown(ev: WorldEvent, shownAtMs: number | undefined): boolean {
+  if (shownAtMs === undefined) return !ev.endAt;
+  const start = Date.parse(ev.startAt);
+  const end = ev.endAt ? Date.parse(ev.endAt) : Infinity;
+  return !(start > shownAtMs) && !(end <= shownAtMs);
+}
+
 /** Width in px of a storm's past-track line (drawn in its category colour). */
 const STORM_LINE_PX = 3;
 
@@ -566,9 +589,14 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   // their own (a storm's glyph), whose event adds nothing unless it brings a shape.
   const drawnAlerts = new Set<string>();
   const markedAlerts = new Set<string>();
+  // The objects episode events follow, and where they are now.
+  const followed = new Map<string, GeoPosition | undefined>();
+  for (const ev of input.events ?? [])
+    if (EPISODE_EVENTS.has(ev.type) && ev.objectIds[0]) followed.set(ev.objectIds[0], undefined);
 
   for (const obj of input.objects) {
     stats.objects++;
+    if (followed.size && obj.position && followed.has(obj.id)) followed.set(obj.id, obj.position);
     // The selected object is drawn even with its layer switched off: chosen from search (the
     // ISS with Space off), it had a panel and an orbit line but no marker, and Follow had
     // nothing to lock on to (QA 2026-10-04).
@@ -790,6 +818,22 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   for (const ev of input.events ?? []) {
     if (!ev.geometry) continue;
     const selected = ev.id === input.selectedId;
+    if (EPISODE_EVENTS.has(ev.type)) {
+      if (!selected && !episodeShown(ev, input.shownAtMs)) continue;
+      const at = ev.objectIds[0] ? followed.get(ev.objectIds[0]) : undefined;
+      if (at) {
+        upsert.push({
+          id: `event:${ev.id}`,
+          eventId: ev.id,
+          geometry: { kind: 'point', position: { latitude: at.latitude, longitude: at.longitude } },
+          style: { styleClass: `event.${ev.type}`, label: ev.title, selected, opacity: 0.6 },
+          interactive: true,
+          priority: 80,
+          layer: 'events',
+        });
+        continue;
+      }
+    }
     // A storm's or an alert's event draws what its object already has — the cyclone glyph,
     // the warning's polygon — in a paler colour and with its title a second time over it:
     // along a forecast track that was one more "Hurricane Nolo" per position. Drawn only
