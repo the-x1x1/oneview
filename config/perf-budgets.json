@@ -43,5 +43,14 @@
       "buildMs": 1250,
       "queryMedianMs": 5
     }
+  },
+  "historySnapshot": {
+    "objects": 2000,
+    "partitions": 12,
+    "medianMs": 800,
+    "measured": {
+      "medianMs": 240,
+      "on": "2026-10-05, build container"
+    }
   }
 }

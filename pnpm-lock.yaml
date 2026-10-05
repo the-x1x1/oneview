@@ -723,6 +723,9 @@ importers:
 
   tools/perf-budget:
     dependencies:
+      '@worldview/history-store':
+        specifier: workspace:*
+        version: link:../../packages/history-store
       '@worldview/offline':
         specifier: workspace:*
         version: link:../../packages/offline

@@ -5,7 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { BenchmarkReport } from '@worldview/render-dense';
-import { evaluatePresentation, measurePlaceSearch, median, parseBudgets, syntheticPlaces } from './budget.js';
+import {
+  evaluatePresentation,
+  measureHistorySnapshot,
+  measurePlaceSearch,
+  median,
+  parseBudgets,
+  syntheticPlaces,
+} from './budget.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -15,6 +22,22 @@ test('the budgets file parses, and its first line is the product budget: 10,000 
   for (const c of b.presentation.cases)
     if (c.measured !== undefined) assert.ok(c.frameMedianMs >= c.measured * 2, `${c.objects}/${c.band}: headroom`);
   assert.ok(b.placeSearch && b.placeSearch.entries === 100_000);
+  assert.ok(b.historySnapshot && b.historySnapshot.objects === 2000 && b.historySnapshot.medianMs >= 500);
+});
+
+test('history snapshot: the latest row of every object, timed; the wrong count is a failure', async () => {
+  const r = await measureHistorySnapshot({ objects: 120, partitions: 2, medianMs: 60_000 }, os.tmpdir());
+  assert.ok(r.pass && Number.isFinite(r.measuredMs), r.name);
+  assert.match(r.name, /120 objects × 2 partitions × 4/);
+  const ok = { presentation: { iterations: 5, cases: [{ objects: 10, band: 'local', frameMedianMs: 1 }] } };
+  assert.throws(
+    () => parseBudgets({ ...ok, historySnapshot: { objects: 2000, partitions: 0, medianMs: 1 } }),
+    /partitions/,
+  );
+  assert.throws(
+    () => parseBudgets({ ...ok, historySnapshot: { objects: 2000, partitions: 2, medianMs: 0 } }),
+    /medianMs/,
+  );
 });
 
 test('a malformed budget is an error, never a pass', () => {

@@ -11,6 +11,7 @@
     ".": "./src/budget.ts"
   },
   "dependencies": {
+    "@worldview/history-store": "workspace:*",
     "@worldview/offline": "workspace:*",
     "@worldview/render-dense": "workspace:*"
   },
