@@ -175,7 +175,7 @@ export function SettingsDialog() {
             </select>
             <span className="wv-field__hint">
               Adds the view centre's MGRS or UTM reference to the HUD, and gives the point under the pointer and the
-              selection's position in it too (WGS84, 80° S to 84° N). The search box reads both.
+              selection's position in it too (WGS84; UPS beyond 84° N and 80° S). The search box reads both.
             </span>
           </label>
           <Toggle

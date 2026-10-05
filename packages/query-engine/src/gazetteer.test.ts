@@ -123,6 +123,13 @@ test('parseCoordinates reads MGRS and UTM grid references, and says why when one
   assert.match(ambiguous.note, /^UTM reference not read: .*could be latitude band S/);
   // A bare 100 km square is not taken for a reference: too easily something else.
   assert.equal(parseCoordinates('4QFJ'), undefined);
+  // The polar caps: a reference with six figures or more, or written with spaces…
+  const polar = parseCoordinates('ZAB0000044542');
+  assert.ok(polar && polar.kind === 'mgrs' && Math.abs(polar.latitude - 84.99999902) < 1e-6);
+  assert.equal(parseCoordinates('B AN 1 2')?.kind, 'mgrs');
+  // …but a flight's callsign is not one: BAW1234 is British Airways, not a square near the pole.
+  assert.equal(parseCoordinates('BAW1234'), undefined);
+  assert.equal(parseCoordinates('AAL12'), undefined);
   // Decimal and DMS still read as before.
   assert.equal(parseCoordinates('21.3, -157.9')?.kind, 'decimal');
 });

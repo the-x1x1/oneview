@@ -6,8 +6,9 @@
  * with an accuracy of a few nanometers", J. Geodesy 85 (2011), eqs. 7–11 and 35–36), which
  * is good to well under a millimetre anywhere a UTM zone is used. Zones follow the standard
  * rules, Norway's 32V and Svalbard's 31X–37X included; latitude bands are C to X, 8° each,
- * X 12°. UTM and MGRS cover 80° S to 84° N; the polar caps (UPS, MGRS A/B/Y/Z) are not
- * handled — nothing is returned there rather than a wrong answer.
+ * X 12°. UTM covers 80° S to 84° N; the polar caps take the Universal Polar Stereographic
+ * grid (UPS: scale 0.994 at the pole, false easting and northing 2,000 km), and MGRS letters
+ * them A and B (south, west and east of the 0° meridian) and Y and Z (north).
  *
  * MGRS letters are the current (WGS84, "AA") scheme. A reference names a square — 100 km down
  * to 1 m — and is written by truncating, never rounding, as the standard requires; read
@@ -177,6 +178,70 @@ export function formatUtm(u: UtmCoordinate): string {
   return `${u.zone}${u.band} ${Math.floor(u.easting)}mE ${Math.floor(u.northing)}mN`;
 }
 
+// --- UPS ---------------------------------------------------------------------------------
+
+const UPS_K0 = 0.994;
+const UPS_FALSE = 2_000_000;
+/** 2·a·k0 / √((1+e)^(1+e)·(1−e)^(1−e)) (Snyder, eq. 21-33). */
+const UPS_RHO_SCALE = (2 * A * UPS_K0) / Math.sqrt((1 + E) ** (1 + E) * (1 - E) ** (1 - E));
+
+export interface UpsCoordinate {
+  hemisphere: 'N' | 'S';
+  easting: number;
+  northing: number;
+}
+
+/**
+ * A point's UPS coordinate: the polar stereographic projection of its pole's hemisphere (north
+ * from the equator up, south below it). Meant for the caps beyond UTM — 84° N and 80° S — where
+ * MGRS uses it; undefined for an invalid point.
+ */
+export function toUps(p: { latitude: number; longitude: number }): UpsCoordinate | undefined {
+  if (!(Math.abs(p.latitude) <= 90) || !Number.isFinite(p.longitude)) return undefined;
+  const north = p.latitude >= 0;
+  const φ = (north ? p.latitude : -p.latitude) * DEG;
+  // 180° and −180° are one meridian; it is taken as +180 (east), as GeographicLib does.
+  const lon = normalizeLongitude(p.longitude);
+  const λ = (lon === -180 ? 180 : lon) * DEG;
+  const sinφ = Math.sin(φ);
+  const t = Math.tan(Math.PI / 4 - φ / 2) / ((1 - E * sinφ) / (1 + E * sinφ)) ** (E / 2);
+  const ρ = UPS_RHO_SCALE * t;
+  return {
+    hemisphere: north ? 'N' : 'S',
+    easting: UPS_FALSE + ρ * Math.sin(λ),
+    northing: UPS_FALSE + (north ? -1 : 1) * ρ * Math.cos(λ),
+  };
+}
+
+/** The point at a UPS coordinate. */
+export function fromUps(
+  hemisphere: 'N' | 'S',
+  easting: number,
+  northing: number,
+): { latitude: number; longitude: number } | undefined {
+  if (!Number.isFinite(easting) || !Number.isFinite(northing)) return undefined;
+  const x = easting - UPS_FALSE;
+  const y = northing - UPS_FALSE;
+  const ρ = Math.hypot(x, y);
+  const t = ρ / UPS_RHO_SCALE;
+  let φ = Math.PI / 2 - 2 * Math.atan(t);
+  for (let i = 0; i < 20; i++) {
+    const sinφ = Math.sin(φ);
+    const next = Math.PI / 2 - 2 * Math.atan(t * ((1 - E * sinφ) / (1 + E * sinφ)) ** (E / 2));
+    const done = Math.abs(next - φ) < 1e-15;
+    φ = next;
+    if (done) break;
+  }
+  const north = hemisphere === 'N';
+  const λ = ρ === 0 ? 0 : north ? Math.atan2(x, -y) : Math.atan2(x, y);
+  return { latitude: (north ? φ : -φ) / DEG, longitude: normalizeLongitude(λ / DEG) };
+}
+
+/** `UPS N 2000000mE 1444542mN` — whole metres, truncated. */
+export function formatUps(u: UpsCoordinate): string {
+  return `UPS ${u.hemisphere} ${Math.floor(u.easting)}mE ${Math.floor(u.northing)}mN`;
+}
+
 // --- MGRS -------------------------------------------------------------------------------
 
 /** 100 km column letters, by zone modulo 3 (I and O are never used). */
@@ -185,8 +250,20 @@ const COLUMN_SETS = ['ABCDEFGH', 'JKLMNPQR', 'STUVWXYZ'] as const;
 const ROWS = 'ABCDEFGHJKLMNPQRSTUV';
 const SQUARE = 100_000;
 const ROW_CYCLE = 2_000_000;
+/**
+ * The polar MGRS letters: per band its column letters and the 100 km index of the first, then
+ * the row letters and their first index. South of 80° S: A west of 0°, B east; north of 84° N:
+ * Y west, Z east.
+ */
+const POLAR: Readonly<Record<'A' | 'B' | 'Y' | 'Z', { cols: string; col0: number; rows: string; row0: number }>> = {
+  A: { cols: 'JKLPQRSTUXYZ', col0: 8, rows: 'ABCDEFGHJKLMNPQRSTUVWXYZ', row0: 8 },
+  B: { cols: 'ABCFGHJKLPQR', col0: 20, rows: 'ABCDEFGHJKLMNPQRSTUVWXYZ', row0: 8 },
+  Y: { cols: 'RSTUXYZ', col0: 13, rows: 'ABCDEFGHJKLMNP', row0: 13 },
+  Z: { cols: 'ABCFGHJ', col0: 20, rows: 'ABCDEFGHJKLMNP', row0: 13 },
+};
 
 export interface MgrsReference {
+  /** The UTM zone; 0 in the polar caps, which have none. */
   zone: number;
   band: string;
   /** The 100 km square's two letters. */
@@ -198,10 +275,12 @@ export interface MgrsReference {
   northing: number;
 }
 
-/** The MGRS reference of a point to `digits` (0–5) figures each way, or undefined outside 80° S – 84° N. */
+/** The MGRS reference of a point to `digits` (0–5) figures each way — UTM's or, beyond 84° N and 80° S, UPS's. */
 export function toMgrs(p: { latitude: number; longitude: number }, digits = 5): MgrsReference | undefined {
+  if (!Number.isInteger(digits) || digits < 0 || digits > 5) return undefined;
+  if (p.latitude >= UTM_NORTH_LIMIT || p.latitude < UTM_SOUTH_LIMIT) return polarMgrs(p, digits);
   const u = toUtm(p);
-  if (!u || !Number.isInteger(digits) || digits < 0 || digits > 5) return undefined;
+  if (!u) return undefined;
   const col = Math.floor(u.easting / SQUARE);
   const colLetter = COLUMN_SETS[(u.zone - 1) % 3]![col - 1];
   if (!colLetter) return undefined;
@@ -218,9 +297,31 @@ export function toMgrs(p: { latitude: number; longitude: number }, digits = 5): 
   };
 }
 
-/** `4Q FJ 14096 55747`, or `4Q FJ` for a 100 km square. */
+function polarMgrs(p: { latitude: number; longitude: number }, digits: number): MgrsReference | undefined {
+  const u = toUps(p);
+  if (!u) return undefined;
+  const east = u.easting >= UPS_FALSE;
+  const band = u.hemisphere === 'N' ? (east ? 'Z' : 'Y') : east ? 'B' : 'A';
+  const set = POLAR[band];
+  const col = Math.floor(u.easting / SQUARE);
+  const row = Math.floor(u.northing / SQUARE);
+  const colLetter = set.cols[col - set.col0];
+  const rowLetter = set.rows[row - set.row0];
+  if (!colLetter || !rowLetter) return undefined;
+  const unit = 10 ** (5 - digits);
+  return {
+    zone: 0,
+    band,
+    square: colLetter + rowLetter,
+    digits,
+    easting: Math.floor((u.easting - col * SQUARE) / unit),
+    northing: Math.floor((u.northing - row * SQUARE) / unit),
+  };
+}
+
+/** `4Q FJ 14096 55747`, `Z AB 00000 44542` in the polar caps, or `4Q FJ` for a 100 km square. */
 export function formatMgrs(m: MgrsReference): string {
-  const head = `${m.zone}${m.band} ${m.square}`;
+  const head = `${m.zone ? m.zone : ''}${m.band} ${m.square}`;
   if (m.digits === 0) return head;
   return `${head} ${String(m.easting).padStart(m.digits, '0')} ${String(m.northing).padStart(m.digits, '0')}`;
 }
@@ -235,6 +336,38 @@ export interface ReadGridReference {
 }
 
 const MGRS_TEXT = /^(\d{1,2})\s*([C-HJ-NP-X])\s*([A-Z])([A-Z])\s*(\d*)(?:\s+(\d+))?$/i;
+const MGRS_POLAR_TEXT = /^([ABYZ])\s*([A-Z])([A-Z])\s*(\d*)(?:\s+(\d+))?$/i;
+
+/** A polar reference (bands A, B, Y, Z): the middle of its square, by UPS. */
+function parsePolarMgrs(m: RegExpExecArray): ReadGridReference | { error: string } {
+  const band = m[1]!.toUpperCase() as keyof typeof POLAR;
+  const colLetter = m[2]!.toUpperCase();
+  const rowLetter = m[3]!.toUpperCase();
+  const first = m[4] ?? '';
+  const second = m[5];
+  let text: string;
+  if (second !== undefined) {
+    if (first.length !== second.length) return { error: 'The easting and northing need the same number of figures.' };
+    text = first + second;
+  } else {
+    if (first.length % 2 !== 0) return { error: 'An MGRS reference needs an even number of figures.' };
+    text = first;
+  }
+  const digits = text.length / 2;
+  if (digits > 5) return { error: 'An MGRS reference has at most five figures each way (1 m).' };
+  const e = digits ? Number(text.slice(0, digits)) : 0;
+  const n = digits ? Number(text.slice(digits)) : 0;
+  const unit = 10 ** (5 - digits);
+  const set = POLAR[band];
+  const col = set.cols.indexOf(colLetter);
+  const row = set.rows.indexOf(rowLetter);
+  if (col < 0 || row < 0) return { error: `The square ${colLetter}${rowLetter} is not in polar band ${band}.` };
+  const easting = (set.col0 + col) * SQUARE + e * unit + unit / 2;
+  const northing = (set.row0 + row) * SQUARE + n * unit + unit / 2;
+  const p = fromUps(band === 'A' || band === 'B' ? 'S' : 'N', easting, northing)!;
+  const written = formatMgrs({ zone: 0, band, square: colLetter + rowLetter, digits, easting: e, northing: n });
+  return { ...p, precisionM: unit, text: written };
+}
 
 /** MGRS's own northing limits at the polar ends: below 9,500 km in the north, from 1,000 km in the south. */
 const MGRS_NORTH_LIMIT_M = 9_500_000;
@@ -267,6 +400,8 @@ function squareMeetsBand(col: number, base: number, span: { south: number; north
  * its zone and latitude band is refused with the reason, as GeographicLib refuses it.
  */
 export function parseMgrs(text: string): ReadGridReference | { error: string } | undefined {
+  const polar = MGRS_POLAR_TEXT.exec(text.trim());
+  if (polar) return parsePolarMgrs(polar);
   const m = MGRS_TEXT.exec(text.trim());
   if (!m) return undefined;
   const zone = Number(m[1]);
@@ -364,8 +499,14 @@ export function parseUtm(text: string): ReadGridReference | { error: string } | 
   return { ...point, precisionM: 1, text: `${written} ${Math.floor(easting)}mE ${Math.floor(northing)}mN` };
 }
 
-/** What a search must look like to be taken for MGRS: at least one figure each way (a bare `4QFJ` is not). */
-const MGRS_SEARCH = /^\d{1,2}\s?[C-HJ-NP-X]\s?[A-HJ-NP-Z]{2}\s?(\d{2,10}|\d{1,5}\s\d{1,5})$/i;
+/**
+ * What a search must look like to be taken for MGRS: at least one figure each way (a bare `4QFJ`
+ * is not). A polar reference (bands A, B, Y, Z) needs six figures or more, or spaces in it:
+ * written tight with fewer it is a flight's callsign — `BAW1234` is British Airways 1234, not a
+ * square near the South Pole.
+ */
+const MGRS_SEARCH =
+  /^(?:\d{1,2}\s?[C-HJ-NP-X]\s?[A-HJ-NP-Z]{2}\s?(?:\d{2,10}|\d{1,5}\s\d{1,5})|[ABYZ](?:\s?[A-HJ-NP-Z]{2}\s?\d{6,10}|\s?[A-HJ-NP-Z]{2}\s?\d{1,5}\s\d{1,5}|\s[A-HJ-NP-Z]{2}\s?\d{2,10}))$/i;
 
 /**
  * Typed text read as a grid reference, if it is written as one: MGRS with at least one figure

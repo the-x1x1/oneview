@@ -202,8 +202,10 @@ point against its band letter; one that cannot be right is not flown to, and the
 the list says why. N and S after a UTM zone are read as the hemisphere only when they cannot be
 the band: `18S 585628 4511322` (S for band S, or for south?) is refused as ambiguous — write the
 band (`18T`) or use MGRS. Settings → Rendering → Grid reference in the HUD shows the view
-centre in MGRS or UTM and gives the pointer's position (CUR) in it. Neither covers the polar
-caps beyond 84° N and 80° S.
+centre in MGRS or UTM and gives the pointer's position (CUR) in it. Beyond 84° N and 80° S the
+polar grid takes over: MGRS's bands Y and Z (north) and A and B (south), and UPS in place of
+UTM. A polar MGRS reference typed in the search box needs six figures or more, or spaces
+(`Z AB 12 34`), so that a callsign such as `BAW1234` is still a flight.
 
 Nothing leaves the machine while you type. For an address or a place the gazetteer does not
 know, the list offers **Search places online for …**; Enter (or a click) on it sends that one

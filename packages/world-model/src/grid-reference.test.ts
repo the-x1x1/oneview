@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   bandLatitudes,
+  formatUps,
+  fromUps,
+  toUps,
   formatMgrs,
   formatUtm,
   fromUtm,
@@ -20,7 +23,9 @@ import {
  * `-g -p 9`. No GeographicLib code is included here. Beyond these vectors the module was
  * compared with GeoConvert on 20,000 random points (UTM within 0.5 µm, MGRS identical at every
  * precision from 100 km to 1 m) and on all 576,000 combinations of zone, band and square
- * letters (the same references read and refused, positions within 1e-8 m).
+ * letters (the same references read and refused, positions within 1e-8 m); in the polar caps,
+ * on 20,049 points (UPS within 0.5 µm, MGRS identical at every precision) and all 2,304 polar
+ * band and letter pairs (the same read and refused).
  */
 
 const UTM_VECTORS: Array<[number, number, string, number, number]> = [
@@ -113,8 +118,8 @@ test('zones and bands: the standard rules, Norway and Svalbard, nothing past 80�
   assert.deepEqual(bandLatitudes('X'), { south: 72, north: 84 });
   assert.deepEqual(bandLatitudes('q'), { south: 16, north: 24 });
   assert.equal(bandLatitudes('I'), undefined);
-  assert.equal(toUtm({ latitude: 84, longitude: 0 }), undefined, 'the polar grid (UPS) is not handled');
-  assert.equal(toMgrs({ latitude: -85, longitude: 0 }), undefined);
+  assert.equal(toUtm({ latitude: 84, longitude: 0 }), undefined, 'UTM stops at 84° N: the polar grid (UPS) takes over');
+  assert.equal(toUtm({ latitude: -80.001, longitude: 0 }), undefined);
 });
 
 test('MGRS: the same references as GeographicLib, truncated, at every precision', () => {
@@ -198,4 +203,48 @@ test('reading UTM: the band letter is checked; N and S read as hemispheres only 
   assert.match((parseUtm('0Q 612345 2358765') as { error: string }).error, /no UTM zone 0/);
   assert.equal(parseUtm('4Q 612345'), undefined);
   assert.equal(parseUtm('21.3 -157.9'), undefined);
+});
+
+test('the polar caps: UPS and MGRS bands A, B, Y and Z, as GeoConvert gives them', () => {
+  // GeoConvert -u -p 6 and -m -p 0.
+  const ups: Array<[number, number, 'N' | 'S', number, number, string]> = [
+    [85, 0, 'N', 2_000_000, 1_444_542.608617, 'Z AB 00000 44542'],
+    [-85, -135, 'S', 1_607_232.311893, 1_607_232.311893, 'A UJ 07232 07232'],
+    [-85, 90, 'S', 2_555_457.391383, 2_000_000, 'B HN 55457 00000'],
+    [85, -90, 'N', 1_444_542.608617, 2_000_000, 'Y SH 44542 00000'],
+    [89.9, 45, 'N', 2_007_850.571206, 1_992_149.428794, 'Z AG 07850 92149'],
+    [-80.1, 0, 'S', 2_000_000, 3_101_768.01006, 'B AZ 00000 01768'],
+  ];
+  for (const [lat, lon, h, e, n, ref] of ups) {
+    const u = toUps({ latitude: lat, longitude: lon })!;
+    assert.equal(u.hemisphere, h);
+    assert.ok(
+      Math.abs(u.easting - e) < 1e-6 && Math.abs(u.northing - n) < 1e-6,
+      `${lat},${lon}: ${u.easting} ${u.northing}`,
+    );
+    assert.equal(formatMgrs(toMgrs({ latitude: lat, longitude: lon })!), ref);
+    const back = fromUps(h, u.easting, u.northing)!;
+    assert.ok(Math.abs(back.latitude - lat) < 1e-10 && Math.abs(back.longitude - lon) < 1e-10, `${lat},${lon} back`);
+  }
+  assert.equal(formatUps(toUps({ latitude: 85, longitude: 0 })!), 'UPS N 2000000mE 1444542mN');
+  // 180° and −180° are one meridian, east of 0° (band B), as GeoConvert has it.
+  assert.equal(toMgrs({ latitude: -80.000001, longitude: -180 })!.band, 'B');
+  // Read back: the middle of the square.
+  const read: Array<[string, number, number]> = [
+    ['ZAB0000044542', 84.99999902345982, 0.0000515753046],
+    ['AUJ0723207232', -85.00000239171709, -135],
+    ['YSH4454200000', 84.99999902345982, -90.0000515753046],
+    ['Z AG 07850 92149', 89.90000090702202, 45],
+    ['BAN12', -89.73740129247162, 30.96375653207352],
+  ];
+  for (const [text, lat, lon] of read) {
+    const r = parseMgrs(text);
+    assert.ok(r && !('error' in r), text);
+    assert.ok(
+      Math.abs(r.latitude - lat) < 1e-9 && Math.abs(r.longitude - lon) < 1e-9,
+      `${text} → ${r.latitude},${r.longitude}`,
+    );
+  }
+  assert.match((parseMgrs('ZAZ1234567890') as { error: string }).error, /not in polar band Z/);
+  assert.match((parseMgrs('YAB1234567890') as { error: string }).error, /not in polar band Y/);
 });

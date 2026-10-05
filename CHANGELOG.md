@@ -25,8 +25,9 @@ Versioning: [semantic versioning](https://semver.org/).
   latitude band, a point outside its band, an "S" that could be a band or the southern
   hemisphere) is not guessed at: the list says what is wrong with it. Settings → Rendering →
   Grid reference in the HUD adds the view centre's MGRS or UTM reference to the HUD and gives
-  the point under the pointer, and the selection's position, in it. WGS84, 80° S to 84° N; the conversions agree with
-  GeographicLib to well under a millimetre.
+  the point under the pointer, and the selection's position, in it. WGS84; beyond 84° N and
+  80° S the polar grid (UPS, and MGRS's bands A, B, Y and Z) takes over. The conversions agree
+  with GeographicLib to well under a millimetre.
 - **Range rings and range to the pointer.** R (or the palette) draws four evenly spaced rings
   round the selected object — a round spacing chosen from the view, each ring labelled with its
   distance — following it as it moves. With the HUD on and something selected, an RNG row gives

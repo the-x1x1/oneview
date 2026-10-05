@@ -1,4 +1,13 @@
-import { classifyConfidence, formatMgrs, formatUtm, toMgrs, toUtm, type GeoPosition } from '@worldview/world-model';
+import {
+  classifyConfidence,
+  formatMgrs,
+  formatUps,
+  formatUtm,
+  toMgrs,
+  toUps,
+  toUtm,
+  type GeoPosition,
+} from '@worldview/world-model';
 import {
   Button,
   FieldList,
@@ -19,8 +28,9 @@ import { displayName, safeHttpsUrl } from './props.js';
 import { TrackHistory } from './track-history.js';
 
 /**
- * A position as the chosen grid reference — `4Q FJ 18415 56553` or `4Q 618415mE 2356553mN` —
- * or undefined when none is chosen or the point is beyond UTM's reach (the polar caps).
+ * A position as the chosen grid reference — `4Q FJ 18415 56553` or `4Q 618415mE 2356553mN`,
+ * and in the polar caps `Z AB 00000 44542` or `UPS N 2000000mE 1444542mN` — or undefined when
+ * none is chosen.
  */
 export function gridReferenceText(p: GeoPosition | undefined, kind: 'mgrs' | 'utm' | undefined): string | undefined {
   if (!p || !kind) return undefined;
@@ -29,7 +39,9 @@ export function gridReferenceText(p: GeoPosition | undefined, kind: 'mgrs' | 'ut
     return m ? formatMgrs(m) : undefined;
   }
   const u = toUtm(p);
-  return u ? formatUtm(u) : undefined;
+  if (u) return formatUtm(u);
+  const ups = toUps(p);
+  return ups ? formatUps(ups) : undefined;
 }
 
 /**

@@ -93,11 +93,12 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   depth, speed through water, wind, temperatures and pressure, and AIS reports (129038/39,
   129794, 129809/10). Its decoder was checked against CANboat's analyzer on invented frames, not
   yet against a boat. `HARDWARE_REQUIRED`
-- MGRS and UTM cover 80° S to 84° N (MGRS references a little beyond, to its own northing
-  limits); the polar caps (UPS, MGRS zones A, B, Y and Z) are not read or shown — the HUD says
-  "beyond 84° N" there. Only WGS84 and the current MGRS lettering are read: a reference from an
-  old map on another datum (NAD27, ED50) comes out tens to hundreds of metres off, and one in
-  the old "AL" lettering names a different square or is refused.
+- Grid references are WGS84 only, in the current MGRS lettering: a reference from an old map
+  on another datum (NAD27, ED50) comes out tens to hundreds of metres off, and one in the old
+  "AL" lettering names a different square or is refused. In the search box a polar MGRS
+  reference (bands A, B, Y, Z) needs six figures or more, or spaces in it — `BAW1234` is read
+  as a flight's callsign. UPS coordinates are shown (HUD, panel) but not read from the search
+  box; give the MGRS reference instead.
 - Aircraft have one keyless source, adsb.lol. airplanes.live and adsb.fi were considered as a
   second source for areas adsb.lol covers thinly; both limit their free data to non-commercial
   use, so neither is shipped.
