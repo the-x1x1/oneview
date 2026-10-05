@@ -835,7 +835,16 @@ export interface WorldRequests {
   'collections.list': { request: void; response: Collection[] };
   'collections.save': { request: Collection; response: Collection[] };
   'collections.delete': { request: { id: string }; response: Collection[] };
-  'collections.export': { request: { id: string }; response: { path: string } | { cancelled: true } };
+  /**
+   * A collection to a file. `format` (additive, 2026-10-05): `json` (the default) is the
+   * WorldView collection file, everything in it; `gpx`, `kml` and `geojson` write its places —
+   * the operator's own always, a collected object only while its sources allow export — and
+   * say how many went out and how many were left out.
+   */
+  'collections.export': {
+    request: { id: string; format?: 'json' | 'gpx' | 'kml' | 'geojson' };
+    response: { path: string; places?: number; skipped?: number } | { cancelled: true };
+  };
   'collections.import': { request: void; response: { imported: Collection | null; issues: string[] } };
 
   'watchzones.list': { request: void; response: WatchZone[] };

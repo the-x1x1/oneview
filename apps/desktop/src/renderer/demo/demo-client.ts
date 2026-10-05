@@ -476,9 +476,10 @@ export class DemoClient implements WorldClient {
         return this.collections;
       }
       case 'collections.export': {
-        const { id } = request as RequestOf<'collections.export'>;
+        const { id, format } = request as RequestOf<'collections.export'>;
         const c = this.collections.find((x) => x.id === id);
-        if (!c || !this.downloadHook) return { cancelled: true };
+        // The browser demo writes the collection file only (GPX, KML and GeoJSON are the app's).
+        if (!c || !this.downloadHook || (format && format !== 'json')) return { cancelled: true };
         const path = this.downloadHook(
           `${c.name.replace(/[^a-z0-9-]+/gi, '_')}.worldview-collection.json`,
           'application/json',

@@ -73,7 +73,12 @@ export function CollectionsPanel() {
 function CollectionDetail({ collection, hasSelection }: { collection: Collection; hasSelection: boolean }) {
   const actions = useActions();
   const [renaming, setRenaming] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [name, setName] = useState(collection.name);
+  const exportAs = (format: 'json' | 'gpx' | 'kml' | 'geojson') => {
+    setExporting(false);
+    void actions.exportCollection(collection.id, format);
+  };
 
   return (
     <Section
@@ -93,7 +98,8 @@ function CollectionDetail({ collection, hasSelection }: { collection: Collection
             icon="download"
             label="Export collection"
             size="sm"
-            onClick={() => void actions.exportCollection(collection.id)}
+            aria-expanded={exporting}
+            onClick={() => setExporting((v) => !v)}
           />
           <IconButton
             icon="trash"
@@ -104,6 +110,37 @@ function CollectionDetail({ collection, hasSelection }: { collection: Collection
         </>
       }
     >
+      {exporting ? (
+        <div className="wv-ctx-actions" role="group" aria-label="Export as">
+          <Button size="sm" variant="ghost" title="Everything in it, to import again" onClick={() => exportAs('json')}>
+            Collection file
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Its places as waypoints: GPS units and navigation apps"
+            onClick={() => exportAs('gpx')}
+          >
+            GPX
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Its places as placemarks: Google Earth, ATAK"
+            onClick={() => exportAs('kml')}
+          >
+            KML
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Its places as GeoJSON points: QGIS and the web"
+            onClick={() => exportAs('geojson')}
+          >
+            GeoJSON
+          </Button>
+        </div>
+      ) : null}
       {renaming ? (
         <form
           className="wv-inline-form"

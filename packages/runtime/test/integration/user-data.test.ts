@@ -192,6 +192,34 @@ test('integration: collections and lenses round-trip through the host bridge and
     const written = JSON.parse(await fs.readFile(target, 'utf8')) as { version: number; collection: Collection };
     assert.equal(written.collection.items.length, 1);
 
+    // Its places as KML; a collected object no longer in the world is left out, and said so.
+    await h.client.request('collections.save', {
+      ...collection,
+      items: [
+        ...collection.items,
+        {
+          id: 'i2',
+          kind: 'object',
+          title: 'Gone',
+          objectId: 'aircraft:icao24:gone',
+          createdAt: '2026-09-21T00:00:00.000Z',
+          updatedAt: '2026-09-21T00:00:00.000Z',
+          position: { latitude: 20, longitude: -156 },
+        },
+      ],
+    });
+    const kmlTarget = path.join(dataDir, 'trip.kml');
+    h.host.saveQueue.push(kmlTarget);
+    assert.deepEqual(await h.client.request('collections.export', { id: 'trip', format: 'kml' }), {
+      path: kmlTarget,
+      places: 1,
+      skipped: 1,
+    });
+    const kml = await fs.readFile(kmlTarget, 'utf8');
+    assert.match(kml, /<name>Honolulu<\/name>/);
+    assert.doesNotMatch(kml, /Gone/);
+    await h.client.request('collections.save', collection);
+
     // Import validates the file instead of trusting it.
     await h.client.request('collections.delete', { id: 'trip' });
     h.host.openQueue.push(target);

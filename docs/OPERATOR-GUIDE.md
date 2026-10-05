@@ -303,6 +303,12 @@ directory while the app is closed. To move to another machine, copy it across â€
 re-enter keys. Collections and lenses can also be exported individually from the
 Collections panel.
 
+A collection's export button offers four files: the **collection file** (everything in it,
+to import again), and its places as **GPX** waypoints (GPS units and navigation apps),
+**KML** placemarks (Google Earth, ATAK) or **GeoJSON** points (QGIS). Your own places always
+go out; a collected aircraft, ship or other object only while it is on the map and every
+source behind it allows export â€” the notice says how many were left out.
+
 To reset a corrupt installation: close the app, rename `settings.json`, reopen.
 WORLDVIEW preserves a corrupt file as `settings.corrupt-<timestamp>.json`, starts from
 defaults and reports the finding in Diagnostics rather than deleting your data.

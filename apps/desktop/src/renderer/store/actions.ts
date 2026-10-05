@@ -904,10 +904,17 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         position: { latitude: at.latitude, longitude: at.longitude },
       });
     },
-    async exportCollection(id: string): Promise<void> {
+    /** To the WorldView collection file, or its places as GPX, KML or GeoJSON. */
+    async exportCollection(id: string, format: 'json' | 'gpx' | 'kml' | 'geojson' = 'json'): Promise<void> {
       try {
-        const r = await client.request('collections.export', { id });
-        if ('path' in r) notify('Collection exported', r.path);
+        const r = await client.request('collections.export', { id, ...(format !== 'json' ? { format } : {}) });
+        if ('path' in r) {
+          const places = r.places === undefined ? '' : `${r.places} place${r.places === 1 ? '' : 's'} · `;
+          const left = r.skipped
+            ? ` · ${r.skipped} collected object${r.skipped === 1 ? '' : 's'} left out: gone from the map, or a source that does not allow export`
+            : '';
+          notify('Collection exported', `${places}${r.path}${left}`);
+        }
       } catch (err) {
         fail('Export failed', err);
       }

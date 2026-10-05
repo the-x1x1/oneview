@@ -155,7 +155,7 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
       ],
     },
     'collections.delete': { id: 'c1' },
-    'collections.export': { id: 'c1' },
+    'collections.export': { id: 'c1', format: 'kml' },
     'watchzones.save': {
       id: 'w1',
       name: 'Bay',

@@ -43,6 +43,7 @@ import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-cor
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
 import { mergeObjectTrack } from './support/object-track.js';
+import { collectionGeodata, placesOf, type CollectionGeoFormat } from './support/collection-geodata.js';
 import {
   DeniedError,
   InvalidRequestError,
@@ -549,18 +550,57 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       requireId(id, 'id');
       return core.collections.remove(id);
     },
-    'collections.export': async ({ id }) => {
+    'collections.export': async ({ id, format = 'json' }) => {
       requireId(id, 'id');
+      if (!['json', 'gpx', 'kml', 'geojson'].includes(format))
+        throw new InvalidRequestError('format must be json, gpx, kml or geojson');
       const collection = await core.collections.get(id);
       if (!collection) throw new NotFoundError(`unknown collection ${id}`);
+      const geo = format === 'json' ? undefined : (format as CollectionGeoFormat);
       const choice = await core.hostBridge.pickSaveFile({
         title: 'Export collection',
-        defaultPath: suggestedPath(core, `${slug(collection.name)}.worldview-collection.json`),
-        filters: [{ name: 'WorldView collection', extensions: ['json'] }],
+        defaultPath: suggestedPath(core, `${slug(collection.name)}.${geo ?? 'worldview-collection.json'}`),
+        filters: [
+          geo === 'gpx'
+            ? { name: 'GPX waypoints', extensions: ['gpx'] }
+            : geo === 'kml'
+              ? { name: 'KML placemarks', extensions: ['kml'] }
+              : geo === 'geojson'
+                ? { name: 'GeoJSON', extensions: ['geojson'] }
+                : { name: 'WorldView collection', extensions: ['json'] },
+        ],
       });
       if ('cancelled' in choice) return { cancelled: true };
-      await fs.writeFile(choice.path, `${JSON.stringify({ version: 1, collection }, null, 2)}\n`, 'utf8');
-      return { path: choice.path };
+      if (!geo) {
+        await fs.writeFile(choice.path, `${JSON.stringify({ version: 1, collection }, null, 2)}\n`, 'utf8');
+        return { path: choice.path };
+      }
+      // The operator's own places go out; a collected object only while it is in the world and
+      // every source behind it allows export (the rule export.objects keeps).
+      const attribution = new Set<string>();
+      let skipped = 0;
+      const items = collection.items.filter((item) => {
+        if (!item.position) return false;
+        if (item.kind !== 'object') return true;
+        const object = item.objectId ? core.state.get(item.objectId) : undefined;
+        const ok =
+          !!object &&
+          object.sourceRefs.every((r) => {
+            const policy = core.policyFor(r.providerId);
+            return !!policy && mayExport(policy);
+          });
+        if (!ok) skipped++;
+        else if (object?.provenance.attribution) attribution.add(object.provenance.attribution);
+        return ok;
+      });
+      const places = placesOf(items);
+      const body = collectionGeodata(geo, collection, places, {
+        exportedAt: new Date(core.clock.now()).toISOString(),
+        attribution: [...attribution].sort(),
+      });
+      await fs.writeFile(choice.path, `${body}\n`, 'utf8');
+      core.log.info('collection exported', { format: geo, places: places.length, skipped });
+      return { path: choice.path, places: places.length, skipped };
     },
     'collections.import': async () => {
       const choice = await core.hostBridge.pickOpenFile({

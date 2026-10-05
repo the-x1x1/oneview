@@ -345,7 +345,10 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   'collections.list': voidSchema,
   'collections.save': collectionSchema,
   'collections.delete': idRequest,
-  'collections.export': idRequest,
+  'collections.export': s.object(
+    { id: shortId, format: s.optional(s.enum(['json', 'gpx', 'kml', 'geojson'] as const)) },
+    { strict: true },
+  ) as Schema<RequestOf<'collections.export'>>,
   'collections.import': voidSchema,
 
   'watchzones.list': voidSchema,
