@@ -191,8 +191,9 @@ nothing analyses their content.
 The box at the top searches as you type, on this machine only: objects on the map (callsign,
 registration, MMSI, name), events, places in the built-in gazetteer (cities, airports by
 name or code, coordinates such as `21.3, -157.9`, `21°18'25"N 157°51'30"W`, an MGRS reference
-such as `4QFJ1234567890` or a UTM one such as `4Q 612345 2358765`), commands ("switch to 3D", "source
-health", "aviation lens") and queries ("M5+ earthquakes last 24 hours", "earthquakes near
+such as `4QFJ1234567890` or a UTM one such as `4Q 612345 2358765`), your own places — the
+locations in your collections, by title or tag ("Collected · Big Island trip"), and your watch
+zones by name — commands ("switch to 3D", "source health", "aviation lens") and queries ("M5+ earthquakes last 24 hours", "earthquakes near
 Japan"). Enter picks the first row: a command or query named in full runs (a query with one
 match selects it, with several frames them); a place or an object flies there.
 

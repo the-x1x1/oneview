@@ -7,6 +7,8 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Your own places in search.** The search box finds the locations kept in your collections
+  (by title or tag) and your watch zones (by name), and flies to them.
 - **A measured line or shape to a file.** The measure panel's Export saves the line (or, with
   Area on, the shape) as a GPX route, KML or GeoJSON.
 - **A collection's places as GPX, KML or GeoJSON, both ways.** Export a collection as

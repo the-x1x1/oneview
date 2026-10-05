@@ -42,6 +42,7 @@ import type { RequestHandlers } from './contract.js';
 import { MAP_PROVIDER_CATALOG, resolveMapProviders } from '@worldview/render-core';
 import { RuntimeCore, errorText } from './core.js';
 import { filterObjects } from './support/subscriptions.js';
+import { ownPlaceResults } from './support/own-places-search.js';
 import { mergeObjectTrack } from './support/object-track.js';
 import {
   collectionFromGeodata,
@@ -491,7 +492,18 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
         ...(resolvedBias ? { bias: resolvedBias } : {}),
       });
       // Worldpack place hits that the gazetteer merged keep their 'worldpack' source label.
-      return mergePackResults(core, trimmed, results, clampLimit(limit, 20, 100));
+      const merged = mergePackResults(core, trimmed, results, clampLimit(limit, 20, 100));
+      // The operator's own places: collected locations and watch zones, by name.
+      const own = ownPlaceResults(
+        await core.collections.list(),
+        await core.watchZoneStore.list(),
+        trimmed.slice(0, 200),
+        10,
+      );
+      if (!own.length) return merged;
+      return [...own, ...merged]
+        .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        .slice(0, clampLimit(limit, 20, 100));
     },
     // Online geocoding is asked by the desktop main process, which overrides this with the
     // rate-limited Nominatim/Photon client (apps/desktop/src/main/place-search.ts). Anywhere

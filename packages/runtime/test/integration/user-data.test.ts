@@ -183,6 +183,12 @@ test('integration: collections and lenses round-trip through the host bridge and
       ],
     };
     await h.client.request('collections.save', collection);
+    // Search finds the collected place, saying where it is kept.
+    const found = await h.client.request('search.query', { text: 'Honolulu' });
+    assert.ok(
+      found.some((r) => r.id === 'collection:trip:i1' && r.subtitle === 'Collected · Pacific trip'),
+      JSON.stringify(found.map((r) => r.id)),
+    );
 
     // Export writes exactly where the host bridge points.
     const target = path.join(dataDir, 'exported-collection.json');

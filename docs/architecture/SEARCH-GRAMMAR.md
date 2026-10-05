@@ -109,16 +109,17 @@ than asking the online place search.
 
 ## Ranking (`searchWorld` → `SearchResult[]`)
 
-| result                                             | score                                                                                         |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| object from an id hint, present in live state      | 0.97                                                                                          |
-| object matched by a label filter (callsign)        | 0.95                                                                                          |
-| place                                              | 0.5 + 0.45 × gazetteer score (+ ≤ 0.05 proximity to `bias`)                                   |
-| query intent                                       | HIGH 0.9 · MEDIUM 0.7 · LOW 0.45; title carries the live count: `Earthquakes near Japan (12)` |
-| live object by label/id prefix                     | exact label 0.9 · label prefix 0.8 · id prefix 0.7 · word prefix 0.6 (+ bias bonus)           |
-| object hint not in live state                      | 0.75                                                                                          |
-| command                                            | HIGH 0.9 · MEDIUM 0.73 · LOW 0.5                                                              |
-| event title prefix (when an event source is given) | 0.6                                                                                           |
+| result                                                | score                                                                                         |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| object from an id hint, present in live state         | 0.97                                                                                          |
+| object matched by a label filter (callsign)           | 0.95                                                                                          |
+| place                                                 | 0.5 + 0.45 × gazetteer score (+ ≤ 0.05 proximity to `bias`)                                   |
+| query intent                                          | HIGH 0.9 · MEDIUM 0.7 · LOW 0.45; title carries the live count: `Earthquakes near Japan (12)` |
+| live object by label/id prefix                        | exact label 0.9 · label prefix 0.8 · id prefix 0.7 · word prefix 0.6 (+ bias bonus)           |
+| object hint not in live state                         | 0.75                                                                                          |
+| command                                               | HIGH 0.9 · MEDIUM 0.73 · LOW 0.5                                                              |
+| event title prefix (when an event source is given)    | 0.6                                                                                           |
+| the operator's own place (runtime, not `searchWorld`) | 0.55 + 0.45 × the same name score: a collected location (title, tags) or a watch zone (name)  |
 
 Ties break by kind (object, place, query, event, command) then id. Scores are in [0, 1]
 and deterministic; the `bias` position only adds a small proximity bonus.
