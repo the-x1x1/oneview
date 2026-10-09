@@ -8,6 +8,7 @@ import {
   Menu,
   net,
   Notification,
+  powerMonitor,
   protocol,
   safeStorage,
   session,
@@ -428,6 +429,18 @@ async function bootstrap(): Promise<void> {
     pollNetwork();
   });
   const networkTimer = setInterval(pollNetwork, NETWORK_POLL_MS);
+
+  // Power and sleep (docs/cyberdeck M5): the OS's own events, nothing polled. On waking the
+  // network is asked at once (not in up to 15 s) and the vaults re-checked; a USB device that
+  // went away while asleep is reported by its source and reconnects on its own.
+  runtime.setPowerSource?.(powerMonitor.isOnBatteryPower());
+  powerMonitor.on('on-battery', () => runtime.setPowerSource?.(true));
+  powerMonitor.on('on-ac', () => runtime.setPowerSource?.(false));
+  powerMonitor.on('suspend', () => log.info('suspending', {}));
+  powerMonitor.on('resume', () => {
+    pollNetwork();
+    void runtime.notifyResume?.();
+  });
 
   const preloadPath = path.join(appDir, 'dist', 'preload', 'preload.cjs');
   if (!DEV)

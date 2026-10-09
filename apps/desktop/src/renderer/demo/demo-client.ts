@@ -586,6 +586,9 @@ export class DemoClient implements WorldClient {
         };
       case 'offline.installPackTo':
         return { installed: null, issues: ['No data vaults in the browser demo'] };
+      case 'field.status':
+        // A browser cannot read this computer's power or disks: said as unknown, never made up.
+        return { power: { source: 'unknown' }, at: new Date(nowMs).toISOString() };
       case 'offline.importPublisher':
         return {
           status: this.offlineStatus(nowMs),

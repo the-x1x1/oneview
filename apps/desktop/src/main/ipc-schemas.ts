@@ -377,6 +377,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
   ) as Schema<RequestOf<'feed.recent'>>,
 
   'offline.status': voidSchema,
+  'field.status': voidSchema,
   'offline.installPack': voidSchema,
   'offline.removePack': idRequest,
   'offline.setPackEnabled': s.object({ id: shortId, enabled: s.boolean() }, { strict: true }),

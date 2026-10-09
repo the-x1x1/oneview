@@ -204,6 +204,12 @@ export function bindClient({
   );
   offs.push(
     client.on(
+      'field.changed',
+      guard((field) => dispatch({ type: 'offline/field', field })),
+    ),
+  );
+  offs.push(
+    client.on(
       'offline.changed',
       guard((status) => {
         dispatch({ type: 'offline/status', status });
@@ -260,6 +266,7 @@ export function bindClient({
       client.request('watchzones.list', undefined).then((zones) => dispatch({ type: 'watchzones/list', zones })),
       client.request('feed.recent', { limit: 200 }).then((items) => dispatch({ type: 'feed/recent', items })),
       client.request('offline.status', undefined).then((status) => dispatch({ type: 'offline/status', status })),
+      client.request('field.status', undefined).then((field) => dispatch({ type: 'offline/field', field })),
       client.request('updater.state', undefined).then((state) => dispatch({ type: 'updater/state', state })),
       client
         .request('map.providers.list', undefined)

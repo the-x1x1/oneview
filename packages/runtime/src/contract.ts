@@ -29,6 +29,10 @@ export interface WorldRuntime {
   stop(): Promise<void>;
   /** Application-level connectivity input (from the shell's network monitor). */
   setNetworkOnline(online: boolean): void;
+  /** (additive, M5) The OS says the computer runs on battery (true) or mains (false). */
+  setPowerSource?(onBattery: boolean): void;
+  /** (additive, M5) The computer woke from sleep. */
+  notifyResume?(): Promise<void>;
 }
 
 /** In-process client: same WorldClient interface the preload bridge exposes. */

@@ -11,7 +11,7 @@ merged, tagged or published without the operator. Status words are defined in
 | M2 — Offline field reliability, external SSD vault                                | P0       | M1                           | **Done in the container.** Data vaults, offline trace (no WAN with Work offline, by strace), start-up without the SSD, O'ahu bundle workflow; real SSD and Wi-Fi-off walk on the P16s UNVERIFIED (H7, H8) |
 | M3 — RTL-SDR → readsb → local aircraft                                            | P1       | M1 (M2 for offline proof)    | **Done in the container** with a real readsb decoder fed textbook frames; real stick + antenna on the P16s UNVERIFIED (H9)                                                                                |
 | M4 — T-Beam USB serial + own GNSS                                                 | P1       | M1                           | **Done in the container**: USB serial transport, own GPS fix / STALE / NO FIX, tested end to end over a pseudo-terminal; real T-Beam UNVERIFIED (H10)                                                     |
-| M5 — Field status, profiles, power evidence                                       | P2       | M3, M4                       | Not started                                                                                                                                                                                               |
+| M5 — Field status, profiles, power evidence                                       | P2       | M3, M4                       | **Done in the container**: field status strip (B), Field/Balanced/Docked profiles, battery from sysfs, sleep/wake and power events, a measuring script; P16s numbers and sleep/wake UNVERIFIED (H11, H12) |
 | M6 — Local read-only API for Formicaria                                           | P2       | M1                           | Not started                                                                                                                                                                                               |
 | M7 — Full gates, operator docs, disconnected acceptance                           | P0/P1    | all                          | Not started                                                                                                                                                                                               |
 | Later — Offline topographic map style (Topo GPS-like)                             | P3       | M2, offline terrain decision | Requested by the operator 2026-10-08; not scheduled                                                                                                                                                       |
@@ -130,6 +130,20 @@ merged, tagged or published without the operator. Status words are defined in
   (`normalizedRetentionAllowed: false`) — they are other people's precise locations, and the
   spec asks for opt-in recording. Flagged for the operator below.
 - No gpsd source: the T-Beam is the GPS on this deck; gpsd stays optional and unbuilt (DEFER).
+
+## M5 — done in the container
+
+- Field status strip (B, palette, Settings): network, own GPS, ADS-B, mesh, vault, disk,
+  power; receivers say "connected" and "data received" apart and carry an on/off switch.
+  Hidden, it costs nothing; shown, one power/disk read a minute.
+- Profiles: Field (Low, 2D, strip, internet sources polled ×3), Balanced (Auto), Docked (High,
+  3D). Operator's choice only; local sources never slowed or stopped.
+- Power and sleep: battery from `/sys/class/power_supply` (no UPower, no daemon); Electron
+  `powerMonitor` events for mains/battery and wake; on wake the network and the vaults are
+  checked at once.
+- `apps/desktop/scripts/measure-linux.mjs`: start time, PSS/RSS, CPU, GPU busy, whole-computer
+  battery draw with a `--baseline` mode; conditions recorded with the numbers. FIELD.md says how.
+- `ProviderHealth.ownPosition` (additive): the GPS state structured for the strip.
 
 ## Later — offline topographic map style
 

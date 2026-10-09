@@ -12,6 +12,7 @@ import type {
   Collection,
   EventTypeInfo,
   FeedItem,
+  FieldHostStatus,
   OfflineStatus,
   ResponseOf,
   TimelineState,
@@ -157,6 +158,8 @@ export interface WatchZonesSlice {
 
 export interface OfflineSlice {
   status: OfflineStatus | null;
+  /** Power, disk headroom and last wake (docs/cyberdeck M5), for the field status strip. */
+  field: FieldHostStatus | null;
 }
 
 export interface UpdaterSlice {
@@ -324,7 +327,8 @@ export type CollectionsAction =
   { type: 'collections/list'; collections: Collection[] } | { type: 'collections/activate'; id: string | null };
 
 export type WatchZonesAction = { type: 'watchzones/list'; zones: WatchZone[] };
-export type OfflineAction = { type: 'offline/status'; status: OfflineStatus };
+export type OfflineAction =
+  { type: 'offline/status'; status: OfflineStatus } | { type: 'offline/field'; field: FieldHostStatus };
 export type UpdaterAction = { type: 'updater/state'; state: UpdaterState };
 
 export type UiAction =

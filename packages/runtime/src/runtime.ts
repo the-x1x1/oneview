@@ -34,6 +34,14 @@ class ComposedRuntime implements WorldRuntime {
   setNetworkOnline(online: boolean): void {
     this.core.setNetworkOnline(online);
   }
+
+  setPowerSource(onBattery: boolean): void {
+    this.core.setPowerSource(onBattery);
+  }
+
+  notifyResume(): Promise<void> {
+    return this.core.notifyResume();
+  }
 }
 
 /**

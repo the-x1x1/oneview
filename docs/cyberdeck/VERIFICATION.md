@@ -346,6 +346,70 @@ Prettier clean. Lint not run (no ESLint in the container).
 Not verified: a real T-Beam (H10) — how often its firmware streams its own position to a USB
 client, how it reports a lost fix, whether opening the port resets the board.
 
+## M5 — field status strip, profiles, power, measuring (container, 2026-10-08)
+
+**Power** (`packages/runtime/src/support/power.ts`, 3 tests on a fake `/sys/class/power_supply`
+laid out like the kernel's): a battery discharging (energy-weighted percentage), charging on
+mains, two batteries summed by energy, a USB-C supply counted as external power, a mouse's
+battery (`scope Device`) ignored, no battery at all, the host flag when sysfs says nothing.
+**Runtime** (`test/integration/field.test.ts`, 3): `field.status` gives battery and disk
+headroom; a power-source change and a wake are pushed as `field.changed` (one per change, the
+wake time carried); off Linux only the host flag, never an invented percentage; the Field
+profile sets internet sources' poll interval ×3 and Docked puts it back. **Provider host**
+(`host.test.ts`): a remote source's next poll is due 60 s → 180 s under ×3; the scale is bounded
+1–10. Local sources are never scaled (`isRemote`).
+
+**The strip** (`components/field-status-model.ts`, 5 tests, every wording): NET LOCAL/ONLINE/
+DEGRADED/OFFLINE; GPS fix with age, STALE worked out at render time, age unknown when ahead of
+the clock, NO FIX (no-fix and not-GNSS), set by hand, no node, no source; receivers "connected"
+and "data received" said apart (`no data yet`), with the switch; worst vault; disk thresholds;
+power thresholds, nothing shown when power is unknown. `shell.test.ts`: absent by default; on,
+it renders NET then GPS, and in the demo (which cannot know this computer's power) no PWR item.
+`display.test.ts`: Field → Low, 2D, strip on; Docked → High, 3D; Balanced → Auto; B toggles.
+Seen rendered (Chromium, static markup with the app's CSS) at 1920 and 1100 px wide: one line,
+readable.
+
+**Electron, for real** (the branch's main process on Electron 44.5.1 linux-x64, Xvfb, as an
+ordinary user, sandbox on): `powerMonitor` answers and the runtime logs `power source
+{"onBattery":false}` at start. Sleep and wake could not be produced in the container (no
+logind): **H11 UNVERIFIED**.
+
+**Measuring script, run in the container** (`apps/desktop/scripts/measure-linux.mjs`; SIMULATED
+conditions: Xvfb with no GPU — the map shows its no-WebGL panel — 2 vCPU Xeon, no battery, the
+v0.2.2 renderer with the branch's main process, so these are **not P16s numbers**). 2 runs per
+profile, 10 s settle, 60 s idle:
+
+| Run        | Runtime started (ms) | Page loaded (ms) | PSS total MB mean / peak | RSS total MB mean | CPU % of one core | of which renderer | In effect (poll scale, graphics, map) |
+| ---------- | -------------------- | ---------------- | ------------------------ | ----------------- | ----------------- | ----------------- | ------------------------------------- |
+| Field 1    | 629                  | 1070             | 375.4 / 411.1            | 702.5             | 2.84              | 2.07              | ×3, low, 2D                           |
+| Field 2    | 701                  | 1197             | 376.2 / 410.3            | 705.3             | 2.42              | 1.78              | ×3, low, 2D                           |
+| Balanced 1 | 645                  | 1252             | 373.8 / 409.1            | 701.3             | 2.7               | 1.96              | ×1, auto, AUTO                        |
+| Balanced 2 | 698                  | 1243             | 375.6 / 411.1            | 704.6             | 2.69              | 1.96              | ×1, auto, AUTO                        |
+
+What the run showed: the script works end to end, timing from the spawn to the runtime's start
+and the page's load (the app logs `renderer loaded` for this; the mount is confirmed by the
+watchdog a fixed 4 s later, recorded as `mounted`, not as a time), measuring only the launched
+app's process tree, and recording what was in effect — the runtime's `profile applied` line and
+the graphics and map mode the settings held. With no GPU and no sources configured the profiles
+barely differ, as expected. No battery, so no power figures: those exist only on the laptop
+(**H12 UNVERIFIED**).
+
+**Independent review of M5** found 10 problems, all fixed: leaving Field left polls queued at
+the slow pace (now brought forward; tested); the start time measured the watchdog's 4 s wait;
+processes picked by install folder, not by the launch (now its process tree, failing loudly when
+empty); `profileApplied` logged only on change; battery units could mix energy and charge; the
+contract's profile wording did not match the code; the strip called STARTING and NEEDS_SETUP "not
+detected" and a long-silent receiver green; a slow answer could overwrite a newer push; tests
+missing for local sources never being slowed, and for these states. Moving the view still asks
+bounds sources at once in Field: that is the operator looking, not background work (FIELD.md
+says so).
+
+Gates after M5: 340 files, **2,217 pass, 0 fail**; typecheck same 19 shim-only; boundary 1,002
+files PASS; provider:test all PASS; license-audit 0 errors; Prettier clean. Lint not run.
+
+Not done: a sunlight theme — the app has one dark palette and no theme system, and the spec asks
+for one only "if existing styles support it" (DEFER).
+
 ## Hardware test matrix
 
 | #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |
@@ -361,7 +425,7 @@ client, how it reports a lost fix, whether opening the port resets the board.
 | H9  | RTL-SDR + 1090 MHz antenna → readsb → aircraft on map                                          | P16s + RTL-SDR                   | `lsusb`, decoder stats, screenshot                   | UNVERIFIED (M3) |
 | H10 | T-Beam over USB: node, battery, GNSS fix or NO FIX                                             | P16s + T-Beam                    | `ls -l /dev/serial/by-id`, screenshot                | UNVERIFIED (M4) |
 | H11 | Suspend/resume; unplug/replug serial and SDR                                                   | P16s                             | log, CPU via `top`                                   | UNVERIFIED (M5) |
-| H12 | Idle RSS / CPU / battery drain, Field vs Docked                                                | P16s on battery                  | measured table with conditions                       | UNVERIFIED (M5) |
+| H12 | Idle RSS / CPU / battery drain, Field vs Docked (`measure-linux.mjs`, FIELD.md)                | P16s on battery                  | the script's JSON, with `--baseline`                 | UNVERIFIED (M5) |
 
 ## Acceptance tests (definition of done per phase)
 

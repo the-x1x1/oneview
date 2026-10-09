@@ -133,6 +133,13 @@ test('on connecting it asks for the node list; the list becomes sensors, then wh
     fixType: '3D',
   });
   assert.match((await p.health()).message!, /this node: Base station, GPS fix \(3D, 9 satellites\), 20 s old$/);
+  assert.deepEqual((await p.health()).ownPosition, {
+    state: 'fix',
+    node: 'Base station',
+    fixAt: new Date((NOW_SEC - 20) * 1000).toISOString(),
+    satellites: 9,
+    fixType: '3D',
+  });
   assert.equal(p.stats.ignored, 1, 'the text message');
   assert.ok(!JSON.stringify(batches).includes('camp'), 'no word of it in any observation');
 });
@@ -275,4 +282,5 @@ test('subscribed again, then NO FIX: this node still comes off the map', async (
   );
   assert.match((await p.health()).message!, /NO FIX$/);
   assert.equal((await p.health()).objectCount, 1, 'the count matches the map');
+  assert.deepEqual((await p.health()).ownPosition, { state: 'no-fix', node: '!00000001' });
 });

@@ -119,6 +119,29 @@ export function SettingsDialog() {
             }
           />
           <label className="wv-field">
+            Profile
+            <select
+              className="wv-select"
+              value={display.profile ?? 'balanced'}
+              onChange={(e) => void actions.setProfile(e.target.value as 'field' | 'balanced' | 'docked')}
+            >
+              <option value="field">Field — on battery, in the field</option>
+              <option value="balanced">Balanced</option>
+              <option value="docked">Docked — on mains, at a desk</option>
+            </select>
+            <span className="wv-field__hint">
+              Field: Low graphics, the 2D map, the status strip, and sources on the internet asked a third as often.
+              Docked: High graphics and the globe. Sources on this computer (receivers, a node by USB) are never slowed
+              or stopped by a profile, and nothing switches profile on its own.
+            </span>
+          </label>
+          <Toggle
+            label="Field status strip"
+            description="One line under the top bar: network, this computer's GPS, the aircraft receiver, the mesh, the data vault, free disk and battery, with a switch for each receiver."
+            checked={display.fieldStatus ?? false}
+            onChange={(v) => setDisplay({ fieldStatus: v })}
+          />
+          <label className="wv-field">
             Graphics quality
             <select
               className="wv-select"

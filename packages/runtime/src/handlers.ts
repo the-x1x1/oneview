@@ -774,6 +774,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
 
     // ---- offline ---------------------------------------------------------------
     'offline.status': async () => core.offlineStatus(),
+    'field.status': async () => core.fieldStatus(),
     'offline.installPack': async () => {
       const choice = await core.hostBridge.pickOpenFile({
         title: 'Install world pack',

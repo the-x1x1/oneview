@@ -86,6 +86,7 @@ import type {
   Collection,
   DiagnosticsSnapshot,
   FeedItem,
+  FieldHostStatus,
   OfflineStatus,
   WatchZone,
   WorldFlightInfo,
@@ -100,6 +101,7 @@ import type { HostBridge, RuntimeCredentialStore, WorldRuntimeDeps } from './dep
 import { inProcessHostBridge } from './deps.js';
 import { RuntimeEmitter } from './support/emitter.js';
 import { hardwareLines, scanLocalHardware } from './support/local-hardware.js';
+import { readPower } from './support/power.js';
 import { JsonDocStore } from './support/json-doc-store.js';
 import {
   FileProviderCache,
@@ -146,6 +148,8 @@ const END_QUIET_MS = 60_000;
 const PROBE_HOST = 'earthquake.usgs.gov';
 const PROBE_URL = `https://${PROBE_HOST}/earthquakes/feed/v1.0/summary/all_hour.geojson`;
 const PROBE_MIN_INTERVAL_MS = 30_000;
+/** Field profile: sources on the internet wait this many times their normal interval. */
+const FIELD_POLL_SCALE = 3;
 const DEFAULT_VERSION = '0.1.0';
 
 /** Project pages that are always openable, independent of which providers are registered. */
@@ -287,6 +291,10 @@ export class RuntimeCore {
   viewCenter: { latitude: number; longitude: number } | undefined;
   /** What the shell's OS network monitor last reported through `setNetworkOnline`. */
   osOnline = true;
+  /** The host's on-battery flag (Electron powerMonitor), through `setPowerSource`. */
+  private onBattery: boolean | undefined;
+  /** When the computer last woke from sleep, through `notifyResume`. */
+  private resumedAt: string | undefined;
   private osListeners = new Set<(online: boolean) => void>();
   private historyOpen = false;
   private lastProbeAt = 0;
@@ -988,6 +996,7 @@ export class RuntimeCore {
     this.detach.push(
       this.settings.onChange((settings) => {
         this.emitter.emit('settings.changed', settings as ContractSettings);
+        this.applyProfile();
         this.updater.applyPolicy();
         this.history.setMaxBytes(settings.history.maxMB * 1024 * 1024);
       }),
@@ -1273,6 +1282,7 @@ export class RuntimeCore {
   async start(): Promise<void> {
     if (this.started) return;
     this.started = true;
+    this.applyProfile(true);
     await this.providerHost.start();
     this.connection.start();
     this.vaults.start();
@@ -1514,6 +1524,71 @@ export class RuntimeCore {
       return { ok: true, device: h.device };
     };
     return this.packs.install(file, { vault, recheck });
+  }
+
+  /** Field profile (docs/cyberdeck M5): internet sources poll a third as often; local ones never slow. */
+  private applyProfile(atStart = false): void {
+    const profile = (this.settings.get().display as { profile?: string }).profile;
+    const scale = profile === 'field' ? FIELD_POLL_SCALE : 1;
+    if (!atStart && this.providerHost.pollIntervalScale === scale) return;
+    this.providerHost.setPollScale(scale);
+    this.log.info('profile applied', { profile: profile ?? 'balanced', remotePollScale: scale });
+  }
+
+  /**
+   * Power and disk headroom for the field status strip, read when asked: battery from Linux
+   * sysfs (elsewhere only the host's on-battery flag), free space where the app keeps its data.
+   */
+  async fieldStatus(): Promise<FieldHostStatus> {
+    const power =
+      this.platform === 'linux'
+        ? await readPower({
+            ...(this.deps.powerSysRoot ? { sysRoot: this.deps.powerSysRoot } : {}),
+            ...(this.onBattery !== undefined ? { onBattery: this.onBattery } : {}),
+          })
+        : {
+            source:
+              this.onBattery === undefined
+                ? ('unknown' as const)
+                : this.onBattery
+                  ? ('battery' as const)
+                  : ('ac' as const),
+          };
+    let appDisk: FieldHostStatus['appDisk'];
+    try {
+      const st = await fs.statfs(this.dirs.root);
+      appDisk = { freeBytes: Number(st.bavail) * Number(st.bsize), totalBytes: Number(st.blocks) * Number(st.bsize) };
+    } catch {
+      appDisk = undefined;
+    }
+    return {
+      power,
+      ...(appDisk ? { appDisk } : {}),
+      ...(this.resumedAt ? { resumedAt: this.resumedAt } : {}),
+      at: new Date(this.clock.now()).toISOString(),
+    };
+  }
+
+  /** The OS says the computer moved to battery or to mains (Electron powerMonitor). */
+  setPowerSource(onBattery: boolean): void {
+    if (this.onBattery === onBattery) return;
+    this.onBattery = onBattery;
+    this.log.info('power source', { onBattery });
+    void this.fieldStatus().then((st) => this.emitter.emit('field.changed', st));
+  }
+
+  /**
+   * The computer woke from sleep. Devices may have gone and come back, a drive may be missing:
+   * re-check the vaults now rather than at the next 30 s check, and tell the page. Sources keep
+   * their own reconnect logic (a serial node that went away reconnects on its own back-off).
+   */
+  async notifyResume(): Promise<void> {
+    this.resumedAt = new Date(this.clock.now()).toISOString();
+    this.log.info('resumed from sleep', {});
+    await this.refreshVaults().catch((err: unknown) =>
+      this.log.warn('vault check after resume failed', { message: err instanceof Error ? err.message : String(err) }),
+    );
+    this.emitter.emit('field.changed', await this.fieldStatus());
   }
 
   /** Re-check the vaults now, re-read packs, and tell the page. */

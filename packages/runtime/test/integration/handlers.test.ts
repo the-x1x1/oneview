@@ -102,6 +102,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'watchzones.import': undefined,
   'feed.recent': { limit: 20 },
   'offline.status': undefined,
+  'field.status': undefined,
   'offline.installPack': undefined,
   'offline.removePack': { id: 'not-installed' },
   'offline.setPackEnabled': { id: 'not-installed', enabled: true },

@@ -148,6 +148,8 @@ export interface WorldRuntimeDeps {
    * sysfs scan on Linux and nothing elsewhere; tests pass a fixed scan.
    */
   hardwareScan?: () => Promise<LocalHardwareScan>;
+  /** Tests: where `/sys` is for the battery read (support/power.ts); default the real one. */
+  powerSysRoot?: string;
 
   /** electron-updater stand-in. Defaults to the inert updater (status `disabled`). */
   updater?: AutoUpdaterLike;

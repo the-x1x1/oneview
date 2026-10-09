@@ -234,6 +234,7 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
   applyKey('goHome', s, actions);
   applyKey('toggleGrid', s, actions);
   applyKey('toggleRangeRings', s, actions);
+  applyKey('toggleFieldStatus', s, actions);
   assert.deepEqual(calls, [
     'toggleHud()',
     'cycleVisualStyle(1)',
@@ -243,7 +244,12 @@ test('keyboard: display keys run their actions; F follows an object only; Esc le
     'goHome()',
     'toggleGrid()',
     'toggleRangeRings()',
+    'toggleFieldStatus()',
   ]);
+  assert.equal(
+    resolveKey({ key: 'b', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, inEditable: false }),
+    'toggleFieldStatus',
+  );
   assert.equal(applyKey('toggleFollow', s, actions), false, 'nothing selected, nothing to follow');
   s = rootReducer(s, { type: 'world/select', id: 'event:quake', kind: 'event' });
   assert.equal(applyKey('toggleFollow', s, actions), false, 'an event does not move');

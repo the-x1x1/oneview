@@ -138,6 +138,9 @@ export function watchRenderer(contents: WebContents, log: Logger, opts: { graceM
   });
 
   contents.on('did-finish-load', () => {
+    // When the page finished loading (scripts run, React mounting): a start-up time to measure
+    // (scripts/measure-linux.mjs). The mount itself is confirmed graceMs later, below.
+    log.info('renderer loaded', {});
     setTimeout(() => {
       if (contents.isDestroyed()) return;
       void contents

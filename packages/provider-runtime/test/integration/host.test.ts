@@ -1480,3 +1480,74 @@ test('offline: a source that answers from its cache keeps being polled — from 
   assert.equal(calls, before, 'nothing sent while offline');
   await host.stop();
 });
+
+test('field profile: sources on the internet poll a third as often; the scale is bounded', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-10-08T20:00:00.000Z'));
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'error', sinks: [] }),
+    fetchImpl: fakeFetch(
+      () =>
+        new Response(fixture('normal.geojson'), { status: 200, headers: { 'content-type': 'application/geo+json' } }),
+    ),
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+  });
+  try {
+    host.register(createProvider());
+    await host.start();
+    await host.pollNow('usgs-earthquakes');
+    const normal = host.nextPollAt('usgs-earthquakes')! - clock.now();
+    assert.equal(normal, 60_000);
+    host.setPollScale(3);
+    await host.pollNow('usgs-earthquakes');
+    assert.equal(host.nextPollAt('usgs-earthquakes')! - clock.now(), 180_000);
+    // Leaving Field: the poll queued at three times the interval comes forward to the normal one.
+    clock.advance(10_000);
+    host.setPollScale(1);
+    assert.equal(host.nextPollAt('usgs-earthquakes')! - clock.now(), 50_000);
+    host.setPollScale(1000);
+    assert.equal(host.pollIntervalScale, 10);
+    host.setPollScale(Number.NaN);
+    assert.equal(host.pollIntervalScale, 1);
+    host.setPollScale(0.1);
+    assert.equal(host.pollIntervalScale, 1, 'never faster than normal');
+  } finally {
+    await host.dispose();
+  }
+});
+
+test('field profile: a source on this computer is never slowed', async () => {
+  const clock = new testing.VirtualClock(Date.parse('2026-10-08T20:00:00.000Z'));
+  const host = new ProviderHost({
+    clock,
+    loggerHub: new LoggerHub({ level: 'error', sinks: [] }),
+    fetchImpl: fakeFetch(() => new Response(fixture('../readsb-local/aircraft.json'), { status: 200 })),
+    sleep: async () => {},
+    credentials: { get: async () => undefined, has: async () => false },
+    cacheStore: (_id, allowed) => new testing.MemoryCache(clock, allowed),
+    settingsStore: () => new testing.MemorySettings({}),
+    // A decoder answering on loopback.
+    localAccess: () => ({
+      readGrantedFile: async () => {
+        throw new Error('no grant');
+      },
+      probeLocal: async () => ({ reachable: true, status: 200 }),
+    }),
+  });
+  try {
+    host.register(createReadsb());
+    await host.setEnabled('readsb-local', true);
+    await host.start();
+    host.setPollScale(3);
+    await new Promise((r) => setImmediate(r)); // settings read
+    const batch = await host.pollNow('readsb-local');
+    assert.ok(batch && batch.observations.length > 0, 'the receiver answered');
+    const due = host.nextPollAt('readsb-local');
+    assert.ok(due !== undefined && due - clock.now() <= 1000, `polled at its own pace (${due! - clock.now()} ms)`);
+  } finally {
+    await host.dispose();
+  }
+});

@@ -83,6 +83,8 @@ const settingsShape = {
     grid: s.optional(s.boolean()),
     // Optional (additive): an MGRS or UTM row in the HUD; absent, none.
     hudGrid: s.optional(s.enum(['none', 'mgrs', 'utm'] as const)),
+    profile: s.optional(s.enum(['field', 'balanced', 'docked'] as const)),
+    fieldStatus: s.optional(s.boolean()),
   }),
   // Optional (additive): a Martin source as a 2D basemap; absent or an empty url, none.
   martin: s.optional(

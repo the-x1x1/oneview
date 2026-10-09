@@ -6,6 +6,7 @@ import {
   stringSetting,
   type ByteStreamHandle,
   type ObservationEmitter,
+  type OwnPositionHealth,
   type ProviderContext,
   type ProviderHealth,
   type ProviderManifest,
@@ -487,6 +488,22 @@ export class MeshtasticLocalProvider implements WorldProvider {
     return `; this node: ${[who, power, fix?.text].filter(Boolean).join(', ')}`;
   }
 
+  /** This node's fix, structured for the field status strip (no coordinates in it). */
+  private ownPosition(): OwnPositionHealth | undefined {
+    const node = this.nodes.ownNode();
+    if (!node) return undefined;
+    const f = this.nodes.ownFix(Math.floor(this.context.clock.now() / 1000));
+    if (!f) return undefined;
+    return {
+      state: f.state,
+      node: node.name ?? node.id,
+      ...(f.fixSec ? { fixAt: new Date(f.fixSec * 1000).toISOString() as IsoTimestamp } : {}),
+      ...(f.satellites !== undefined ? { satellites: f.satellites } : {}),
+      ...(f.fixType ? { fixType: f.fixType } : {}),
+      ...(f.accuracyM !== undefined ? { accuracyM: f.accuracyM } : {}),
+    };
+  }
+
   async health(): Promise<ProviderHealth> {
     let status: ProviderStatus;
     let message: string | undefined;
@@ -511,6 +528,8 @@ export class MeshtasticLocalProvider implements WorldProvider {
       objectCount: this.nodes.placed,
     };
     if (message) h.message = message;
+    const own = this.connected && this.configured ? this.ownPosition() : undefined;
+    if (own) h.ownPosition = own;
     if (this.lastAttempt) h.lastAttempt = this.lastAttempt;
     if (this.lastSuccess) h.lastSuccess = this.lastSuccess;
     if (this.lastObservation) h.lastObservation = this.lastObservation;

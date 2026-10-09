@@ -419,6 +419,29 @@ export interface WorldPackTrustSummary {
   publishers: Array<{ keyId: string; name: string; addedAt: string }>;
 }
 
+/**
+ * (additive, 2026-10-08, docs/cyberdeck M5) This computer's power, as the OS reports it: Linux
+ * sysfs for the battery level, the host's on-battery flag elsewhere. Read when asked.
+ */
+export interface PowerStatus {
+  source: 'battery' | 'ac' | 'unknown';
+  /** 0–100 across all batteries; absent when none reports it. */
+  batteryPct?: number;
+  charging?: boolean;
+  /** No battery at all (a desktop, a virtual machine). */
+  noBattery?: boolean;
+}
+
+/** (additive, 2026-10-08) What the field status strip needs from the host, beyond sources and vaults. */
+export interface FieldHostStatus {
+  power: PowerStatus;
+  /** Free and total space on the drive holding the app's data (history, caches). */
+  appDisk?: { freeBytes: number; totalBytes: number };
+  /** When the computer last woke from sleep (ISO), if it has since the app started. */
+  resumedAt?: string;
+  at: string;
+}
+
 export interface OfflineStatus {
   connection: ConnectionSnapshot;
   packs: WorldPackSummary[];
@@ -585,6 +608,18 @@ export interface AppSettings {
      * selection's Position section adds it beside the coordinates. Absent or `none`: degrees only.
      */
     hudGrid?: 'none' | 'mgrs' | 'utm';
+    /**
+     * (additive, 2026-10-08, docs/cyberdeck M5) How hard the app works — the name of the last
+     * profile chosen; choosing one sets other settings, which the operator may change after.
+     * `field`: Low graphics, the 2D map, the field status strip on, and sources on the internet
+     * polled a third as often (the runtime reads this key for that). `balanced` (or absent):
+     * Automatic graphics, normal polling. `docked`: High graphics, the 3D globe, normal polling.
+     * Chosen by the operator only — never switched on battery by itself, and never slows or
+     * stops a source on this computer.
+     */
+    profile?: 'field' | 'balanced' | 'docked';
+    /** (additive, 2026-10-08) The compact field status strip under the top bar; absent means off. */
+    fieldStatus?: boolean;
   };
   /**
    * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the
@@ -991,6 +1026,8 @@ export interface WorldRequests {
   'feed.recent': { request: { limit?: number; minimumSeverity?: SeverityClass }; response: FeedItem[] };
 
   'offline.status': { request: void; response: OfflineStatus };
+  /** (additive, 2026-10-08) Power and disk headroom for the field status strip (docs/cyberdeck M5). */
+  'field.status': { request: void; response: FieldHostStatus };
   'offline.installPack': { request: void; response: { installed: WorldPackSummary | null; issues: string[] } };
   'offline.removePack': { request: { id: string }; response: OfflineStatus };
   'offline.setPackEnabled': { request: { id: string; enabled: boolean }; response: OfflineStatus };
@@ -1123,6 +1160,8 @@ export interface WorldEvents {
   };
   'updater.changed': UpdaterState;
   'offline.changed': OfflineStatus;
+  /** (additive, 2026-10-08) Power source changed, or the computer woke from sleep. */
+  'field.changed': FieldHostStatus;
   'settings.changed': AppSettings;
   'lenses.changed': LensDefinition[];
 }
@@ -1190,6 +1229,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'watchzones.import',
   'feed.recent',
   'offline.status',
+  'field.status',
   'offline.installPack',
   'offline.removePack',
   'offline.setPackEnabled',
@@ -1231,6 +1271,7 @@ export const EVENT_CHANNELS: readonly EventChannel[] = Object.freeze([
   'notification',
   'updater.changed',
   'offline.changed',
+  'field.changed',
   'settings.changed',
   'lenses.changed',
 ]);

@@ -193,6 +193,8 @@ export class ProviderHost {
   private readonly clock: Clock;
   private readonly log: Logger;
   private online = true;
+  /** Field profile: remote sources poll this many times less often (setPollScale). */
+  private pollScale = 1;
   private viewport: GeoBounds | undefined;
   private viewportCenter: { latitude: number; longitude: number } | undefined;
   private started = false;
@@ -456,6 +458,37 @@ export class ProviderHost {
     this.health.setEnabled(providerId, enabled);
     if (enabled && this.started) await this.startProvider(providerId);
     else if (!enabled) await this.stopProvider(providerId);
+  }
+
+  /**
+   * Field profile (docs/cyberdeck M5): sources on the internet wait `scale` times their normal
+   * interval between polls (1 = normal, at most 10). Sources on this computer — receivers,
+   * devices, files — are never slowed. Applies from each source's next poll.
+   */
+  setPollScale(scale: number): void {
+    const next = Number.isFinite(scale) ? Math.min(10, Math.max(1, scale)) : 1;
+    if (next === this.pollScale) return;
+    this.pollScale = next;
+    // Back towards normal: a poll already queued at the slower pace comes forward now, so
+    // leaving Field does not leave a source waiting up to three times its interval.
+    const now = this.clock.now();
+    for (const h of this.hosted.values()) {
+      if (!h.running || !isRemote(h.manifest) || h.polling || h.dueAt === undefined) continue;
+      if (h.consecutiveFailures > 0 || h.lastPollAt === 0) continue; // a back-off keeps its own pace
+      const interval = Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs);
+      const due = h.lastPollAt + interval * next;
+      if (due < h.dueAt) this.schedule(h, Math.max(0, due - now));
+    }
+  }
+
+  /** The current poll scale (tests, diagnostics). */
+  get pollIntervalScale(): number {
+    return this.pollScale;
+  }
+
+  /** When a source is next due to poll (epoch ms), if it is scheduled (diagnostics, tests). */
+  nextPollAt(providerId: string): number | undefined {
+    return this.hosted.get(providerId)?.dueAt;
   }
 
   /** Application connectivity changed (from the desktop shell / connectivity monitor). */
@@ -921,7 +954,8 @@ export class ProviderHost {
       if (h.deviceAbsentLogged) h.logger.info('local device found', {});
       h.deviceAbsentLogged = false;
       await this.publishHealth(h);
-      this.schedule(h, Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs));
+      const interval = Math.max(h.manifest.refreshPolicy.intervalMs, h.manifest.refreshPolicy.minIntervalMs);
+      this.schedule(h, isRemote(h.manifest) ? interval * this.pollScale : interval);
       if (h.provider.overlays) void this.refreshOverlays(h.manifest.id);
       return batch;
     } catch (err) {

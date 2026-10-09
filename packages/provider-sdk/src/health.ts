@@ -47,6 +47,23 @@ export interface ProviderHealth {
   lastError?: ProviderErrorInfo;
   /** Objects currently sourced from this provider. */
   objectCount?: number;
+  /**
+   * (additive, 2026-10-08, docs/cyberdeck M5) This computer's own position, for a source that
+   * reads a GPS on this computer (a Meshtastic node plugged in by USB): what the field status
+   * strip shows without parsing `message`. Ages are worked out by the reader from `fixAt`.
+   */
+  ownPosition?: OwnPositionHealth;
+}
+
+export interface OwnPositionHealth {
+  /** As at the health report; `fix` turns STALE by its age, which the reader computes. */
+  state: 'fix' | 'stale' | 'unknown-age' | 'no-fix' | 'manual' | 'not-gnss';
+  fixAt?: IsoTimestamp;
+  satellites?: number;
+  fixType?: '2D' | '3D';
+  accuracyM?: number;
+  /** The node it comes from, by name or id. */
+  node?: string;
 }
 
 export type ProviderErrorCode =

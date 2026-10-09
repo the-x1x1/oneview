@@ -1109,6 +1109,33 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async toggleDayNight(): Promise<void> {
       await setDisplay({ dayNight: !displaySettings(getState().session.settings).dayNight });
     },
+    /**
+     * Field / Balanced / Docked (docs/cyberdeck M5), chosen by the operator only. Field: Low
+     * graphics, the 2D map, the status strip on, and the runtime polls internet sources a third
+     * as often. Balanced: graphics chosen for the GPU. Docked: High graphics and the globe.
+     * None of them stops a source on this computer.
+     */
+    async setProfile(profile: 'field' | 'balanced' | 'docked'): Promise<void> {
+      if (profile === 'field') {
+        await setDisplay({ profile, graphics: 'low', fieldStatus: true });
+        await actions.setMode('2D');
+      } else if (profile === 'docked') {
+        await setDisplay({ profile, graphics: 'high' });
+        await actions.setMode('3D');
+      } else await setDisplay({ profile, graphics: 'auto' });
+    },
+    /** The field status strip under the top bar. */
+    async toggleFieldStatus(): Promise<void> {
+      await setDisplay({ fieldStatus: !(displaySettings(getState().session.settings).fieldStatus ?? false) });
+    },
+    /** Power and disk headroom, asked again (the strip does this once a minute while shown). */
+    async refreshFieldStatus(): Promise<void> {
+      try {
+        dispatch({ type: 'offline/field', field: await client.request('field.status', undefined) });
+      } catch {
+        /* the strip keeps the last answer */
+      }
+    },
     setCleanView(on: boolean) {
       dispatch({ type: 'ui/cleanView', on });
     },
