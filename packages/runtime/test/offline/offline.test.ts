@@ -329,3 +329,52 @@ test('offline: a pack on a data vault is searched offline, reported missing when
     await fs.rm(tmp, { recursive: true, force: true });
   }
 });
+
+test('offline: WorldView starts and stops normally with its data vault absent, and finds it again', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'worldview-runtime-vault-start-'));
+  try {
+    const clock = new testing.VirtualClock(Date.parse('2026-09-21T12:00:00.000Z'));
+    const packPath = await buildHawaiiPack(tmp, clock);
+    const dataDir = path.join(tmp, 'data');
+    const drive = path.join(tmp, 'media', 'FIELD');
+    await fs.mkdir(drive, { recursive: true });
+    const deps = {
+      dataDir,
+      clock,
+      fetchImpl: offlineFetch({ count: 0 }),
+      network: { isOnline: () => false },
+      providerInstances: [],
+      vaultsOnAppDrive: true,
+    };
+
+    // First run: add the vault, install onto it, quit.
+    const host1 = { ...fakeHost(), pickFolder: async () => ({ path: drive }) };
+    const first = await startRuntime({ ...deps, host: host1 });
+    const added = await first.client.request('offline.addVault', undefined);
+    host1.openQueue.push(packPath);
+    const vaultId = added.status.vaults![0]!.id;
+    assert.ok((await first.client.request('offline.installPackTo', { vaultId })).installed);
+    await first.dispose();
+
+    // The drive is not plugged in at the next start.
+    await fs.rename(drive, `${drive}-away`);
+    const second = await startRuntime({ ...deps, host: fakeHost() });
+    try {
+      const status = await second.client.request('offline.status', undefined);
+      assert.equal(status.vaults?.[0]?.state, 'absent');
+      assert.match(status.packs.find((p) => p.id === 'hawaii')?.message ?? '', /not connected/);
+      assert.ok(
+        await second.client.request('world.query', { objectTypes: ['earthquake'], limit: 1 }),
+        'the app answers',
+      );
+      await fs.rename(`${drive}-away`, drive);
+      await second.runtime.core.refreshVaults();
+      const back = await second.client.request('offline.status', undefined);
+      assert.equal(back.packs.find((p) => p.id === 'hawaii')?.status, 'active');
+    } finally {
+      await second.dispose();
+    }
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true });
+  }
+});

@@ -159,7 +159,7 @@ jobs:
       - name: Smoke-test tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth gnome-keyring desktop-file-utils
+          sudo apt-get install -y --no-install-recommends xvfb xauth gnome-keyring desktop-file-utils strace
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm stage:resources -- --check
@@ -231,6 +231,20 @@ jobs:
               node apps/desktop/scripts/smoke-linux.mjs /opt/WorldView/worldview \
               --expect-history duckdb-parquet --expect-keyring usable \
               --out artifacts/verification/linux-smoke-deb-keyring.json'
+
+      # Work offline: strace every connect() of the whole process tree for a minute. Only Unix
+      # sockets and loopback may appear — no DNS, no outside address. The control run (offline
+      # off) must show the app reaching out, or the trace proves nothing.
+      - name: Work offline attempts no WAN connection (strace)
+        run: >-
+          xvfb-run -a -s "-screen 0 1920x1080x24"
+          node apps/desktop/scripts/offline-trace-linux.mjs /opt/WorldView/worldview --seconds 60
+          --out artifacts/verification/linux-offline-trace.json
+      - name: Offline trace control (online, must reach out)
+        run: >-
+          xvfb-run -a -s "-screen 0 1920x1080x24"
+          node apps/desktop/scripts/offline-trace-linux.mjs /opt/WorldView/worldview --seconds 60 --control
+          --out artifacts/verification/linux-offline-trace-control.json
 
       - name: Uninstall removes the app, not the user's data
         run: |

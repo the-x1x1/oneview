@@ -222,6 +222,34 @@ of those tests were checked by reverting their fix (they fail):
    interrupted staging on a vault was never cleared; switching a duplicate entry left stray state;
    nested vaults were accepted; a quick stop/start could double the monitor's timer.
 
+### Work offline: no connection leaves the computer (container, strace)
+
+`apps/desktop/scripts/offline-trace-linux.mjs` (new) launches the app once to get a real
+settings file, turns Work offline on in it, relaunches under `strace -f -e trace=connect` for the
+whole process tree, and classifies every `connect()`. Branch build on Electron 44.5.1 under Xvfb,
+45 s:
+
+| Run                           | Unix sockets | Loopback                                   | DNS (port 53)            | Outside | Result                |
+| ----------------------------- | ------------ | ------------------------------------------ | ------------------------ | ------- | --------------------- |
+| Work offline **on**           | 13           | 3 (one is readsb-local's `127.0.0.1:8080`) | **0**                    | **0**   | PASS                  |
+| Control, Work offline **off** | 15           | 3                                          | **87** (to `8.8.8.8:53`) | 0       | PASS (it reached out) |
+
+The control shows the trace sees the app's traffic; the container's DNS fails, so no outside TCP
+follows the lookups here. CI repeats both on the installed `.deb` with a working network.
+
+### Start-up with the vault absent, and the O'ahu bundle
+
+- `offline.test.ts`: a run adds a vault and installs onto it; the next start-up has the drive
+  absent → the app starts, answers, lists the pack "not connected"; the drive returns → active.
+- `tools/worldpack/src/bundle.test.ts` (4): the `oahu` preset; a bundle of two seed-data O'ahu
+  packs with manifest and SHA256SUMS; a faithful copy checks out; a damaged byte, a missing file, a
+  stray file and a manifest name that leaves the folder all fail; a broken pack or a duplicate id
+  refuses the bundle.
+- The real CLI (`pnpm worldpack build --region oahu …` ×2, `bundle`, copy, `bundle --check` → OK,
+  one byte changed → "SHA-256 differs", exit 1).
+
+Whole suite after these: 331 files, **2,173 pass, 0 fail, 16 skipped**.
+
 Not verified: a real USB SSD on the P16s (H8 below) — mount, `udisks` unmount, yank while
 reading, `ro` remount, ext4/exFAT; the Settings section in a real window (renderer unbuilt here).
 
