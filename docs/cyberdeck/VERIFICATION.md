@@ -295,6 +295,57 @@ Shown in Diagnostics on Linux; no USB in the container, so never seen on real sy
 Gates after M3: 335 files, **2,187 pass, 0 fail**; typecheck same 19 shim-only; boundary 992
 files PASS; provider:test 16/16; license-audit 0 errors.
 
+## M4 — T-Beam over USB serial, own GPS position (container, 2026-10-08)
+
+**The serial transport, for real, on a pseudo-terminal** (SIMULATED device; everything from the
+tty on is real). `packages/runtime/src/support/serial-stream.ts`, 3 tests: only a named USB
+serial path and a real baud rate, Linux only (`/dev/sda`, `/dev/ttyS0`, `..` tricks, a non-USB
+target, `win32` all refused); the real `stty` line set-up on the pty; bytes both ways byte for
+byte (raw, no echo); a write over the cap refused; unplugging (closing the pty master) reported
+as "the device went away", OFFLINE, and nothing written after; closing it ourselves reports
+"closed" on a later turn, not inside `close()`.
+
+**The whole provider over it** (`packages/runtime/test/integration/meshtastic-serial.test.ts`):
+the runtime's serial transport carrying an invented node list to the real `meshtastic-local`
+provider. The want-config request goes out over the line; debug text before the frames is
+skipped; this node (hardware model T-Beam) is drawn from its own 3D fix, dated by the fix, with
+accuracy 3 m × HDOP 1.2 = 3.6 m and sourceRef `serial://…`; health reads "this node: Deck
+(LilyGO T-Beam), battery 76%, GPS fix (3D, 8 satellites), 10 s old, ±3.6 m"; the neighbour is
+never "this node"; a broken frame is counted and skipped; the node reports 0/0 → a full set is
+sent without it (the neighbour kept) and health says NO FIX; unplugged → OFFLINE "went away".
+**PASS.**
+
+**Own-fix rules, with fixtures** (`providers/meshtastic-local/src/nodes.test.ts` and
+`provider.test.ts`): GPS only when the node says its own or an external GPS made it (or, with no
+source, a GPS timestamp); STALE after 300 s with its age; a fix dated ahead of the clock is
+"unknown age", never current; NO FIX — and no coordinates — for no report, 0/0, fix type "none",
+no fix time, or a non-GPS position; a position set by hand drawn and labelled "not GPS"; no
+accuracy made up from a DOP alone; a neighbour's perfect fix never used; a packet "from" this
+node heard over the air or MQTT ignored; another node plugged in → the old one redrawn with
+`thisNode: false`; subscribed again then NO FIX → still taken off the map; health's count
+matches the map. Details panel: _Your position_ works the age out live (`receiver-text.test.ts`).
+
+**Privacy.** `meshtastic-local` no longer writes to movement history
+(`normalizedRetentionAllowed: false`, manifest and legal registry agree; the history store skips
+it by policy).
+
+**Independent review** of the first M4 draft found 9 problems, all fixed, with tests where a
+test can show it: the serial descriptor was closed twice (`reader.destroy()` and `fs.close`),
+which could close a file opened in between — shown by the reviewer with a standalone
+reproduction; the fix leaves the descriptor to the tty stream and waits for in-flight writes. A
+test for it would depend on that race and was not kept. Also: a swapped-out node keeping
+`thisNode`; a clock-ahead fix shown as "0 s old"; a false "went away" on a settings change; a
+spoofed own position; a resubscribe missing NO FIX; health over-counting; endless retries of a
+setting that cannot work; doc wording.
+
+Gates after M4: 337 files, **2,200 pass, 0 fail** (17 skipped, as before: opt-in and
+platform tests); typecheck same 19 shim-only; boundary 996 files PASS; provider:test all PASS
+(meshtastic-local 16/16, `norm=false` matching the legal registry); license-audit 0 errors;
+Prettier clean. Lint not run (no ESLint in the container).
+
+Not verified: a real T-Beam (H10) — how often its firmware streams its own position to a USB
+client, how it reports a lost fix, whether opening the port resets the board.
+
 ## Hardware test matrix
 
 | #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |

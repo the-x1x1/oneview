@@ -214,7 +214,7 @@ export function hardwareLines(scan: LocalHardwareScan): HardwareLine[] {
       message:
         s.access === 'no-permission'
           ? `${what} at ${s.path} (${s.byId}): this user cannot open it. Add yourself to the dialout group (sudo usermod -aG dialout $USER), then log out and in`
-          : `${what} at ${s.path} (${s.byId})${s.product ? `, "${s.product}"` : ''}`,
+          : `${what} at ${s.path} (${s.byId})${s.product ? `, "${s.product}"` : ''}. If it is a Meshtastic node: Sources → Meshtastic mesh → Node plugged in by USB: /dev/serial/by-id/${s.byId}`,
     });
   }
   return lines;

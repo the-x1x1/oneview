@@ -1,7 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_NODES, NodeStore, precisionMetres } from './nodes.js';
-import { PORT_NODEINFO, PORT_POSITION, PORT_TELEMETRY, PORT_TEXT_MESSAGE, readNodeInfo } from './wire.js';
+import { MAX_NODES, NodeStore, OWN_FIX_FRESH_SECONDS, evaluateOwnFix, precisionMetres } from './nodes.js';
+import {
+  PORT_NODEINFO,
+  PORT_POSITION,
+  PORT_TELEMETRY,
+  PORT_TEXT_MESSAGE,
+  readMeshPacket,
+  readNodeInfo,
+  readPosition,
+} from './wire.js';
 import { deviceMetrics, environment, nodeInfo, pb, position, telemetry, user } from '../test/encode.js';
 
 // Every node, name, place and reading here is invented.
@@ -167,4 +175,148 @@ test('precision: full or unset is no estimate; fewer bits, a wider circle', () =
   assert.equal(precisionMetres(32), undefined);
   assert.equal(precisionMetres(16), 365);
   assert.equal(precisionMetres(10), 23_345);
+});
+
+const pos = (f: Parameters<typeof position>[0]) => readPosition(u8(position(f)));
+
+test('own fix: GPS only when the node says its GPS made it, with age, satellites and accuracy', () => {
+  const fix = evaluateOwnFix(
+    pos({ lat: 21.3, lon: -157.8, source: 2, fixTime: NOW - 40, fixType: 3, sats: 9, hdop: 150, accuracyMm: 2500 }),
+    NOW,
+  );
+  assert.equal(fix.state, 'fix');
+  assert.equal(fix.source, 'own GPS');
+  assert.equal(fix.ageSeconds, 40);
+  assert.equal(fix.accuracyM, 3.8, '2.5 m × HDOP 1.5 (rounded)');
+  assert.equal(fix.text, 'GPS fix (3D, 9 satellites), 40 s old, ±3.8 m');
+  // Older firmware gives no source; a GPS timestamp still marks it as a GPS fix.
+  assert.equal(evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, fixTime: NOW - 5 }), NOW).state, 'fix');
+  // An external GPS attached to the node counts too.
+  assert.equal(evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, source: 3, time: NOW }), NOW).source, 'external GPS');
+  // No accuracy figure is made up from a DOP alone.
+  assert.equal(
+    evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, source: 2, fixTime: NOW, hdop: 90 }), NOW).accuracyM,
+    undefined,
+  );
+});
+
+test('own fix: old is STALE (labelled with its age), never quietly current', () => {
+  const old = evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, source: 2, fixTime: NOW - OWN_FIX_FRESH_SECONDS - 1 }), NOW);
+  assert.equal(old.state, 'stale');
+  assert.equal(old.text, 'STALE GPS fix, 5 min old');
+  assert.equal(old.latitude, 21.3, 'still drawn where it was, dated by the fix');
+  const ahead = evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, source: 2, fixTime: NOW + 3600 }), NOW);
+  assert.equal(ahead.state, 'unknown-age', 'never "current" with an age it cannot know');
+  assert.equal(ahead.ageSeconds, undefined);
+  assert.equal(ahead.clockAhead, true);
+  assert.match(ahead.text, /ahead of this computer's clock/);
+});
+
+test('own fix: NO FIX has no coordinates — no report, 0/0, fix type "none", no fix time, not from GPS', () => {
+  const cases = [
+    evaluateOwnFix(undefined, NOW),
+    evaluateOwnFix(pos({ lat: 0, lon: 0, source: 2, fixTime: NOW }), NOW),
+    evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, source: 2, fixTime: NOW, fixType: 1 }), NOW),
+    evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, source: 2 }), NOW),
+    evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, time: NOW }), NOW),
+  ];
+  assert.deepEqual(
+    cases.map((c) => c.state),
+    ['no-fix', 'no-fix', 'no-fix', 'no-fix', 'not-gnss'],
+  );
+  for (const c of cases) {
+    assert.equal(c.latitude, undefined);
+    assert.equal(c.longitude, undefined);
+    assert.match(c.text, /^NO FIX/);
+  }
+});
+
+test('own fix: a fixed position typed into the node is drawn, and says it is not GPS', () => {
+  const m = evaluateOwnFix(pos({ lat: 21.3, lon: -157.8, source: 1, time: NOW - 86_400 }), NOW);
+  assert.equal(m.state, 'manual');
+  assert.equal(m.text, 'fixed position set on the node (not GPS)');
+  const store = new NodeStore();
+  store.myNodeNum = 7;
+  store.nodeInfo(readNodeInfo(u8(nodeInfo({ num: 7, position: position({ lat: 21.3, lon: -157.8, source: 1 }) }))));
+  const d = store.draft(7, NOW)!;
+  assert.deepEqual(d.payload['ownFix'], { kind: 'set-by-hand', source: 'set by hand' });
+  assert.equal(d.quality?.sourceQuality, 'crowdsourced');
+  assert.deepEqual(d.quality?.flags, ['position-set-by-hand', 'time-from-receipt']);
+});
+
+test("own fix: another node's position is never this computer's; losing the fix takes this node off the map", () => {
+  const store = new NodeStore();
+  store.myNodeNum = 7;
+  store.nodeInfo(readNodeInfo(u8(nodeInfo({ num: 7, user: user({ longName: 'Deck', hwModel: 12 }) }))));
+  // A neighbour with a perfect fix.
+  store.packet(
+    readMeshPacket(
+      u8(
+        pb.msg(
+          pb.fixed32(1, 9),
+          pb.fixed32(2, 0xffffffff),
+          pb.bytes(
+            4,
+            pb.msg(
+              pb.varint(1, PORT_POSITION),
+              pb.bytes(2, position({ lat: 21.4, lon: -157.9, source: 2, fixTime: NOW, fixType: 3 })),
+            ),
+          ),
+        ),
+      ),
+    ),
+    NOW,
+  );
+  assert.equal(store.ownFix(NOW)!.state, 'no-fix');
+  assert.equal(store.draft(7, NOW), undefined);
+  assert.equal(store.draft(9, NOW)!.payload['thisNode'], false);
+  assert.equal(store.draft(9, NOW)!.payload['ownFix'], null);
+  assert.deepEqual(store.ownNode(), { id: '!00000007', name: 'Deck', hardware: 'LilyGO T-Beam S3' });
+
+  // This node gets a fix, then loses it: the old coordinates are not kept as its position.
+  store.nodeInfo(
+    readNodeInfo(u8(nodeInfo({ num: 7, position: position({ lat: 21.31, lon: -157.81, source: 2, fixTime: NOW }) }))),
+  );
+  assert.equal(store.draft(7, NOW)!.position?.latitude, 21.31);
+  store.nodeInfo(readNodeInfo(u8(nodeInfo({ num: 7, position: position({ lat: 0, lon: 0, source: 2 }) }))));
+  assert.equal(store.ownFix(NOW)!.state, 'no-fix');
+  assert.equal(store.draft(7, NOW), undefined);
+  assert.deepEqual(
+    store.drafts(NOW).map((d) => d.externalId),
+    ['!00000009'],
+  );
+});
+
+test('own fix: a position claiming to be from this node but heard over the air or MQTT is ignored', () => {
+  const store = new NodeStore();
+  store.myNodeNum = 7;
+  const own = (extra: Parameters<typeof pb.msg>, lat: number) =>
+    readMeshPacket(
+      u8(
+        pb.msg(
+          pb.fixed32(1, 7),
+          pb.fixed32(2, 0xffffffff),
+          pb.bytes(
+            4,
+            pb.msg(
+              pb.varint(1, PORT_POSITION),
+              pb.bytes(2, position({ lat, lon: -157.8, source: 2, fixTime: NOW, fixType: 3 })),
+            ),
+          ),
+          ...extra,
+        ),
+      ),
+    );
+  // Its own report: no radio readings.
+  assert.equal(store.packet(own([], 21.3), NOW), 7);
+  assert.equal(store.ownFix(NOW)!.latitude, 21.3);
+  for (const spoof of [
+    own([pb.float(8, 6.5)], 40), // an SNR: heard on the radio
+    own([pb.varint(12, -90)], 41), // an RSSI
+    own([pb.varint(9, 1), pb.varint(15, 3)], 42), // hops taken
+    own([pb.varint(14, true)], 43), // via MQTT
+  ]) {
+    assert.equal(store.packet(spoof, NOW), undefined);
+    assert.equal(store.ownFix(NOW)!.latitude, 21.3, 'unchanged');
+  }
 });

@@ -11,13 +11,17 @@ import { DEFAULT_MESHTASTIC_PORT } from './wire.js';
  * no host named it connects to loopback only. Like the MQTT gateway preset, this is for the
  * operator's own mesh, and like it the data stays on the computer: no export, no packs, no
  * redistribution — other people's nodes may be on the mesh.
+ *
+ * Nor is it kept in movement history (docs/cyberdeck M4): the mesh carries other people's
+ * precise positions, and they are not archived without the operator choosing to. The map shows
+ * what the mesh says now; recording mesh tracks is a later, opt-in feature.
  */
 export const MESHTASTIC_LOCAL_MANIFEST: ProviderManifest = {
   id: 'meshtastic-local',
-  name: 'Meshtastic mesh (your node over TCP)',
+  name: 'Meshtastic mesh (your node over USB or TCP)',
   version: '0.1.0',
   description:
-    "Nodes of the user's own Meshtastic mesh, read from one of their nodes over its TCP client API (loopback, or the one host named). Positions, node info and telemetry; text messages are never read. Nothing leaves the network.",
+    "Nodes of the user's own Meshtastic mesh, read from one of their nodes plugged into this computer by USB (Linux) or over its TCP client API (loopback, or the one host named). Positions, node info and telemetry; text messages are never read. Nothing leaves the network.",
   objectTypes: ['sensor'],
   categories: ['infrastructure'],
   transport: 'hardware',
@@ -37,7 +41,7 @@ export const MESHTASTIC_LOCAL_MANIFEST: ProviderManifest = {
   dataPolicy: {
     cacheAllowed: true,
     rawPayloadRetentionAllowed: false,
-    normalizedRetentionAllowed: true,
+    normalizedRetentionAllowed: false,
     redistributionAllowed: false,
     offlinePackAllowed: false,
     exportAllowed: false,
@@ -51,6 +55,15 @@ export const MESHTASTIC_LOCAL_MANIFEST: ProviderManifest = {
   allowedHosts: ['127.0.0.1', 'localhost'],
   trustedHostSetting: 'host',
   settings: [
+    {
+      key: 'serialPort',
+      label: 'Node plugged in by USB',
+      kind: 'string',
+      placeholder: '/dev/serial/by-id/usb-…',
+      defaultLabel: 'None (use the network settings below)',
+      description:
+        "Linux: the node's USB serial port, best by its stable name under /dev/serial/by-id (Settings → Diagnostics lists the ports). When set, WORLDVIEW reads the node over USB and the network settings are not used.",
+    },
     {
       key: 'host',
       label: 'Node on your network',

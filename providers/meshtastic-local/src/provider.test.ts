@@ -94,7 +94,10 @@ test('on connecting it asks for the node list; the list becomes sensors, then wh
   assert.equal(r.observedAt, new Date((NOW_SEC - 600) * 1000).toISOString());
   const h = await p.health();
   assert.equal(h.status, 'LIVE');
-  assert.equal(h.message, '2 nodes on the mesh, 1 with a position');
+  assert.equal(
+    h.message,
+    '2 nodes on the mesh, 1 with a position; this node: Base station, NO FIX (the node has not reported a position)',
+  );
   assert.equal(h.objectCount, 1);
 
   // Then the mesh: a new position from the base station, and a text message that is never read.
@@ -105,7 +108,7 @@ test('on connecting it asks for the node list; the list becomes sensors, then wh
         packet({
           from: 0x0a0b0c0d,
           portnum: PORT_POSITION,
-          payload: position({ lat: 21.29, lon: -157.84 }),
+          payload: position({ lat: 21.29, lon: -157.84, source: 2, fixTime: NOW_SEC - 20, fixType: 3, sats: 9 }),
           rxTime: NOW_SEC,
         }),
       ),
@@ -122,6 +125,14 @@ test('on connecting it asks for the node list; the list becomes sensors, then wh
   assert.equal(later.length, 1);
   assert.equal(later[0]!.externalId, '!0a0b0c0d');
   assert.equal(later[0]!.payload['thisNode'], true);
+  assert.deepEqual(later[0]!.payload['ownFix'], {
+    kind: 'gps',
+    source: 'own GPS',
+    fixAt: new Date((NOW_SEC - 20) * 1000).toISOString(),
+    satellites: 9,
+    fixType: '3D',
+  });
+  assert.match((await p.health()).message!, /this node: Base station, GPS fix \(3D, 9 satellites\), 20 s old$/);
   assert.equal(p.stats.ignored, 1, 'the text message');
   assert.ok(!JSON.stringify(batches).includes('camp'), 'no word of it in any observation');
 });
@@ -211,4 +222,57 @@ test('garbage on the stream is skipped and counted, never fatal', async () => {
   s.simulateData(fromRadio.nodeInfo(ridge));
   assert.equal(p.stats.invalid, 1);
   assert.equal(batches.flat().length, 1);
+});
+
+const fixAt = (num: number, lat: number) =>
+  nodeInfo({ num, position: position({ lat, lon: -157.8, source: 2, fixTime: NOW_SEC - 5, fixType: 3 }) });
+const noFix = (num: number) =>
+  fromRadio.packet(packet({ from: num, portnum: PORT_POSITION, payload: position({ lat: 0, lon: 0, source: 2 }) }));
+
+test('another node plugged in: the old one is redrawn as a neighbour, no longer "this node"', async () => {
+  const { p, local, emit } = await setup();
+  const metas: boolean[] = [];
+  const all: Observation[][] = [];
+  await p.subscribe({ signal: new AbortController().signal }, (o, meta) => {
+    emit(o);
+    all.push(o);
+    metas.push(meta?.snapshot ?? false);
+  });
+  const s = local.byteStreams[0]!;
+  s.simulateData(concat(fromRadio.myInfo(1), fromRadio.nodeInfo(fixAt(1, 21.3)), fromRadio.nodeInfo(fixAt(2, 21.4))));
+  const own1 = all.flat().find((o) => o.externalId === '!00000001')!;
+  assert.equal(own1.payload['thisNode'], true);
+  s.simulateData(fromRadio.myInfo(2));
+  assert.equal(metas[metas.length - 1], true, 'a full set');
+  const last = all[all.length - 1]!;
+  const n1 = last.find((o) => o.externalId === '!00000001')!;
+  const n2 = last.find((o) => o.externalId === '!00000002')!;
+  assert.equal(n1.payload['thisNode'], false);
+  assert.equal(n1.payload['ownFix'], null);
+  assert.equal(n2.payload['thisNode'], true);
+});
+
+test('subscribed again, then NO FIX: this node still comes off the map', async () => {
+  const { p, local } = await setup();
+  const first = new AbortController();
+  await p.subscribe({ signal: first.signal }, () => undefined);
+  local.byteStreams[0]!.simulateData(
+    concat(fromRadio.myInfo(1), fromRadio.nodeInfo(fixAt(1, 21.3)), fromRadio.nodeInfo(fixAt(2, 21.4))),
+  );
+  first.abort();
+  const out: Array<{ o: Observation[]; snapshot: boolean }> = [];
+  await p.subscribe({ signal: new AbortController().signal }, (o, meta) =>
+    out.push({ o, snapshot: meta?.snapshot ?? false }),
+  );
+  const s = local.byteStreams[1]!;
+  s.simulateData(concat(fromRadio.myInfo(1), noFix(1), fromRadio.configComplete(2)));
+  const snaps = out.filter((b) => b.snapshot);
+  assert.ok(snaps.length > 0);
+  assert.deepEqual(
+    snaps[snaps.length - 1]!.o.map((o) => o.externalId),
+    ['!00000002'],
+    'only the neighbour; this node, with NO FIX, is not drawn',
+  );
+  assert.match((await p.health()).message!, /NO FIX$/);
+  assert.equal((await p.health()).objectCount, 1, 'the count matches the map');
 });

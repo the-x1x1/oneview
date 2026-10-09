@@ -10,7 +10,7 @@ merged, tagged or published without the operator. Status words are defined in
 | M1 — Native Linux app, packaging, keyring/XDG/DuckDB, Linux CI, Windows preserved | P0       | M0                           | **Code done; packaging evidence pending CI run.** Runtime verified on Linux Electron in a container; `.deb` build + install + smoke written as CI, not yet run                                            |
 | M2 — Offline field reliability, external SSD vault                                | P0       | M1                           | **Done in the container.** Data vaults, offline trace (no WAN with Work offline, by strace), start-up without the SSD, O'ahu bundle workflow; real SSD and Wi-Fi-off walk on the P16s UNVERIFIED (H7, H8) |
 | M3 — RTL-SDR → readsb → local aircraft                                            | P1       | M1 (M2 for offline proof)    | **Done in the container** with a real readsb decoder fed textbook frames; real stick + antenna on the P16s UNVERIFIED (H9)                                                                                |
-| M4 — T-Beam USB serial + own GNSS                                                 | P1       | M1                           | Not started; physical test UNVERIFIED until hardware                                                                                                                                                      |
+| M4 — T-Beam USB serial + own GNSS                                                 | P1       | M1                           | **Done in the container**: USB serial transport, own GPS fix / STALE / NO FIX, tested end to end over a pseudo-terminal; real T-Beam UNVERIFIED (H10)                                                     |
 | M5 — Field status, profiles, power evidence                                       | P2       | M3, M4                       | Not started                                                                                                                                                                                               |
 | M6 — Local read-only API for Formicaria                                           | P2       | M1                           | Not started                                                                                                                                                                                               |
 | M7 — Full gates, operator docs, disconnected acceptance                           | P0/P1    | all                          | Not started                                                                                                                                                                                               |
@@ -116,6 +116,21 @@ merged, tagged or published without the operator. Status words are defined in
   arbitrary process control, which the spec rules out; the decoder is the OS's service (or a
   `systemctl --user` unit), documented in [RTL-SDR.md](RTL-SDR.md).
 
+## M4 — done in the container
+
+- Provider contract: `openSerialStream` (ADR-003 amendment 2026-10-08) — the byte-stream rules
+  over a USB serial port; Linux only; only the one `/dev/serial/by-id`, `ttyUSB` or `ttyACM`
+  path the operator named; `stty` line set-up without a shell; unplug → OFFLINE.
+- meshtastic-local reads a node over USB (a _Node plugged in by USB_ setting) or TCP as before.
+- Own position from the connected node's own reports only: GPS fix with age, satellites, fix
+  type, accuracy when the receiver gives enough; STALE after five minutes; NO FIX takes the
+  node off the map (the provider re-sends its whole set without it); a fixed position set on
+  the node is labelled "not GPS". Health names the node, board, battery and fix.
+- **Privacy change**: mesh positions are no longer written to movement history
+  (`normalizedRetentionAllowed: false`) — they are other people's precise locations, and the
+  spec asks for opt-in recording. Flagged for the operator below.
+- No gpsd source: the T-Beam is the GPS on this deck; gpsd stays optional and unbuilt (DEFER).
+
 ## Later — offline topographic map style
 
 Requested by the operator (2026-10-08): a topographic view like the Topo GPS app, selectable
@@ -154,8 +169,15 @@ data source, pack size per region, and whether contours are generated live or at
   `--password-store` wins).
 - No MIME/file associations until something opens by double-click.
 - No GPU command-line switches; behaviour on the 740M is measured before anything is forced.
+- Own position is the connected node itself (one object per device, `thisNode` + `ownFix`), not
+  a second provider: the same serial port cannot be opened twice, and a second object at the
+  same spot would be the same reading drawn twice. It is kept apart from the mesh by rule —
+  computed only from that node's own reports — and tested so.
 
 ## Open decisions for the operator
+
+- Mesh history (M4): Meshtastic node positions are no longer recorded in history. If you want
+  your own track (or the mesh's) recorded, that becomes an explicit opt-in setting — say which.
 
 - Publishing Linux assets on a release, and whether Linux builds should notify of updates
   (unsigned builds only notify; with no Linux assets published the check reports none).

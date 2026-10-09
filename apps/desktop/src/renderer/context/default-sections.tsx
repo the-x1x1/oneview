@@ -1,4 +1,4 @@
-import { receiverText } from './receiver-text.js';
+import { ownFixText, receiverText } from './receiver-text.js';
 import {
   classifyConfidence,
   formatMgrs,
@@ -169,6 +169,7 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
               },
               { label: 'Origin', value: object.provenance.origin },
               { label: 'Received', value: receiverText(object.properties) },
+              { label: 'Your position', value: ownFixText(object.properties, nowMs) },
               { label: 'License', value: object.provenance.licenseId },
             ]}
           />

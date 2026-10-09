@@ -119,6 +119,7 @@ test('hardware: a USB-serial port is named by its bridge, never assumed to be a 
   const line = hardwareLines(open).find((l) => l.id === 'serial:ttyUSB0');
   assert.equal(line?.status, 'running');
   assert.doesNotMatch(line?.message ?? '', /T-Beam/i);
+  assert.match(line?.message ?? '', /Node plugged in by USB: \/dev\/serial\/by-id\/usb-/);
   const closed = await scanLocalHardware({ ...roots, canOpen: async () => false });
   assert.match(hardwareLines(closed).find((l) => l.id === 'serial:ttyUSB0')?.message ?? '', /dialout/);
 });
