@@ -227,14 +227,66 @@ export function vaultPathProblem(folder: string, appDataDir?: string): string | 
 }
 
 /**
+ * Is the marker in `root` this vault's? Read-only; false for anything but a matching marker.
+ * The registry asks this right before it trusts what a vault's folder lists.
+ */
+export async function vaultMarkerMatches(
+  root: string,
+  id: string,
+  vfs: Pick<VaultFs, 'readFile'> = nodeVaultFs,
+): Promise<boolean> {
+  try {
+    const parsed = parseVaultMarker(await vfs.readFile(path.join(root, VAULT_MARKER_FILE)));
+    return parsed.ok && parsed.marker.id === id;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * `<root>/worldpacks`, when it is a real folder on the vault (or not there yet). A symlink is
+ * refused: a crafted drive could otherwise point installs anywhere, the app's own folder included.
+ */
+export async function vaultPacksDir(root: string): Promise<{ ok: true; dir: string } | { ok: false; reason: string }> {
+  const dir = path.join(root, VAULT_PACKS_DIR);
+  try {
+    const st = await fs.lstat(dir);
+    if (st.isSymbolicLink())
+      return { ok: false, reason: `${dir} is a link; a vault's packs must be on the vault itself` };
+    if (!st.isDirectory()) return { ok: false, reason: `${dir} is not a folder` };
+  } catch (err) {
+    if (code(err) !== 'ENOENT') return { ok: false, reason: `could not check ${dir}: ${message(err)}` };
+  }
+  return { ok: true, dir };
+}
+
+/** The device (st_dev) a path is on, or of its nearest existing parent. */
+async function deviceOf(p: string): Promise<number | undefined> {
+  let at = path.resolve(p);
+  for (;;) {
+    try {
+      return (await fs.stat(at)).dev;
+    } catch {
+      const up = path.dirname(at);
+      if (up === at) return undefined;
+      at = up;
+    }
+  }
+}
+
+/**
  * Make `folder` a vault, or adopt the vault already there. The folder must exist (the operator
- * chose it in a dialog); this never creates it, so choosing an unmounted drive's mount point
- * fails here rather than turning the internal disk into a "vault".
+ * chose it in a dialog); this never creates it.
+ *
+ * It must also be on another drive than WorldView's own data. That is the point of a vault, and
+ * it is what catches the dangerous case: a permanent mount point (`/mnt/ssd` in fstab) picked
+ * while nothing is mounted is an existing, empty folder on the internal disk — marking it would
+ * turn the internal disk into the "vault", and hide its packs once the drive mounted over it.
  */
 export async function initVault(
   folder: string,
   label: string,
-  opts: { appDataDir?: string; now?: () => number } = {},
+  opts: { appDataDir?: string; now?: () => number; allowSameDrive?: boolean } = {},
 ): Promise<{ ok: true; vault: VaultSetting; adopted: boolean } | { ok: false; reason: string }> {
   const problem = vaultPathProblem(folder, opts.appDataDir);
   if (problem) return { ok: false, reason: problem };
@@ -247,12 +299,24 @@ export async function initVault(
   }
   const realProblem = vaultPathProblem(real, opts.appDataDir);
   if (realProblem) return { ok: false, reason: realProblem };
+  if (opts.appDataDir && !opts.allowSameDrive) {
+    const [here, app] = await Promise.all([deviceOf(real), deviceOf(opts.appDataDir)]);
+    if (here !== undefined && here === app)
+      return {
+        ok: false,
+        reason: `${real} is on the same drive as WorldView's own data. A vault is for another drive — if it is a mount point, is the drive mounted?`,
+      };
+  }
+  const packs = await vaultPacksDir(real);
+  if (!packs.ok) return packs;
 
   const markerFile = path.join(real, VAULT_MARKER_FILE);
   try {
     const parsed = parseVaultMarker(await fs.readFile(markerFile));
     if (!parsed.ok) return { ok: false, reason: `${real} has an unusable vault marker: ${parsed.reason}` };
-    await fs.mkdir(path.join(real, VAULT_PACKS_DIR), { recursive: true });
+    await fs.mkdir(packs.dir).catch((err: unknown) => {
+      if (code(err) !== 'EEXIST') throw err;
+    });
     return {
       ok: true,
       adopted: true,
@@ -270,7 +334,9 @@ export async function initVault(
   };
   try {
     await writeFileAtomic(markerFile, JSON.stringify(marker, null, 2) + '\n');
-    await fs.mkdir(path.join(real, VAULT_PACKS_DIR), { recursive: true });
+    await fs.mkdir(packs.dir).catch((err: unknown) => {
+      if (code(err) !== 'EEXIST') throw err;
+    });
   } catch (err) {
     return { ok: false, reason: `${real} cannot be written: ${message(err)}` };
   }
@@ -315,7 +381,8 @@ export class VaultMonitor {
   private lastWriteProbe = new Map<string, number>();
   private timer: { cancel(): void } | undefined;
   private running = false;
-  private inFlight: Promise<VaultHealth[]> | undefined;
+  private generation = 0;
+  private queue: Promise<unknown> = Promise.resolve();
   private readonly log: Logger;
   private readonly now: () => number;
 
@@ -340,21 +407,26 @@ export class VaultMonitor {
     return this.health.get(id);
   }
 
-  /** Check every vault now. Concurrent calls share one pass. */
+  /**
+   * Check every vault now. Calls queue rather than share a pass, so a check asked for right after
+   * a vault was added sees that vault (a pass already running would have read the old list).
+   */
   check(): Promise<VaultHealth[]> {
-    this.inFlight ??= this.pass().finally(() => {
-      this.inFlight = undefined;
-    });
-    return this.inFlight;
+    const run = this.queue.then(() => this.pass());
+    this.queue = run.catch(() => undefined);
+    return run;
   }
 
   start(): void {
     if (this.running) return;
     this.running = true;
+    // A tick from before a stop() must not reschedule after a later start().
+    const generation = ++this.generation;
     const tick = () => {
-      if (!this.running) return;
+      if (!this.running || generation !== this.generation) return;
       void this.check().finally(() => {
-        if (this.running) this.timer = this.schedule(tick, this.opts.intervalMs ?? 30_000);
+        if (this.running && generation === this.generation)
+          this.timer = this.schedule(tick, this.opts.intervalMs ?? 30_000);
       });
     };
     tick();
@@ -362,6 +434,7 @@ export class VaultMonitor {
 
   stop(): void {
     this.running = false;
+    this.generation++;
     this.timer?.cancel();
     this.timer = undefined;
   }

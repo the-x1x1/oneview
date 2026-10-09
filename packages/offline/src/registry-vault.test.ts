@@ -39,9 +39,13 @@ async function setup() {
     setVaults: (v: RegistryVault[]) => {
       configured = v;
     },
-    target: (recheck: () => Promise<string | undefined> = async () => undefined): VaultInstallTarget => ({
+    /** A target whose re-check answers `why` (a reason) or, by default, the drive's real device. */
+    target: (why: () => Promise<string | undefined> = async () => undefined): VaultInstallTarget => ({
       vault,
-      recheck,
+      recheck: async () => {
+        const reason = await why();
+        return reason ? { ok: false, reason } : { ok: true, device: (await fs.stat(drive)).dev };
+      },
     }),
   };
 }
@@ -175,4 +179,116 @@ test('vault: reading a vault without a worldpacks folder creates nothing on it',
   await s.reg.refresh();
   assert.deepEqual(await fs.readdir(s.drive), [VAULT_MARKER_FILE]);
   assert.deepEqual(s.reg.summaries(), []);
+});
+
+// ---- the review of 9b4a2d7 ----------------------------------------------------------------
+
+test('vault: switching a pack off while its drive is away keeps it listed, and on the vault', async () => {
+  const s = await setup();
+  await s.reg.refresh();
+  await s.reg.install(s.file, s.target());
+  s.vault.state = 'absent';
+  await s.reg.refresh();
+  assert.equal(await s.reg.setEnabled('oahu-test', false), true);
+  const away = s.reg.get('oahu-test');
+  assert.equal(away?.summary.status, 'invalid');
+  assert.match(away?.summary.message ?? '', /not connected/);
+  s.vault.state = 'ready';
+  await s.reg.refresh();
+  assert.equal(s.reg.get('oahu-test')?.summary.status, 'disabled', 'back, and still off');
+});
+
+test('vault: a stale "ready" over an empty mount point, or an unreadable packs folder, forgets nothing', async () => {
+  const s = await setup();
+  await s.reg.refresh();
+  await s.reg.install(s.file, s.target());
+  await s.reg.setEnabled('oahu-test', false);
+
+  // The drive was pulled and its mount point left behind; the monitor has not noticed yet.
+  await fs.rename(s.drive, `${s.drive}-away`);
+  await fs.mkdir(s.drive);
+  await s.reg.refresh();
+  assert.match(s.reg.get('oahu-test')?.summary.message ?? '', /not connected/);
+  assert.deepEqual(await fs.readdir(s.drive), [], 'nothing written to the empty mount point');
+  await fs.rmdir(s.drive);
+  await fs.rename(`${s.drive}-away`, s.drive);
+  await s.reg.refresh();
+  assert.equal(s.reg.get('oahu-test')?.summary.status, 'disabled', 'the choice survived');
+
+  // The packs folder cannot be listed (here: replaced by a file).
+  await fs.rename(path.join(s.drive, VAULT_PACKS_DIR), path.join(s.drive, 'held'));
+  await fs.writeFile(path.join(s.drive, VAULT_PACKS_DIR), 'not a folder');
+  await s.reg.refresh();
+  assert.match(s.reg.get('oahu-test')?.summary.message ?? '', /not usable|not readable/);
+  await fs.rm(path.join(s.drive, VAULT_PACKS_DIR));
+  await fs.rename(path.join(s.drive, 'held'), path.join(s.drive, VAULT_PACKS_DIR));
+  await s.reg.refresh();
+  assert.equal(s.reg.get('oahu-test')?.summary.status, 'disabled');
+});
+
+test('vault: a switch made while a scan runs is not overwritten by the scan', async () => {
+  const s = await setup();
+  await s.reg.refresh();
+  await s.reg.install(s.file, s.target());
+  const [, switched] = await Promise.all([s.reg.refresh(), s.reg.setEnabled('oahu-test', false)]);
+  assert.equal(switched, true);
+  assert.equal(s.reg.get('oahu-test')?.summary.status, 'disabled');
+  await s.reg.refresh();
+  assert.equal(s.reg.get('oahu-test')?.summary.status, 'disabled');
+});
+
+test('vault: a packs folder that is a link off the drive is neither read nor written', async () => {
+  const s = await setup();
+  const elsewhere = path.join(s.dir, 'elsewhere');
+  await fs.mkdir(elsewhere);
+  await fs.rm(path.join(s.drive, VAULT_PACKS_DIR), { recursive: true });
+  await fs.symlink(elsewhere, path.join(s.drive, VAULT_PACKS_DIR));
+  await s.reg.refresh();
+  const r = await s.reg.install(s.file, s.target());
+  assert.equal(r.installed, null);
+  assert.match(r.issues[0] ?? '', /is a link/);
+  assert.deepEqual(await fs.readdir(elsewhere), []);
+});
+
+test('vault: an install whose drive is not the one checked writes nothing and activates nothing', async () => {
+  const s = await setup();
+  await s.reg.refresh();
+  const wrongDevice: VaultInstallTarget = {
+    vault: s.vault,
+    recheck: async () => ({ ok: true, device: (await fs.stat(s.drive)).dev + 1 }),
+  };
+  const r = await s.reg.install(s.file, wrongDevice);
+  assert.equal(r.installed, null);
+  assert.match(r.issues[0] ?? '', /not on the vault's drive/);
+  assert.equal(s.reg.get('oahu-test'), undefined);
+});
+
+test('vault: staging left by an interrupted install is cleared by the next one', async () => {
+  const s = await setup();
+  await s.reg.refresh();
+  const leftover = path.join(s.drive, VAULT_PACKS_DIR, '.staging', 'crashed-abc');
+  await fs.mkdir(leftover, { recursive: true });
+  await fs.writeFile(path.join(leftover, 'part'), 'x');
+  const r = await s.reg.install(s.file, s.target());
+  assert.ok(r.installed, r.issues.join('; '));
+  assert.deepEqual(await fs.readdir(path.join(s.drive, VAULT_PACKS_DIR, '.staging')), []);
+});
+
+test('vault: an unreadable pack on a vault is not replaced blind, and a duplicate entry cannot be switched', async () => {
+  const s = await setup();
+  await s.reg.refresh();
+  await fs.mkdir(path.join(s.drive, VAULT_PACKS_DIR, 'oahu-test'));
+  await fs.writeFile(path.join(s.drive, VAULT_PACKS_DIR, 'oahu-test', 'manifest.json'), '{ broken');
+  const r = await s.reg.install(s.file, s.target());
+  assert.equal(r.installed, null);
+  assert.match(r.issues[0] ?? '', /cannot be read .* fix or remove it there first/);
+  assert.equal(
+    await fs.readFile(path.join(s.drive, VAULT_PACKS_DIR, 'oahu-test', 'manifest.json'), 'utf8'),
+    '{ broken',
+  );
+
+  await s.reg.install(s.file); // the same id in the app folder: the vault copy becomes the duplicate
+  assert.equal(await s.reg.setEnabled(`oahu-test:${s.vault.id}`, false), false);
+  const state = JSON.parse(await fs.readFile(path.join(s.dataDir, 'worldpacks', 'state.json'), 'utf8'));
+  assert.equal(state.packs[`oahu-test:${s.vault.id}`], undefined, 'no stray state');
 });

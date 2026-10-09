@@ -160,13 +160,13 @@ Artifacts `worldview-linux-x64` (the `.deb`, `SHA256SUMS.txt`, SBOM, verificatio
 
 ## M2 — data vaults (container, 2026-10-08)
 
-| Gate                    | Result                                                   |
-| ----------------------- | -------------------------------------------------------- |
-| format / boundary-check | **PASS** (Prettier 3.9.8 clean; 984 files, 0 violations) |
-| typecheck               | **same 19 shim-only errors as baseline, none new**       |
-| stage:resources --check | **PASS**                                                 |
-| test (whole suite)      | **PASS**: 330 files, **2,158 pass, 0 fail, 16 skipped**  |
-| lint                    | **BLOCKED** in the container                             |
+| Gate                    | Result                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| format / boundary-check | **PASS** (Prettier 3.9.8 clean; 984 files, 0 violations)                                                                        |
+| typecheck               | **same 19 shim-only errors as baseline, none new**                                                                              |
+| stage:resources --check | **PASS**                                                                                                                        |
+| test (whole suite)      | **PASS**: 330 files, **2,158 pass, 0 fail, 16 skipped** at `9b4a2d7`; **2,168 pass, 0 fail, 16 skipped** after the review fixes |
+| lint                    | **BLOCKED** in the container                                                                                                    |
 
 The first full run failed one test (2,157 pass, 1 fail): the runtime vault scenario, with
 `ENOENT` renaming `state.json` — two pack-registry refreshes (the monitor's change event and the
@@ -196,6 +196,31 @@ real unmount):
   install refused and nothing written, re-plug → searched again, Diagnostics shows the vault,
   "Stop using" → gone from the list with every file and the marker left; zero network calls.
 - `data-vaults.test.ts` (2): the page's wording for each state (green only when writable).
+
+**Independent review of `9b4a2d7`** (a separate agent, with probe tests of its own) confirmed six
+defects and suspected six more; all twelve are fixed in the next commit, each with a test, and two
+of those tests were checked by reverting their fix (they fail):
+
+1. A drive pulled mid-extract: the per-entry `mkdir -p` would rebuild the staging path under an
+   empty mount point and write the rest of the pack to the internal disk. → folders are created one
+   level at a time below the staging folder (gone → fails), and every extracted file must be on
+   the vault's device.
+2. `setEnabled` dropped a pack's vault, so a pack switched off while its drive was away vanished.
+3. A stale "ready" (the monitor is up to 30 s behind) over an empty mount point, or a packs folder
+   that could not be listed, made the registry forget the vault's packs — a pack switched off came
+   back on. → the marker is read again in every scan; state is forgotten only after a listing
+   that worked.
+4. Install / setEnabled / remove wrote state.json outside the refresh queue; a scan in flight
+   wrote back its stale copy (a toggle was lost). → one queue for all of them.
+5. `initVault` marked a bare mount point (fstab `/mnt/ssd` with nothing mounted). → a vault must be
+   on another drive than the app's data (`st_dev`); the message asks whether the drive is mounted.
+6. A `worldpacks` symlink led reads and installs off the drive (into the app's own folder, even).
+   → refused.
+   7–12. A vault just added read "not connected" until the next tick (checks now queue instead of
+   sharing a pass); install could replace a vault pack shown only as a placeholder without the
+   version/signer checks (install now rescans first and refuses an unreadable vault pack);
+   interrupted staging on a vault was never cleared; switching a duplicate entry left stray state;
+   nested vaults were accepted; a quick stop/start could double the monitor's timer.
 
 Not verified: a real USB SSD on the P16s (H8 below) — mount, `udisks` unmount, yank while
 reading, `ro` remount, ext4/exFAT; the Settings section in a real window (renderer unbuilt here).

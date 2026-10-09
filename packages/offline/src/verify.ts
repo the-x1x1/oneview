@@ -69,6 +69,14 @@ export interface VerifyOptions {
   requireTrusted?: boolean;
 }
 
+export interface ExtractOptions extends VerifyOptions {
+  /**
+   * The device (st_dev) every extracted file must be on: a pack being written to an external
+   * drive stops, rather than carrying on onto the internal disk, if the drive goes away.
+   */
+  device?: number;
+}
+
 type EntrySink = (entry: ZipEntry, chunk: Uint8Array) => void | Promise<void>;
 
 interface EntryStreams {
@@ -89,9 +97,24 @@ export async function verifyWorldPack(file: string, opts: VerifyOptions = {}): P
 export async function extractWorldPack(
   file: string,
   targetDir: string,
-  opts: VerifyOptions = {},
+  opts: ExtractOptions = {},
 ): Promise<WorldPackVerification> {
   await fs.mkdir(targetDir, { recursive: false });
+  /**
+   * Folders below targetDir, one level at a time and never recursively from the root: if
+   * targetDir itself is gone (its drive pulled), this fails instead of rebuilding the path —
+   * possibly on the internal disk under an empty mount point.
+   */
+  const ensureDir = async (dir: string) => {
+    const rel = path.relative(targetDir, dir);
+    let at = targetDir;
+    for (const part of rel ? rel.split(path.sep) : []) {
+      at = path.join(at, part);
+      await fs.mkdir(at).catch((err: unknown) => {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+      });
+    }
+  };
   const handles = new Map<string, fs.FileHandle>();
   const streams: EntryStreams = {
     async open(entry) {
@@ -99,9 +122,11 @@ export async function extractWorldPack(
       const rel = path.relative(targetDir, target);
       if (rel.startsWith('..') || path.isAbsolute(rel))
         throw new ZipFormatError('entry escapes the target directory', entry.name);
-      await fs.mkdir(path.dirname(target), { recursive: true });
+      await ensureDir(path.dirname(target));
       const handle = await fs.open(target, 'wx');
       handles.set(entry.name, handle);
+      if (opts.device !== undefined && (await handle.stat()).dev !== opts.device)
+        throw new Error(`${entry.name}: the drive being written to went away`);
       return async (_e, chunk) => {
         await handle.write(chunk);
       };

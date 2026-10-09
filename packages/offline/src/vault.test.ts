@@ -10,6 +10,7 @@ import {
   initVault,
   nodeVaultFs,
   probeVault,
+  vaultPacksDir,
   vaultPathProblem,
   vaultReadable,
   vaultWritable,
@@ -210,4 +211,40 @@ test('VaultMonitor: a vault removed from settings disappears and is reported onc
   await m.check();
   assert.equal(n, 2);
   assert.deepEqual(m.current(), []);
+});
+
+test('initVault: a folder on the same drive as the app data is refused — an empty mount point looks like that', async () => {
+  const appData = await tmp();
+  const mountPoint = await tmp(); // same filesystem as appData: what /mnt/ssd is with nothing mounted
+  const r = await initVault(mountPoint, 'SSD', { appDataDir: appData });
+  assert.equal(r.ok, false);
+  assert.match(!r.ok ? r.reason : '', /same drive as WorldView's own data.*is the drive mounted/);
+  assert.deepEqual(await listing(mountPoint), [], 'nothing written');
+  assert.equal((await initVault(mountPoint, 'SSD', { appDataDir: appData, allowSameDrive: true })).ok, true);
+});
+
+test('initVault and vaultPacksDir: a worldpacks link off the drive is refused', async () => {
+  const drive = await tmp();
+  const elsewhere = await tmp();
+  await fs.symlink(elsewhere, path.join(drive, VAULT_PACKS_DIR));
+  const r = await initVault(drive, 'SSD');
+  assert.equal(r.ok, false);
+  assert.match(!r.ok ? r.reason : '', /is a link/);
+  assert.deepEqual(await listing(drive), [VAULT_PACKS_DIR], 'no marker written');
+  const d = await vaultPacksDir(drive);
+  assert.equal(d.ok, false);
+});
+
+test('VaultMonitor: a check asked for during a running pass sees a vault added in between', async () => {
+  const a = await initVault(await tmp(), 'A');
+  const b = await initVault(await tmp(), 'B');
+  assert.ok(a.ok && b.ok);
+  if (!a.ok || !b.ok) return;
+  let list = [a.vault];
+  const m = new VaultMonitor({ vaults: () => list, lowSpaceBytes: 0 });
+  const first = m.check();
+  list = [a.vault, b.vault];
+  await first;
+  await m.check();
+  assert.equal(m.get(b.vault.id)?.state, 'ready');
 });

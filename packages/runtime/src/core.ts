@@ -1461,10 +1461,17 @@ export class RuntimeCore {
   ): Promise<{ ok: true; adopted: boolean } | { ok: false; reason: string }> {
     const current = this.settings.get().storage?.vaults ?? [];
     if (current.length >= 8) return { ok: false, reason: 'at most 8 data vaults' };
-    const r = await initVault(folder, label, { appDataDir: this.dirs.root, now: () => this.clock.now() });
+    const r = await initVault(folder, label, {
+      appDataDir: this.dirs.root,
+      now: () => this.clock.now(),
+      ...(this.deps.vaultsOnAppDrive ? { allowSameDrive: true } : {}),
+    });
     if (!r.ok) return r;
     if (current.some((v) => v.id === r.vault.id))
       return { ok: false, reason: `"${r.vault.label}" is already a vault here` };
+    // One vault inside another would read the inner one as a pack folder of the outer.
+    const nested = current.find((v) => isWithin(v.path, r.vault.path) || isWithin(r.vault.path, v.path));
+    if (nested) return { ok: false, reason: `${r.vault.path} overlaps the vault "${nested.label}" (${nested.path})` };
     await this.settings.patch({ storage: { vaults: [...current, r.vault] } });
     await this.refreshVaults();
     this.log.info('vault added', { id: r.vault.id, label: r.vault.label, adopted: r.adopted });
@@ -1486,9 +1493,11 @@ export class RuntimeCore {
     const setting = (this.settings.get().storage?.vaults ?? []).find((v) => v.id === vaultId);
     const vault = this.registryVaults().find((v) => v.id === vaultId);
     if (!setting || !vault) throw new Error('no such data vault');
-    const recheck = async (): Promise<string | undefined> => {
+    const recheck = async (): Promise<{ ok: true; device: number } | { ok: false; reason: string }> => {
       const h = await probeVault(setting, { probeWrite: true });
-      return vaultWritable(h.state) ? undefined : h.message;
+      if (!vaultWritable(h.state)) return { ok: false, reason: h.message };
+      if (h.device === undefined) return { ok: false, reason: `could not tell which drive ${setting.path} is on` };
+      return { ok: true, device: h.device };
     };
     return this.packs.install(file, { vault, recheck });
   }
@@ -1701,4 +1710,10 @@ async function directorySize(dir: string): Promise<number> {
     }
   }
   return total;
+}
+
+/** Is `inner` the same folder as `outer` or inside it? */
+function isWithin(outer: string, inner: string): boolean {
+  const rel = path.relative(path.resolve(outer), path.resolve(inner));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }

@@ -136,6 +136,12 @@ export interface WorldRuntimeDeps {
   manualScheduling?: boolean;
   /** Skip the reachability probe (offline tests, demo). */
   disableReachabilityProbe?: boolean;
+  /**
+   * Tests only: let a data vault sit on the same drive as the app's own data. In the app a vault
+   * must be on another drive — that is what stops an empty mount point on the internal disk from
+   * being marked as one (packages/offline vault.ts initVault).
+   */
+  vaultsOnAppDrive?: boolean;
 
   /** electron-updater stand-in. Defaults to the inert updater (status `disabled`). */
   updater?: AutoUpdaterLike;

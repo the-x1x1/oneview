@@ -53,8 +53,9 @@ you choose — typically on the external SSD, e.g. a `worldview` folder on it �
 can then be installed onto it (**Install pack onto it**). WorldView writes a marker file
 (`.worldview-vault.json`) and a `worldpacks/` folder there, and recognises the vault only by that
 marker: when the drive is not mounted, its mount point under `/media/<you>/` is an empty folder
-on the internal disk, and WorldView treats it as "Not connected" and writes nothing to it. Mount
-the drive at the same place each time (GNOME does, by its label). Packs on a vault that is not
+on the internal disk, and WorldView treats it as "Not connected" and writes nothing to it. For the
+same reason a vault must be on a different drive from `~/.config` — choose a folder _on the
+mounted SSD_. Mount the drive at the same place each time (GNOME does, by its label). Packs on a vault that is not
 connected stay listed as such and come back when it is. WorldView never deletes anything on a
 vault; "Stop using" leaves every file there. Settings, keys, history and search indexes stay in
 `~/.config/@worldview/desktop`.

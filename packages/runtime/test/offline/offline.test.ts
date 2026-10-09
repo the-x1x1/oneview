@@ -254,6 +254,8 @@ test('offline: a pack on a data vault is searched offline, reported missing when
       fetchImpl: offlineFetch(networkCalls),
       network: { isOnline: () => false },
       providerInstances: [],
+      // The test's "drive" is a folder on the same disk as its app data.
+      vaultsOnAppDrive: true,
     });
     const fromPacks = async (text: string) =>
       (await h.client.request('search.query', { text })).some((r) => r.source === 'worldpack');
