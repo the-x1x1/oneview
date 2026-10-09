@@ -99,6 +99,7 @@ import {
 import type { HostBridge, RuntimeCredentialStore, WorldRuntimeDeps } from './deps.js';
 import { inProcessHostBridge } from './deps.js';
 import { RuntimeEmitter } from './support/emitter.js';
+import { hardwareLines, scanLocalHardware } from './support/local-hardware.js';
 import { JsonDocStore } from './support/json-doc-store.js';
 import {
   FileProviderCache,
@@ -878,6 +879,19 @@ export class RuntimeCore {
                 : 'starts on the first camera stream request',
             },
           ];
+          const scan = this.deps.hardwareScan ?? (process.platform === 'linux' ? () => scanLocalHardware() : undefined);
+          if (scan)
+            out.push(
+              ...(await scan()
+                .then(hardwareLines)
+                .catch((err: unknown) => [
+                  {
+                    id: 'hardware',
+                    status: 'error' as const,
+                    message: `could not read USB devices: ${errorText(err)}`,
+                  },
+                ])),
+            );
           for (const v of this.vaults.current())
             out.push({
               id: `vault:${v.label}`,

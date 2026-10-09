@@ -9,7 +9,7 @@ merged, tagged or published without the operator. Status words are defined in
 | M0 — Baseline, docs, truth matrix                                                 | P0       | —                            | **Done** (container baseline; Windows/CI baseline is v0.2.2's gate)                                                                                                                                       |
 | M1 — Native Linux app, packaging, keyring/XDG/DuckDB, Linux CI, Windows preserved | P0       | M0                           | **Code done; packaging evidence pending CI run.** Runtime verified on Linux Electron in a container; `.deb` build + install + smoke written as CI, not yet run                                            |
 | M2 — Offline field reliability, external SSD vault                                | P0       | M1                           | **Done in the container.** Data vaults, offline trace (no WAN with Work offline, by strace), start-up without the SSD, O'ahu bundle workflow; real SSD and Wi-Fi-off walk on the P16s UNVERIFIED (H7, H8) |
-| M3 — RTL-SDR → readsb → local aircraft                                            | P1       | M1 (M2 for offline proof)    | Not started; physical test UNVERIFIED until hardware                                                                                                                                                      |
+| M3 — RTL-SDR → readsb → local aircraft                                            | P1       | M1 (M2 for offline proof)    | **Done in the container** with a real readsb decoder fed textbook frames; real stick + antenna on the P16s UNVERIFIED (H9)                                                                                |
 | M4 — T-Beam USB serial + own GNSS                                                 | P1       | M1                           | Not started; physical test UNVERIFIED until hardware                                                                                                                                                      |
 | M5 — Field status, profiles, power evidence                                       | P2       | M3, M4                       | Not started                                                                                                                                                                                               |
 | M6 — Local read-only API for Formicaria                                           | P2       | M1                           | Not started                                                                                                                                                                                               |
@@ -101,6 +101,20 @@ merged, tagged or published without the operator. Status words are defined in
   it is deferred.
 - `writeFileAtomic` temporary names gained a random part: the suite caught two refreshes writing
   state.json in the same millisecond.
+
+## M3 — done in the container
+
+- What a maintained decoder actually serves (read from readsb's source and packaging): the
+  Debian service writes `/run/readsb/aircraft.json` and serves no HTTP by default; its own
+  `--net-api-port` `/?all` answers the same JSON shape — no web server to install. The default
+  endpoint (`:8080/data/aircraft.json`, older dump1090) is kept; RTL-SDR.md says what to set.
+- readsb-local: receiver provenance (own receiver, 1090 MHz, decoder) on every observation and
+  in the details panel; field-condition fixture tests; an opt-in live-decoder runtime test.
+- Diagnostics: RTL2832U present / held by the DVB-T driver / no permission / openable, and
+  USB-serial ports by bridge (M4 reuses it). Read from sysfs and /dev only, when opened.
+- No Launch/Stop button: starting a privileged decoder from the app needs either root or
+  arbitrary process control, which the spec rules out; the decoder is the OS's service (or a
+  `systemctl --user` unit), documented in [RTL-SDR.md](RTL-SDR.md).
 
 ## Later — offline topographic map style
 

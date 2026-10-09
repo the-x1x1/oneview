@@ -1,4 +1,5 @@
 import type { Clock, GeoPosition, SeverityClass } from '@worldview/world-model';
+import type { LocalHardwareScan } from './support/local-hardware.js';
 import type { Logger, LoggerHub, CredentialResolver } from '@worldview/core';
 import type { DataDirs, SettingsStore } from '@worldview/config';
 import type { WorldProvider } from '@worldview/provider-sdk';
@@ -142,6 +143,11 @@ export interface WorldRuntimeDeps {
    * being marked as one (packages/offline vault.ts initVault).
    */
   vaultsOnAppDrive?: boolean;
+  /**
+   * Radio hardware on this computer for Diagnostics (support/local-hardware.ts). Defaults to the
+   * sysfs scan on Linux and nothing elsewhere; tests pass a fixed scan.
+   */
+  hardwareScan?: () => Promise<LocalHardwareScan>;
 
   /** electron-updater stand-in. Defaults to the inert updater (status `disabled`). */
   updater?: AutoUpdaterLike;

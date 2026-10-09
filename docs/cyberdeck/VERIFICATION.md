@@ -253,6 +253,48 @@ Whole suite after these: 331 files, **2,173 pass, 0 fail, 16 skipped**.
 Not verified: a real USB SSD on the P16s (H8 below) — mount, `udisks` unmount, yank while
 reading, `ro` remount, ext4/exFAT; the Settings section in a real window (renderer unbuilt here).
 
+## M3 — RTL-SDR → readsb → aircraft (container, 2026-10-08)
+
+**The decoder, for real.** readsb 3.16.17 (wiedehopf, commit `0272517`, GPL-3.0) built from its
+upstream source in the container without SDR libraries (static libzstd 1.5.7 from its tag), run
+on loopback only: `--net --net-bind-address 127.0.0.1 --net-ri-port 30001 --net-api-port 8042
+--lat 52.3 --lon 4.0`. Textbook Mode S frames from _The 1090 MHz Riddle_ fed to its raw input
+(SIMULATED RF; everything after it real). Its `/?all` answered:
+
+| Aircraft | Decoded by readsb                                       | Reference                                                        |
+| -------- | ------------------------------------------------------- | ---------------------------------------------------------------- |
+| 4840D6   | callsign `KLM1023`, category A0                         | KLM1023                                                          |
+| 40621D   | 38000 ft; position 52.26578, 3.938913 then 52.257202, … | 52.26578 / 3.93891 (odd latest), 52.2572 / 3.91937 (even latest) |
+| 485020   | 159.2 kt, track 182.88°, −832 ft/min                    | 159 kt, 182.88°                                                  |
+
+Without `--lat/--lon` readsb held the position back over the same feed: documented in
+RTL-SDR.md.
+
+**WORLDVIEW on that decoder.** `packages/runtime/test/integration/readsb-live.test.ts` (opt-in:
+`WORLDVIEW_READSB_API`, `WORLDVIEW_READSB_RAW`) — the composed runtime with the readsb-local
+provider, its real HTTP client, host allowlist and detection probe, endpoint
+`http://127.0.0.1:8042/?all`: 40621D reaches `world.query` at one of the two reference positions,
+38000 ft = 11582.4 m, provenance `readsb-local` / origin `local` / sourceRef the endpoint; the
+position-less KLM1023 is not drawn. **PASS.** Control: readsb stopped → the test fails
+(ECONNREFUSED). The receiver-only branch (no frames fed) also passes against the running decoder.
+
+**Field rules, with fixtures** (`providers/readsb-local/test/unit/field.test.ts`, 8): an empty sky
+is LIVE with nothing to show; readsb's `/?all` shape is read like aircraft.json; every observation
+carries `receiver: own receiver, 1090 MHz, readsb/dump1090`; half-written and wrong JSON →
+MALFORMED, then recovers; corrupt rows dropped and logged, position-less rows not errors; an
+all-corrupt feed refused whole; duplicates collapse; a 75 s-old position flagged stale and timed
+by when it was heard; decoder stops → OFFLINE with no polling while gone → back after the 30 s
+backoff. The details panel shows "Received here on 1090 MHz (…)" (`receiver-text.test.ts`).
+
+**Hardware diagnostics** (`packages/runtime/src/support/local-hardware.ts`, 5 tests on a fake
+sysfs/dev tree laid out like the kernel's): no stick → "no RTL-SDR plugged in"; a stick held by
+`dvb_usb_rtl28xxu` → the fix; no permission → the udev fix; present and openable; a non-RTL USB
+device ignored; a CP210x serial port named by its bridge, never as a T-Beam; dialout advice.
+Shown in Diagnostics on Linux; no USB in the container, so never seen on real sysfs (H9).
+
+Gates after M3: 335 files, **2,187 pass, 0 fail**; typecheck same 19 shim-only; boundary 992
+files PASS; provider:test 16/16; license-audit 0 errors.
+
 ## Hardware test matrix
 
 | #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |
