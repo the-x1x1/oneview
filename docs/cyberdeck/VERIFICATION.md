@@ -481,6 +481,21 @@ mounting, what WORLDVIEW does with a vault), the Linux section of
 behaviour is from documentation and WORLDVIEW's own tested code; their walk-through on the P16s
 is part of H7–H11.
 
+## CI on the branch (GitHub, 2026-10-08)
+
+The **Build desktop** workflow, dispatched by the operator on the pushed branch:
+
+- **Run 37906699021** (`0a12ecc`): `linux` **success** — install, checks, `release:package`, SBOM,
+  verify, `assert-version --platform linux`, `.deb` inspection, apt install, smoke with and without
+  a keyring, offline trace and its control, uninstall. `windows` **failure** at `pnpm test`: 5 of
+  2,236 tests, all test-only Windows path problems — a fixture root built from a URL's pathname
+  (`D:\D:\…`) in `bundle.test.ts`, and a fake Linux sysfs whose `1-2:1.0` names Windows cannot
+  create in `local-hardware.test.ts`.
+- **Run 37908005425** (`f7efa28`, the fix): **both jobs success.**
+
+Not in that workflow, still to run on the branch: the `CI` workflow (`ci.yml`: format, lint,
+the test groups, perf budget).
+
 ## Hardware test matrix
 
 | #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |
