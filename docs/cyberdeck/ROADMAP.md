@@ -62,8 +62,10 @@ merged, tagged or published without the operator. Status words are defined in
 ## Next (M2), in order
 
 1. Packaged/integration tests of the work-offline gate: blocked WAN through each exit, loopback
-   allowed, receiver on the LAN behaviour stated (the gate currently treats LAN hosts as
-   "leaving this computer"; the docs comment says LAN sources keep running — reconcile).
+   allowed. Note for the cyberdeck: while working offline, HTTP/WebSocket to the LAN is blocked
+   too (`network-gate.test.ts`: "the internet and the LAN do"); raw-TCP receivers (Meshtastic,
+   NMEA 2000, AIS over TCP) are not fetches and keep running. A readsb on another machine would
+   therefore stop offline; on the cyberdeck everything is on loopback, so this does not bite.
 2. Operator-granted external data roots (settings + safe path resolution), internal state kept
    on the internal SSD.
 3. Vault health: absent / ejected / read-only / low space / remounted; pause and resume, never
