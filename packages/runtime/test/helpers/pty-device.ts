@@ -7,17 +7,28 @@ import { createInterface } from 'node:readline';
  * writes bytes as the device would, `received` collects what was written to the device, and
  * `unplug` closes the master — the slave's reads then fail as they do when a cable is pulled.
  */
+// Commands are read from fd 0 with os.read and split into lines here: sys.stdin.readline()
+// reads ahead into Python's own buffer, and a second command already sitting in that buffer
+// never wakes select() — two sends close together then lost the second (seen in CI).
 const SCRIPT = String.raw`
 import os, pty, sys, select, binascii
 m, s = pty.openpty()
 print(os.ttyname(s), flush=True)
+pending = b''
 while True:
-    r, _, _ = select.select([m, sys.stdin], [], [])
-    if sys.stdin in r:
-        line = sys.stdin.readline()
-        if not line or line.strip() == 'unplug':
+    r, _, _ = select.select([m, 0], [], [])
+    if 0 in r:
+        chunk = os.read(0, 65536)
+        if not chunk:
             os.close(m); os.close(s); sys.exit(0)
-        os.write(m, binascii.unhexlify(line.strip()))
+        pending += chunk
+        while b'\n' in pending:
+            line, pending = pending.split(b'\n', 1)
+            line = line.strip()
+            if line == b'unplug':
+                os.close(m); os.close(s); sys.exit(0)
+            if line:
+                os.write(m, binascii.unhexlify(line))
     if m in r:
         try:
             data = os.read(m, 4096)
