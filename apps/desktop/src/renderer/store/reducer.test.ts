@@ -389,3 +389,13 @@ test('paged snapshot: the selected object survives the sweep; a whole snapshot e
   s = rootReducer(s, { type: 'world/snapshot', objects: [obj('w')], count: 1, subscription: {} });
   assert.equal(s.world.snapshotStream, null);
 });
+
+test('field status: a slower answer never replaces a newer push', () => {
+  let s = initialState(Date.parse('2026-10-08T20:00:00Z'));
+  const at = (iso: string, pct: number) => ({ power: { source: 'battery' as const, batteryPct: pct }, at: iso });
+  s = rootReducer(s, { type: 'offline/field', field: at('2026-10-08T20:00:10.000Z', 50) });
+  s = rootReducer(s, { type: 'offline/field', field: at('2026-10-08T20:00:05.000Z', 51) });
+  assert.equal(s.offline.field?.power.batteryPct, 50);
+  s = rootReducer(s, { type: 'offline/field', field: at('2026-10-08T20:01:00.000Z', 49) });
+  assert.equal(s.offline.field?.power.batteryPct, 49);
+});

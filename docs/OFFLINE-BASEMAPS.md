@@ -2,9 +2,8 @@
 
 The 2D map draws vector tiles in the Protomaps basemap schema (`earth`, `water`, `roads`,
 `places`, `boundaries`, …) with WORLDVIEW's own dark and light styles. Offline, those tiles
-are meant to come from a PMTiles file inside an installed world pack. The app does not yet
-hand that file to the map; see "Installing it". This page covers three ways to make the
-tiles:
+come from a PMTiles file inside an installed world pack (see "Installing it"). This page covers
+three ways to make the tiles:
 
 1. **Build your own extract** from OpenStreetMap data with Planetiler: `pnpm basemap:build`
    (below). You choose the region and the date of the data, and it needs nobody's server

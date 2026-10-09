@@ -1,0 +1,527 @@
+# Linux and cyberdeck readiness — verification
+
+Status words: **PASS**, **FAIL**, **SIMULATED**, **BLOCKED**, **UNVERIFIED** (NORTHSTAR.md).
+Every row names the machine. "Container" is the cloud Linux container this work was done in:
+Ubuntu 24.04.5, x86_64, Node 22.22.0, kernel 6.18, no GPU, **no access to the npm registry**.
+
+## Where the toolchain came from (container)
+
+`pnpm install` cannot run in the container (registry DNS fails; the proxy refuses it). Every
+tool below came from an upstream GitHub release or tag, or the operator's machine, and is used
+for container checks only. None of it is committed.
+
+| Tool                               | Version used                               | Locked version | Source                                                      |
+| ---------------------------------- | ------------------------------------------ | -------------- | ----------------------------------------------------------- |
+| TypeScript                         | 5.9.3                                      | 5.9.3          | microsoft/TypeScript release tarball                        |
+| `@types/node`                      | 22.20.x (DefinitelyTyped `types/node/v22`) | 22.20.4        | DefinitelyTyped HEAD                                        |
+| `@types/react`, `@types/react-dom` | 19.3.x                                     | 19.3.0         | DefinitelyTyped HEAD                                        |
+| undici-types, csstype              | 6.21.0, 3.2.3                              | same           | upstream tags                                               |
+| Prettier                           | 3.9.8                                      | 3.9.8          | operator's `prettier-3.9.8.tgz`                             |
+| tsx                                | 4.23.12                                    | 4.23.15        | container global                                            |
+| React, react-dom, scheduler        | 19.2.8 / 0.27                              | 19.3.0 / 0.28  | container global                                            |
+| esbuild (main bundle only)         | 0.28.2                                     | lockfile's     | container global                                            |
+| satellite.js (main bundle only)    | 6.0.2 source                               | 6.0.2          | shashwatak/satellite-js tag                                 |
+| Electron (runtime checks)          | 44.5.1 linux-x64                           | 44.5.1         | electron/electron release; SHA-256 matched `SHASUMS256.txt` |
+| electron-builder schema            | 26.15.3 `scheme.json`                      | 26.15.3        | electron-userland/electron-builder tag                      |
+
+Third-party libraries the typecheck cannot find are replaced by `tools/dev/type-shims`
+declarations; their results are weaker evidence than a real install (see M0).
+
+## M0 — baseline at `092133a` (v0.2.2), container, 2026-10-08
+
+| Gate            | Command                                                                                                                | Result                                                                                                                                                                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| install         | `pnpm install --frozen-lockfile`                                                                                       | **BLOCKED**: `ENOTFOUND registry.npmjs.org`; proxy CONNECT 403                                                                                                                                                                       |
+| format          | `prettier --check .` (3.9.8)                                                                                           | **PASS**: all files formatted                                                                                                                                                                                                        |
+| lint            | `pnpm lint`                                                                                                            | **BLOCKED**: typescript-eslint not installable in the container                                                                                                                                                                      |
+| typecheck       | **same 19 shim-only errors as baseline, none new** (identical file and message set; only positions in `main.ts` moved) |
+| boundary-check  | `node tools/dev/boundary-check.mjs`                                                                                    | **PASS**: 977 files, 0 violations                                                                                                                                                                                                    |
+| test            | `node tools/dev/run-tests.mjs`                                                                                         | 324 files, **1,899 pass, 43 fail**: every failure is a file importing a package that is not installed (react 42, react-dom 1, @duckdb/node-api 3, @cesium/engine 2, maplibre-gl 2). With React linked, those files: **215/215 pass** |
+| provider:test   | `provider:test --all`                                                                                                  | **PASS**: 16 pass, 0 fail                                                                                                                                                                                                            |
+| connector:test  | `connector:test --all`                                                                                                 | **FAIL (pre-existing)**: 36/38 definitions pass; `nifc-wfigs-perimeters` (lat 19.63, expected 19.6) and `nws-wwa-mapserver` (21.475, expected 21.4). Not in CI or the Windows gate                                                   |
+| license-audit   | `license-audit`                                                                                                        | **PASS**: 44/44 providers, 0 errors, 0 warnings                                                                                                                                                                                      |
+| stage:resources | `stage-resources.mjs --check`                                                                                          | **PASS**: up to date                                                                                                                                                                                                                 |
+| build / package | `pnpm build`, `release:package`                                                                                        | **BLOCKED** in the container (no Vite, Electron, electron-builder)                                                                                                                                                                   |
+
+Reference baseline on Windows (from the project record, not re-run here): the laptop's 16-step
+gate at `092133a`, 2026-10-05: 16/16 exit=0; tests 2,125 pass / 5 skipped; installer exit=0.
+
+### v0.2.2 on Linux, before any change (container, 2026-10-08 16:33 HST)
+
+The released `WorldView-Portable-0.2.2.zip` (SHA-256 `29eaccbd…6d7`, matches the release's
+`SHA256SUMS.txt`) had its `app.asar` placed into the official Electron 44.5.1 linux-x64 build
+and was launched under Xvfb, as an unprivileged user, sandbox on, D-Bus session, no keyring.
+
+| Check                                                                                                                                       | Result                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Boots, single instance, migrations, 44 providers, `runtime started`                                                                         | **PASS**                                                                                                                                                |
+| User data at `~/.config/@worldview/desktop` (XDG via Electron)                                                                              | **PASS**                                                                                                                                                |
+| Renderer mounts through `worldview://app` (watchdog found `#root` children; screenshot shows the welcome dialog, lenses, sources, timeline) | **PASS**                                                                                                                                                |
+| Chromium sandbox on, no `--no-sandbox` (container allows unprivileged user namespaces)                                                      | **PASS** (does not represent Ubuntu 24.04+'s AppArmor restriction)                                                                                      |
+| DuckDB                                                                                                                                      | **expected fallback**: the zip carries only the Windows binding; "DuckDB backend unavailable, falling back to NDJSON", reason logged, history in NDJSON |
+| Keyring                                                                                                                                     | "OS secure storage unavailable" startup finding                                                                                                         |
+| Map                                                                                                                                         | **SIMULATED/no GPU**: "WebGL2 blocklisted"; MapLibre's "WebGL2 is required" error                                                                       |
+
+## M1 — native Linux app and packaging (branch `feature/linux-cyberdeck-readiness`)
+
+### Container checks on M1 (both commits)
+
+| Gate                             | Result                                                                                                                                                                                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| format                           | **PASS** (Prettier 3.9.8 `--write`, then clean)                                                                                                                                                                                        |
+| boundary-check                   | **PASS**: 979 files, 0 violations                                                                                                                                                                                                      |
+| typecheck                        | **same 19 shim-only errors as baseline, none new** (same files and messages; line numbers in `main.ts` shifted by the edit)                                                                                                            |
+| test (whole suite, React linked) | **PASS**: 327 files, **2,135 pass, 0 fail, 16 skipped** on the first commit; **2,137 pass, 0 fail, 16 skipped** on the second (skips: DuckDB/Cesium/MapLibre not installed)                                                            |
+| New tests                        | `credential-store-linux.test.ts` 13, `assert-version-linux.test.ts` 6, `packaging.test.ts` +3, `no-webgl.test.ts` 1, all pass. Mutation check: disabling the Linux backend check and the 0600 mode made 5 of the credential tests fail |
+| electron-builder config          | **PASS**: the whole `electron-builder.yml` validates against electron-builder 26.15.3's `scheme.json` (Ajv); a bogus `linux` key is rejected (negative control); the v0.2.2 file also validates                                        |
+| `.deb` Depends on Ubuntu 24.04   | **PASS** (apt metadata): `libgtk-3-0t64` provides `libgtk-3-0`, `libatspi2.0-0t64` provides `libatspi2.0-0`; libnss3, libxss1, libxtst6, xdg-utils, libuuid1, libsecret-1-0 present                                                    |
+| lint                             | **BLOCKED** in the container; written to the repo's rules (prefer-const, no-unused-vars, no-useless-escape) — CI decides                                                                                                               |
+
+### Independent review of the first M1 commit
+
+A separate agent reviewed commit `22a1b64` against electron-builder 26.15.3's source and
+Chromium's `key_storage_util_linux.cc`. Confirmed and fixed in the second commit:
+
+1. **The `.deb` could not have built**: fpm requires a project homepage (`FpmTarget`
+   "Please specify project homepage"); none was set. → `homepage` in `apps/desktop/package.json`,
+   held by a test.
+2. **The AppImage would have run unsandboxed on Ubuntu 24.04+**: electron-builder's AppRun adds
+   `--no-sandbox` whenever `unshare -Ur true` fails, and defaults the desktop entry to
+   `--no-sandbox`; no option disables it. The smoke script would have reported "sandbox on"
+   because it only knew what it passed. → no AppImage target; the smoke test now reads every
+   app process's command line from `/proc` (negative control below).
+3. **The GNOME Keyring CI check could not have passed**: Chromium picks `basic_text` on any
+   desktop it does not recognise (CI sets none), even with a keyring running — and so would
+   sway/i3/Hyprland/LXQt users. → WORLDVIEW passes `--password-store=gnome-libsecret` except on
+   KDE; still refused when no Secret Service answers (observed below).
+
+Not acted on: the smoke test's mount signal depends on the watchdog's media probe succeeding
+(a suspicion, not observed); `gnome-keyring-daemon` in CI may need more than `--unlock` +
+`--start` to create a default collection (the CI run will say).
+
+### The branch's main process on Linux Electron (container, SIMULATED display)
+
+The branch's `main.ts` bundled with esbuild (same options as `build-main.mjs`) replaced v0.2.2's
+`dist/main/main.cjs` (renderer and preload from v0.2.2, which this branch does not change except
+the no-WebGL message), run with Electron 44.5.1 linux-x64 under Xvfb by
+`apps/desktop/scripts/smoke-linux.mjs --expect-history ndjson --expect-keyring refused`:
+
+First commit (no `--password-store` switch):
+
+```
+"ok": true, "firstLaunchMs": 5010, "secondLaunchMs": 5011,
+"historyBackend": "ndjson" (Windows-only binding in this tree — expected),
+"keyring": { "backend": "basic_text", "usable": false },
+"providers": 44, "settingsPersisted": true,
+"webgl": "unavailable (expected on a virtual display …)"
+```
+
+Second commit (switch on, no Secret Service, D-Bus session bus present):
+
+```
+"ok": true, "keyring": { "backend": "gnome_libsecret", "usable": false },
+"settingsPersisted": true,
+"sandbox": "on: none of 7 app processes (browser, gpu-process, renderer, utility, zygote) has --no-sandbox"
+```
+
+Negative control: the same build launched through a wrapper that adds `--no-sandbox` →
+`"ok": false`, `"sandbox": "OFF in 6 process(es)"`, one problem line per process.
+
+So on Electron 44.5.1/Linux with no Secret Service: without the switch the backend is
+`basic_text`; with it, `gnome_libsecret` reporting encryption unavailable. The branch refuses to
+store keys in both. The same script against
+unmodified v0.2.2 reports the keyring state as unknown (v0.2.2 does not log it) — the script
+says so rather than guessing.
+
+### Still to run (needs the operator)
+
+| Check                                                                                                                              | Where                                  | Status                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Linux `pnpm install --frozen-lockfile`, lint, real-library typecheck, tests                                                        | CI `linux` job                         | **UNVERIFIED** until the job runs                                                                                         |
+| `.deb` build; `assert-version --platform linux`; SBOM; hashes                                                                      | CI `linux` job                         | **UNVERIFIED**                                                                                                            |
+| `.deb` contents: menu entry validates, Linux DuckDB binding unpacked, AppArmor profile present                                     | CI `linux` job                         | **UNVERIFIED**                                                                                                            |
+| `apt install ./worldview_*.deb` on a clean Ubuntu 24.04 runner; sandbox under AppArmor                                             | CI `linux` job                         | **UNVERIFIED**                                                                                                            |
+| Installed app smoke: DuckDB loads (`duckdb-parquet`), keys refused without keyring, usable with GNOME Keyring, restart persistence | CI `linux` job                         | **UNVERIFIED**                                                                                                            |
+| `apt remove` leaves user data                                                                                                      | CI `linux` job                         | **UNVERIFIED**                                                                                                            |
+| Windows still packages and passes its gate                                                                                         | CI `windows` job or laptop `check.bat` | **UNVERIFIED on this branch** (Windows code paths unchanged by design; `package.mjs` dispatches to the same `--win` flag) |
+| Real GPU (Radeon 740M + Mesa), 2D/3D, multi-monitor, fractional scaling                                                            | P16s on Ubuntu                         | **UNVERIFIED**                                                                                                            |
+| Install from menu, launch with no dev tools, offline packs load                                                                    | P16s on Ubuntu                         | **UNVERIFIED**                                                                                                            |
+
+How to run the CI half (operator, PowerShell or any shell with `gh`):
+
+```bash
+git push origin feature/linux-cyberdeck-readiness
+gh workflow run build-desktop.yml --ref feature/linux-cyberdeck-readiness -f ref=feature/linux-cyberdeck-readiness
+gh run list --workflow build-desktop.yml --branch feature/linux-cyberdeck-readiness --limit 1
+```
+
+Artifacts `worldview-linux-x64` (the `.deb`, `SHA256SUMS.txt`, SBOM, verification report,
+`linux-smoke-*.json`, `.deb` contents) and `worldview-windows-x64`. Nothing is released.
+
+## M2 — data vaults (container, 2026-10-08)
+
+| Gate                    | Result                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| format / boundary-check | **PASS** (Prettier 3.9.8 clean; 984 files, 0 violations)                                                                        |
+| typecheck               | **same 19 shim-only errors as baseline, none new**                                                                              |
+| stage:resources --check | **PASS**                                                                                                                        |
+| test (whole suite)      | **PASS**: 330 files, **2,158 pass, 0 fail, 16 skipped** at `9b4a2d7`; **2,168 pass, 0 fail, 16 skipped** after the review fixes |
+| lint                    | **BLOCKED** in the container                                                                                                    |
+
+The first full run failed one test (2,157 pass, 1 fail): the runtime vault scenario, with
+`ENOENT` renaming `state.json` — two pack-registry refreshes (the monitor's change event and the
+explicit refresh) wrote `state.json` through the same temporary name in the same millisecond. It
+had passed alone. Fixed by serialising refreshes and adding a random part to `writeFileAtomic`'s
+temporary names; the scenario then passed 5 runs in a row and in the full suite.
+
+What the tests prove, on real folders standing in for the SSD (SIMULATED: no USB drive, no
+real unmount):
+
+- `vault.test.ts` (10): a vault is made only in an existing folder; adopted again by its marker;
+  `ready` → folder renamed away → `absent` → empty folder at the mount point → `absent` **with
+  nothing written into it** → folder back → `ready`; another vault's marker → `foreign`; a corrupt
+  or alien marker → `error`, never adopted; low space readable but not writable;
+  EROFS/EACCES/EPERM → `read-only`, ENOSPC → full, EIO → `error` (injected — the container runs as
+  root, where permissions do not bite); the monitor reports pull and re-plug once each, stays quiet
+  otherwise and write-probes on first check, on change and every 10 minutes.
+- `registry-vault.test.ts` (8): install onto a vault (state in the app folder, staging on the
+  vault, cleaned); pull → listed "not connected", not searched; re-plug → back, with the
+  enabled/disabled choice kept, files byte-for-byte untouched; read-only and low-space refuse
+  installs; a drive pulled between the two re-checks is not activated; delete refused; a duplicate
+  listed once; a vault removed from settings forgotten, files left; reading a vault without a
+  `worldpacks/` folder creates nothing.
+- `offline.test.ts` (runtime, offline group, network off): the whole runtime — add a vault through
+  the folder dialog, install the Hawaii pack onto it, search "Honolulu" from it, the page cannot
+  delete it or set vaults through settings, pull → missing and not searched, empty mount point →
+  install refused and nothing written, re-plug → searched again, Diagnostics shows the vault,
+  "Stop using" → gone from the list with every file and the marker left; zero network calls.
+- `data-vaults.test.ts` (2): the page's wording for each state (green only when writable).
+
+**Independent review of `9b4a2d7`** (a separate agent, with probe tests of its own) confirmed six
+defects and suspected six more; all twelve are fixed in the next commit, each with a test, and two
+of those tests were checked by reverting their fix (they fail):
+
+1. A drive pulled mid-extract: the per-entry `mkdir -p` would rebuild the staging path under an
+   empty mount point and write the rest of the pack to the internal disk. → folders are created one
+   level at a time below the staging folder (gone → fails), and every extracted file must be on
+   the vault's device.
+2. `setEnabled` dropped a pack's vault, so a pack switched off while its drive was away vanished.
+3. A stale "ready" (the monitor is up to 30 s behind) over an empty mount point, or a packs folder
+   that could not be listed, made the registry forget the vault's packs — a pack switched off came
+   back on. → the marker is read again in every scan; state is forgotten only after a listing
+   that worked.
+4. Install / setEnabled / remove wrote state.json outside the refresh queue; a scan in flight
+   wrote back its stale copy (a toggle was lost). → one queue for all of them.
+5. `initVault` marked a bare mount point (fstab `/mnt/ssd` with nothing mounted). → a vault must be
+   on another drive than the app's data (`st_dev`); the message asks whether the drive is mounted.
+6. A `worldpacks` symlink led reads and installs off the drive (into the app's own folder, even).
+   → refused.
+   7–12. A vault just added read "not connected" until the next tick (checks now queue instead of
+   sharing a pass); install could replace a vault pack shown only as a placeholder without the
+   version/signer checks (install now rescans first and refuses an unreadable vault pack);
+   interrupted staging on a vault was never cleared; switching a duplicate entry left stray state;
+   nested vaults were accepted; a quick stop/start could double the monitor's timer.
+
+### Work offline: no connection leaves the computer (container, strace)
+
+`apps/desktop/scripts/offline-trace-linux.mjs` (new) launches the app once to get a real
+settings file, turns Work offline on in it, relaunches under `strace -f -e trace=connect` for the
+whole process tree, and classifies every `connect()`. Branch build on Electron 44.5.1 under Xvfb,
+45 s:
+
+| Run                           | Unix sockets | Loopback                                   | DNS (port 53)            | Outside | Result                |
+| ----------------------------- | ------------ | ------------------------------------------ | ------------------------ | ------- | --------------------- |
+| Work offline **on**           | 13           | 3 (one is readsb-local's `127.0.0.1:8080`) | **0**                    | **0**   | PASS                  |
+| Control, Work offline **off** | 15           | 3                                          | **87** (to `8.8.8.8:53`) | 0       | PASS (it reached out) |
+
+The control shows the trace sees the app's traffic; the container's DNS fails, so no outside TCP
+follows the lookups here. CI repeats both on the installed `.deb` with a working network.
+
+### Start-up with the vault absent, and the O'ahu bundle
+
+- `offline.test.ts`: a run adds a vault and installs onto it; the next start-up has the drive
+  absent → the app starts, answers, lists the pack "not connected"; the drive returns → active.
+- `tools/worldpack/src/bundle.test.ts` (4): the `oahu` preset; a bundle of two seed-data O'ahu
+  packs with manifest and SHA256SUMS; a faithful copy checks out; a damaged byte, a missing file, a
+  stray file and a manifest name that leaves the folder all fail; a broken pack or a duplicate id
+  refuses the bundle.
+- The real CLI (`pnpm worldpack build --region oahu …` ×2, `bundle`, copy, `bundle --check` → OK,
+  one byte changed → "SHA-256 differs", exit 1).
+
+Whole suite after these: 331 files, **2,173 pass, 0 fail, 16 skipped**.
+
+Not verified: a real USB SSD on the P16s (H8 below) — mount, `udisks` unmount, yank while
+reading, `ro` remount, ext4/exFAT; the Settings section in a real window (renderer unbuilt here).
+
+## M3 — RTL-SDR → readsb → aircraft (container, 2026-10-08)
+
+**The decoder, for real.** readsb 3.16.17 (wiedehopf, commit `0272517`, GPL-3.0) built from its
+upstream source in the container without SDR libraries (static libzstd 1.5.7 from its tag), run
+on loopback only: `--net --net-bind-address 127.0.0.1 --net-ri-port 30001 --net-api-port 8042
+--lat 52.3 --lon 4.0`. Textbook Mode S frames from _The 1090 MHz Riddle_ fed to its raw input
+(SIMULATED RF; everything after it real). Its `/?all` answered:
+
+| Aircraft | Decoded by readsb                                       | Reference                                                        |
+| -------- | ------------------------------------------------------- | ---------------------------------------------------------------- |
+| 4840D6   | callsign `KLM1023`, category A0                         | KLM1023                                                          |
+| 40621D   | 38000 ft; position 52.26578, 3.938913 then 52.257202, … | 52.26578 / 3.93891 (odd latest), 52.2572 / 3.91937 (even latest) |
+| 485020   | 159.2 kt, track 182.88°, −832 ft/min                    | 159 kt, 182.88°                                                  |
+
+Without `--lat/--lon` readsb held the position back over the same feed: documented in
+RTL-SDR.md.
+
+**WORLDVIEW on that decoder.** `packages/runtime/test/integration/readsb-live.test.ts` (opt-in:
+`WORLDVIEW_READSB_API`, `WORLDVIEW_READSB_RAW`) — the composed runtime with the readsb-local
+provider, its real HTTP client, host allowlist and detection probe, endpoint
+`http://127.0.0.1:8042/?all`: 40621D reaches `world.query` at one of the two reference positions,
+38000 ft = 11582.4 m, provenance `readsb-local` / origin `local` / sourceRef the endpoint; the
+position-less KLM1023 is not drawn. **PASS.** Control: readsb stopped → the test fails
+(ECONNREFUSED). The receiver-only branch (no frames fed) also passes against the running decoder.
+
+**Field rules, with fixtures** (`providers/readsb-local/test/unit/field.test.ts`, 8): an empty sky
+is LIVE with nothing to show; readsb's `/?all` shape is read like aircraft.json; every observation
+carries `receiver: own receiver, 1090 MHz, readsb/dump1090`; half-written and wrong JSON →
+MALFORMED, then recovers; corrupt rows dropped and logged, position-less rows not errors; an
+all-corrupt feed refused whole; duplicates collapse; a 75 s-old position flagged stale and timed
+by when it was heard; decoder stops → OFFLINE with no polling while gone → back after the 30 s
+backoff. The details panel shows "Received here on 1090 MHz (…)" (`receiver-text.test.ts`).
+
+**Hardware diagnostics** (`packages/runtime/src/support/local-hardware.ts`, 5 tests on a fake
+sysfs/dev tree laid out like the kernel's): no stick → "no RTL-SDR plugged in"; a stick held by
+`dvb_usb_rtl28xxu` → the fix; no permission → the udev fix; present and openable; a non-RTL USB
+device ignored; a CP210x serial port named by its bridge, never as a T-Beam; dialout advice.
+Shown in Diagnostics on Linux; no USB in the container, so never seen on real sysfs (H9).
+
+Gates after M3: 335 files, **2,187 pass, 0 fail**; typecheck same 19 shim-only; boundary 992
+files PASS; provider:test 16/16; license-audit 0 errors.
+
+## M4 — T-Beam over USB serial, own GPS position (container, 2026-10-08)
+
+**The serial transport, for real, on a pseudo-terminal** (SIMULATED device; everything from the
+tty on is real). `packages/runtime/src/support/serial-stream.ts`, 3 tests: only a named USB
+serial path and a real baud rate, Linux only (`/dev/sda`, `/dev/ttyS0`, `..` tricks, a non-USB
+target, `win32` all refused); the real `stty` line set-up on the pty; bytes both ways byte for
+byte (raw, no echo); a write over the cap refused; unplugging (closing the pty master) reported
+as "the device went away", OFFLINE, and nothing written after; closing it ourselves reports
+"closed" on a later turn, not inside `close()`.
+
+**The whole provider over it** (`packages/runtime/test/integration/meshtastic-serial.test.ts`):
+the runtime's serial transport carrying an invented node list to the real `meshtastic-local`
+provider. The want-config request goes out over the line; debug text before the frames is
+skipped; this node (hardware model T-Beam) is drawn from its own 3D fix, dated by the fix, with
+accuracy 3 m × HDOP 1.2 = 3.6 m and sourceRef `serial://…`; health reads "this node: Deck
+(LilyGO T-Beam), battery 76%, GPS fix (3D, 8 satellites), 10 s old, ±3.6 m"; the neighbour is
+never "this node"; a broken frame is counted and skipped; the node reports 0/0 → a full set is
+sent without it (the neighbour kept) and health says NO FIX; unplugged → OFFLINE "went away".
+**PASS.**
+
+**Own-fix rules, with fixtures** (`providers/meshtastic-local/src/nodes.test.ts` and
+`provider.test.ts`): GPS only when the node says its own or an external GPS made it (or, with no
+source, a GPS timestamp); STALE after 300 s with its age; a fix dated ahead of the clock is
+"unknown age", never current; NO FIX — and no coordinates — for no report, 0/0, fix type "none",
+no fix time, or a non-GPS position; a position set by hand drawn and labelled "not GPS"; no
+accuracy made up from a DOP alone; a neighbour's perfect fix never used; a packet "from" this
+node heard over the air or MQTT ignored; another node plugged in → the old one redrawn with
+`thisNode: false`; subscribed again then NO FIX → still taken off the map; health's count
+matches the map. Details panel: _Your position_ works the age out live (`receiver-text.test.ts`).
+
+**Privacy.** `meshtastic-local` no longer writes to movement history
+(`normalizedRetentionAllowed: false`, manifest and legal registry agree; the history store skips
+it by policy).
+
+**Independent review** of the first M4 draft found 9 problems, all fixed, with tests where a
+test can show it: the serial descriptor was closed twice (`reader.destroy()` and `fs.close`),
+which could close a file opened in between — shown by the reviewer with a standalone
+reproduction; the fix leaves the descriptor to the tty stream and waits for in-flight writes. A
+test for it would depend on that race and was not kept. Also: a swapped-out node keeping
+`thisNode`; a clock-ahead fix shown as "0 s old"; a false "went away" on a settings change; a
+spoofed own position; a resubscribe missing NO FIX; health over-counting; endless retries of a
+setting that cannot work; doc wording.
+
+Gates after M4: 337 files, **2,200 pass, 0 fail** (17 skipped, as before: opt-in and
+platform tests); typecheck same 19 shim-only; boundary 996 files PASS; provider:test all PASS
+(meshtastic-local 16/16, `norm=false` matching the legal registry); license-audit 0 errors;
+Prettier clean. Lint not run (no ESLint in the container).
+
+Not verified: a real T-Beam (H10) — how often its firmware streams its own position to a USB
+client, how it reports a lost fix, whether opening the port resets the board.
+
+## M5 — field status strip, profiles, power, measuring (container, 2026-10-08)
+
+**Power** (`packages/runtime/src/support/power.ts`, 3 tests on a fake `/sys/class/power_supply`
+laid out like the kernel's): a battery discharging (energy-weighted percentage), charging on
+mains, two batteries summed by energy, a USB-C supply counted as external power, a mouse's
+battery (`scope Device`) ignored, no battery at all, the host flag when sysfs says nothing.
+**Runtime** (`test/integration/field.test.ts`, 3): `field.status` gives battery and disk
+headroom; a power-source change and a wake are pushed as `field.changed` (one per change, the
+wake time carried); off Linux only the host flag, never an invented percentage; the Field
+profile sets internet sources' poll interval ×3 and Docked puts it back. **Provider host**
+(`host.test.ts`): a remote source's next poll is due 60 s → 180 s under ×3; the scale is bounded
+1–10. Local sources are never scaled (`isRemote`).
+
+**The strip** (`components/field-status-model.ts`, 5 tests, every wording): NET LOCAL/ONLINE/
+DEGRADED/OFFLINE; GPS fix with age, STALE worked out at render time, age unknown when ahead of
+the clock, NO FIX (no-fix and not-GNSS), set by hand, no node, no source; receivers "connected"
+and "data received" said apart (`no data yet`), with the switch; worst vault; disk thresholds;
+power thresholds, nothing shown when power is unknown. `shell.test.ts`: absent by default; on,
+it renders NET then GPS, and in the demo (which cannot know this computer's power) no PWR item.
+`display.test.ts`: Field → Low, 2D, strip on; Docked → High, 3D; Balanced → Auto; B toggles.
+Seen rendered (Chromium, static markup with the app's CSS) at 1920 and 1100 px wide: one line,
+readable.
+
+**Electron, for real** (the branch's main process on Electron 44.5.1 linux-x64, Xvfb, as an
+ordinary user, sandbox on): `powerMonitor` answers and the runtime logs `power source
+{"onBattery":false}` at start. Sleep and wake could not be produced in the container (no
+logind): **H11 UNVERIFIED**.
+
+**Measuring script, run in the container** (`apps/desktop/scripts/measure-linux.mjs`; SIMULATED
+conditions: Xvfb with no GPU — the map shows its no-WebGL panel — 2 vCPU Xeon, no battery, the
+v0.2.2 renderer with the branch's main process, so these are **not P16s numbers**). 2 runs per
+profile, 10 s settle, 60 s idle:
+
+| Run        | Runtime started (ms) | Page loaded (ms) | PSS total MB mean / peak | RSS total MB mean | CPU % of one core | of which renderer | In effect (poll scale, graphics, map) |
+| ---------- | -------------------- | ---------------- | ------------------------ | ----------------- | ----------------- | ----------------- | ------------------------------------- |
+| Field 1    | 629                  | 1070             | 375.4 / 411.1            | 702.5             | 2.84              | 2.07              | ×3, low, 2D                           |
+| Field 2    | 701                  | 1197             | 376.2 / 410.3            | 705.3             | 2.42              | 1.78              | ×3, low, 2D                           |
+| Balanced 1 | 645                  | 1252             | 373.8 / 409.1            | 701.3             | 2.7               | 1.96              | ×1, auto, AUTO                        |
+| Balanced 2 | 698                  | 1243             | 375.6 / 411.1            | 704.6             | 2.69              | 1.96              | ×1, auto, AUTO                        |
+
+What the run showed: the script works end to end, timing from the spawn to the runtime's start
+and the page's load (the app logs `renderer loaded` for this; the mount is confirmed by the
+watchdog a fixed 4 s later, recorded as `mounted`, not as a time), measuring only the launched
+app's process tree, and recording what was in effect — the runtime's `profile applied` line and
+the graphics and map mode the settings held. With no GPU and no sources configured the profiles
+barely differ, as expected. No battery, so no power figures: those exist only on the laptop
+(**H12 UNVERIFIED**).
+
+**Independent review of M5** found 10 problems, all fixed: leaving Field left polls queued at
+the slow pace (now brought forward; tested); the start time measured the watchdog's 4 s wait;
+processes picked by install folder, not by the launch (now its process tree, failing loudly when
+empty); `profileApplied` logged only on change; battery units could mix energy and charge; the
+contract's profile wording did not match the code; the strip called STARTING and NEEDS_SETUP "not
+detected" and a long-silent receiver green; a slow answer could overwrite a newer push; tests
+missing for local sources never being slowed, and for these states. Moving the view still asks
+bounds sources at once in Field: that is the operator looking, not background work (FIELD.md
+says so).
+
+Gates after M5: 340 files, **2,217 pass, 0 fail**; typecheck same 19 shim-only; boundary 1,002
+files PASS; provider:test all PASS; license-audit 0 errors; Prettier clean. Lint not run.
+
+Not done: a sunlight theme — the app has one dark palette and no theme system, and the spec asks
+for one only "if existing styles support it" (DEFER).
+
+## M6 — local read-only API (container, 2026-10-08)
+
+**Router** (`packages/runtime/src/support/local-api.test.ts`, 7 tests over an invented world):
+anything but GET 405; any body 413; an over-long URL 413; unknown paths 404 (`/v1/../etc/passwd`
+included); unknown, repeated or malformed parameters 400; radius, limit, track span bounded;
+pages by id with a cursor until the end. Data policy: the mesh's nodes, an aircraft merged with a
+mesh source, a source with no known policy, and a vessel a closed source once fed (past its
+capped refs) are never listed and leave no count; a track is refused if any provider with points
+in the stored history, or that ever fed the object, forbids export or keeping history; a closed
+source's size and last activity are not given. Own position: 403 until separately allowed; then
+the fix with time and accuracy, an old fix said stale, NO FIX with no coordinates though the old
+node object exists, `no-source` with nothing plugged in. Vaults: labels and states, never mount
+paths. The contract fixtures (`fixtures/local-api/v1/`, 10 answers) are checked against the
+router. **State engine**: every provider that fed an object is remembered past the eight-ref cap
+(`contributors`, tested).
+
+**Socket** (`packages/runtime/test/integration/local-api.test.ts`, 5 tests, the composed runtime):
+off by default, no socket; on, folder 0700, socket 0600, the example consumer run as a separate
+process reads `/v1`, `/v1/objects` (bounded); own position refused, then allowed; a different
+user (`nobody`) cannot open it; turned off, the socket goes and the consumer says WORLDVIEW is not
+there. A file at the path, or a live socket of another server, is refused and left alone; a
+runtime folder writable by others is refused; 125 requests in a minute → 119 + the POST answered,
+the rest 429; a POST with a body gets 405 without the body being read; a connection that never
+finishes its headers is dropped within seconds; not offered off Linux.
+
+**In the real app, as an ordinary user** (Electron 44.5.1 linux-x64 with the branch's main
+process, user `smoke`, its own `XDG_RUNTIME_DIR`, Xvfb; `m6-electron.log`): the socket appears
+`srw------- smoke`, the consumer as that user reads `/v1`, `/v1/health`, `/v1/sources` (35 of 44
+sources readable, `meshtastic-local` not), three objects with a next page; own position 403; a
+POST 405; no TCP listener; after quit the socket is gone. **PASS.**
+
+Gates after M6: 342 files, **2,231 pass, 0 fail**; typecheck same 19
+shim-only; boundary 1,007 files PASS; provider:test all PASS; license-audit 0 errors; Prettier
+clean. Lint not run.
+
+**Independent security review** found 11 problems, all fixed: a track could carry history from a
+closed source no longer behind the object (now gated on stored-history providers too); the
+`withheld` count, under a 10 m radius, located mesh nodes (removed); labels from a closed source
+outlived its capped ref (`contributors`); the umask stayed tightened across async ticks (now only
+around the synchronous `listen`); a failure after `listen` could orphan a listener; a live socket
+of another instance was unlinked; the runtime folder itself was not checked; the socket stayed
+after quit; timeouts were checked only every 30 s; a closed source's size was listed; the docs
+claimed more than the code. Not changed: `/v1/objects` walks the matching objects on the main
+thread (the spatial index first when a point is given) — measured cost on the laptop with a busy
+sky is part of H12.
+
+## M7 — gates, guides, readiness checklist (container, 2026-10-08)
+
+Every gate the spec lists that the container can run, on the branch head:
+
+| Gate                                                                                              | Result                                                                                     |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `format:check`                                                                                    | PASS (Prettier 3.9.8)                                                                      |
+| `typecheck`                                                                                       | the same 19 shim-only errors as the v0.2.2 baseline, none new                              |
+| `boundary-check`                                                                                  | PASS, 1,007 files                                                                          |
+| `test`                                                                                            | 342 files, **2,231 pass, 0 fail**, 17 skipped (opt-in live tests and other-platform tests) |
+| `test:offline` (network off)                                                                      | 2 files, 4 pass                                                                            |
+| `provider:test --all`                                                                             | PASS                                                                                       |
+| `connector:test --all`                                                                            | 36 / 38 — the two example fixtures failing since §M0 (expected exception)                  |
+| `license-audit`                                                                                   | 0 errors                                                                                   |
+| `stage:resources -- --check`                                                                      | up to date                                                                                 |
+| `install --frozen-lockfile`, `lint`, `build`, `.deb` build, packaged smoke on the `.deb`, Windows | BLOCKED here (no npm registry, no ESLint/Vite, no Windows); CI's                           |
+
+Written: [READINESS.md](READINESS.md) (the checklist: owner, environment, evidence, status for
+every gate and for field demonstration steps A–I), [USB-DEVICES.md](USB-DEVICES.md) (permissions,
+udev, stable names, what gets in the way), [EXTERNAL-SSD.md](EXTERNAL-SSD.md) (formatting,
+mounting, what WORLDVIEW does with a vault), the Linux section of
+`docs/releases/RELEASE-PROCESS.md`, and an index ([README.md](README.md)). The guides' device
+behaviour is from documentation and WORLDVIEW's own tested code; their walk-through on the P16s
+is part of H7–H11.
+
+## CI on the branch (GitHub, 2026-10-08)
+
+The **Build desktop** workflow, dispatched by the operator on the pushed branch:
+
+- **Run 37906699021** (`0a12ecc`): `linux` **success** — install, checks, `release:package`, SBOM,
+  verify, `assert-version --platform linux`, `.deb` inspection, apt install, smoke with and without
+  a keyring, offline trace and its control, uninstall. `windows` **failure** at `pnpm test`: 5 of
+  2,236 tests, all test-only Windows path problems — a fixture root built from a URL's pathname
+  (`D:\D:\…`) in `bundle.test.ts`, and a fake Linux sysfs whose `1-2:1.0` names Windows cannot
+  create in `local-hardware.test.ts`.
+- **Run 37908005425** (`f7efa28`, the fix): **both jobs success.**
+
+Not in that workflow, still to run on the branch: the `CI` workflow (`ci.yml`: format, lint,
+the test groups, perf budget).
+
+## Hardware test matrix
+
+| #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |
+| --- | ---------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------- | --------------- |
+| H1  | Machine identity: `sudo dmidecode -s system-product-name`, `lscpu`, `lspci -nn \| grep -i vga` | P16s, Ubuntu live USB or install | output pasted                                        | UNVERIFIED      |
+| H2  | `.deb` install, menu launch, no terminal                                                       | P16s Ubuntu                      | screenshot + `app.log` head                          | UNVERIFIED      |
+| H3  | 2D PMTiles and 3D globe draw; `glxinfo -B`                                                     | P16s Ubuntu                      | screenshots, Diagnostics GPU line                    | UNVERIFIED      |
+| H4  | Keyring: save and use an API key                                                               | P16s Ubuntu (GNOME)              | Settings shows key stored; `secure storage` log line | UNVERIFIED      |
+| H5  | History in DuckDB after restart                                                                | P16s Ubuntu                      | Diagnostics history line                             | UNVERIFIED      |
+| H6  | Multi-monitor and 125%/150% scaling                                                            | P16s + external display          | screenshots                                          | UNVERIFIED      |
+| H7  | Wi-Fi off, Ethernet out: start, offline basemap, search, history                               | P16s                             | screenshots + log showing no WAN                     | UNVERIFIED (M2) |
+| H8  | External SSD removed/re-inserted while running                                                 | P16s + 2 TB SSD                  | log + UI state                                       | UNVERIFIED (M2) |
+| H9  | RTL-SDR + 1090 MHz antenna → readsb → aircraft on map                                          | P16s + RTL-SDR                   | `lsusb`, decoder stats, screenshot                   | UNVERIFIED (M3) |
+| H10 | T-Beam over USB: node, battery, GNSS fix or NO FIX                                             | P16s + T-Beam                    | `ls -l /dev/serial/by-id`, screenshot                | UNVERIFIED (M4) |
+| H11 | Suspend/resume; unplug/replug serial and SDR                                                   | P16s                             | log, CPU via `top`                                   | UNVERIFIED (M5) |
+| H12 | Idle RSS / CPU / battery drain, Field vs Docked (`measure-linux.mjs`, FIELD.md)                | P16s on battery                  | the script's JSON, with `--baseline`                 | UNVERIFIED (M5) |
+
+## Acceptance tests (definition of done per phase)
+
+- **M1**: CI `linux` green on the branch, including installed-app smoke with `duckdb-parquet`;
+  Windows gate 16/16 on the branch; H2–H6 on the P16s.
+- **M2**: H7, H8; packaged offline-gate tests green in CI.
+- **M3**: fixture tests for aircraft.json edge cases green; H9 with real frames, or the source
+  showing a healthy receiver with zero aircraft.
+- **M4**: serial transport fixture tests (connect, disconnect, malformed frames, no fix) green;
+  H10.
+- **M5**: H11, H12.
+- **M6**: unauthorized, remote, oversized and policy-restricted requests fail closed in tests;
+  a separate unprivileged client reads an allowed bounded set.

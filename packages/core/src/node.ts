@@ -1,5 +1,5 @@
 /** Node-only helpers (main process, tools): atomic file writes, rotating file log sink, sha256. */
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { promises as fs, existsSync, mkdirSync, appendFileSync, statSync, renameSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import type { LogRecord, LogSink } from './logger.js';
@@ -12,11 +12,22 @@ export function sha256Hex(input: string | Uint8Array): string {
  * Atomic write: write to a temp file in the same directory, fsync, then rename over the
  * target. A crash mid-write never leaves a truncated settings/collections file.
  */
-export async function writeFileAtomic(target: string, data: string | Uint8Array): Promise<void> {
+export async function writeFileAtomic(
+  target: string,
+  data: string | Uint8Array,
+  options: { mode?: number } = {},
+): Promise<void> {
   const dir = path.dirname(target);
   await fs.mkdir(dir, { recursive: true });
-  const tmp = path.join(dir, `.${path.basename(target)}.${process.pid}.${Date.now()}.tmp`);
-  const handle = await fs.open(tmp, 'w');
+  // pid + time alone collide when two writes of one file start in the same millisecond (two
+  // refreshes racing); the random part makes each temporary file its own.
+  const tmp = path.join(
+    dir,
+    `.${path.basename(target)}.${process.pid}.${Date.now()}.${randomBytes(4).toString('hex')}.tmp`,
+  );
+  // The temporary file is always new, so `mode` (less the umask) is what the target ends up
+  // with after the rename. Windows keeps only the read-only bit of it.
+  const handle = await fs.open(tmp, 'w', options.mode ?? 0o666);
   try {
     await handle.writeFile(data);
     await handle.sync();

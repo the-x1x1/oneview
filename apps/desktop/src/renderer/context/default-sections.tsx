@@ -1,3 +1,4 @@
+import { ownFixText, receiverText } from './receiver-text.js';
 import {
   classifyConfidence,
   formatMgrs,
@@ -167,6 +168,8 @@ export const DEFAULT_SECTIONS: ContextSection[] = [
                   sources.find((s) => s.providerId === object.provenance.providerId)?.meta.attribution,
               },
               { label: 'Origin', value: object.provenance.origin },
+              { label: 'Received', value: receiverText(object.properties) },
+              { label: 'Your position', value: ownFixText(object.properties, nowMs) },
               { label: 'License', value: object.provenance.licenseId },
             ]}
           />

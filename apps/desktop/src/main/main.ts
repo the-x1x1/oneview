@@ -8,6 +8,7 @@ import {
   Menu,
   net,
   Notification,
+  powerMonitor,
   protocol,
   safeStorage,
   session,
@@ -33,7 +34,7 @@ import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/a
 import { registerAppScheme, serveRenderer } from './app-protocol.js';
 import { PACK_BASEMAP_ROUTE, packBasemapResponse } from './pack-basemap.js';
 import { buildInfo } from './build-info.js';
-import { CredentialStore, CredentialStoreError } from './credential-store.js';
+import { CredentialStore, CredentialStoreError, linuxPasswordStore } from './credential-store.js';
 import { IDENTIFIED_TILE_URLS, appUserAgent, identifiedTileHeaders, mergeSecurityHeaders } from './csp.js';
 import { buildExternalHostAllowlist, checkExternalUrl, type ExternalHostAllowlist } from './external-links.js';
 import { IpcRouter, type IpcInvokeEventLike } from './ipc-router.js';
@@ -66,6 +67,13 @@ registerAppScheme(protocol);
 // live HLS video cannot play in the window, and no third-party player is bundled. Whether it
 // took is logged at startup ("renderer media", renderer-watchdog.ts).
 app.commandLine.appendSwitch('enable-features', 'BuiltInHlsPlayer');
+
+// Linux: which secret store Chromium keeps the credential key in (credential-store.ts
+// linuxPasswordStore). Before whenReady, like every switch Chromium reads at start-up.
+if (process.platform === 'linux') {
+  const store = linuxPasswordStore(process.env, app.commandLine.hasSwitch('password-store'));
+  if (store) app.commandLine.appendSwitch('password-store', store);
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -124,7 +132,12 @@ async function bootstrap(): Promise<void> {
   hardenSession(DEV, security);
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
-  const credentials = new CredentialStore({ file: dirs.credentialsFile, safeStorage, logger: hub.logger('security') });
+  const credentials = new CredentialStore({
+    file: dirs.credentialsFile,
+    safeStorage,
+    logger: hub.logger('security'),
+    platform: process.platform,
+  });
   const credentialCheck: StartupCheck = {
     name: 'credentials',
     area: 'credentials',
@@ -142,7 +155,12 @@ async function bootstrap(): Promise<void> {
         findings.push({
           area: 'credentials' as const,
           severity: 'warn' as const,
-          message: 'OS secure storage unavailable; API keys cannot be saved on this system',
+          message: `OS secure storage unavailable; API keys cannot be saved on this system (${credentials.unavailableReason()})`,
+        });
+      if (process.platform === 'linux')
+        security.info('secure storage', {
+          backend: credentials.storageBackend ?? 'not reported',
+          usable: credentials.encryptionAvailable,
         });
       return findings;
     },
@@ -412,6 +430,18 @@ async function bootstrap(): Promise<void> {
   });
   const networkTimer = setInterval(pollNetwork, NETWORK_POLL_MS);
 
+  // Power and sleep (docs/cyberdeck M5): the OS's own events, nothing polled. On waking the
+  // network is asked at once (not in up to 15 s) and the vaults re-checked; a USB device that
+  // went away while asleep is reported by its source and reconnects on its own.
+  runtime.setPowerSource?.(powerMonitor.isOnBatteryPower());
+  powerMonitor.on('on-battery', () => runtime.setPowerSource?.(true));
+  powerMonitor.on('on-ac', () => runtime.setPowerSource?.(false));
+  powerMonitor.on('suspend', () => log.info('suspending', {}));
+  powerMonitor.on('resume', () => {
+    pollNetwork();
+    void runtime.notifyResume?.();
+  });
+
   const preloadPath = path.join(appDir, 'dist', 'preload', 'preload.cjs');
   if (!DEV)
     serveRenderer(
@@ -454,6 +484,8 @@ async function bootstrap(): Promise<void> {
   });
   app.on('before-quit', () => {
     clearInterval(networkTimer);
+    // The local API's socket goes now: the asynchronous stop below may not finish before exit.
+    runtime.localApi?.closeNow();
     router.dispose();
     updater.dispose();
     void runtime
@@ -482,6 +514,14 @@ function electronHostBridge(): HostBridge {
       const chosen = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
       const file = chosen.filePaths[0];
       return chosen.canceled || !file ? { cancelled: true } : { path: file };
+    },
+    // A data vault: an existing folder (making one on the drive is allowed in the dialog).
+    pickFolder: async (opts) => {
+      const win = parent();
+      const options = { title: opts.title, properties: ['openDirectory' as const, 'createDirectory' as const] };
+      const chosen = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      const folder = chosen.filePaths[0];
+      return chosen.canceled || !folder ? { cancelled: true } : { path: folder };
     },
     pickSaveFile: async (opts) => {
       const win = parent();

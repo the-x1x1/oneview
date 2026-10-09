@@ -16,6 +16,7 @@ import type {
 } from '@worldview/provider-sdk';
 import { ProviderError } from '@worldview/provider-sdk';
 import { createOgr2ogrAccess, readGrantedFile, statGrantedFile, type Ogr2ogrHostOptions } from './granted-folder.js';
+import { openSerialStream, type SerialStreamOptions } from './serial-stream.js';
 
 /**
  * Per-provider storage the ProviderHost injects: a small JSON cache, provider-scoped
@@ -232,6 +233,8 @@ export interface LocalAccessOptions {
   maxWriteBytes?: number;
   /** Writes a byte stream may make per minute (default 60). */
   maxWritesPerMinute?: number;
+  /** Tests: serial stream hooks (a pseudo-terminal as the device, no `stty`). */
+  serial?: Partial<Pick<SerialStreamOptions, 'isAllowedPath' | 'isAllowedDevice' | 'configure' | 'platform'>>;
 }
 
 const DEFAULT_MAX_FILE_BYTES = 32 * 1024 * 1024;
@@ -284,6 +287,13 @@ export function createLocalAccess(opts: LocalAccessOptions): ProviderLocalAccess
         maxBytesPerSecond: opts.maxBytesPerSecond ?? 256 * 1024,
         maxWriteBytes: opts.maxWriteBytes ?? 1024,
         maxWritesPerMinute: opts.maxWritesPerMinute ?? 60,
+      }),
+    openSerialStream: (target, events) =>
+      openSerialStream(target, events, {
+        maxBytesPerSecond: opts.maxBytesPerSecond ?? 256 * 1024,
+        maxWriteBytes: opts.maxWriteBytes ?? 1024,
+        maxWritesPerMinute: opts.maxWritesPerMinute ?? 60,
+        ...(opts.serial ?? {}),
       }),
     async probeLocal(url, probeOpts) {
       let parsed: URL;

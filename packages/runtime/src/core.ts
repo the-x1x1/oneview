@@ -47,7 +47,16 @@ import {
   type Gazetteer,
   type HistoryReader,
 } from '@worldview/query-engine';
-import { ConnectionMonitor, WorldPackRegistry } from '@worldview/offline';
+import {
+  ConnectionMonitor,
+  VaultMonitor,
+  WorldPackRegistry,
+  initVault,
+  probeVault,
+  vaultSummary,
+  vaultWritable,
+  type RegistryVault,
+} from '@worldview/offline';
 import {
   CameraHub,
   CameraRelay,
@@ -77,6 +86,7 @@ import type {
   Collection,
   DiagnosticsSnapshot,
   FeedItem,
+  FieldHostStatus,
   OfflineStatus,
   WatchZone,
   WorldFlightInfo,
@@ -90,6 +100,8 @@ import {
 import type { HostBridge, RuntimeCredentialStore, WorldRuntimeDeps } from './deps.js';
 import { inProcessHostBridge } from './deps.js';
 import { RuntimeEmitter } from './support/emitter.js';
+import { hardwareLines, scanLocalHardware } from './support/local-hardware.js';
+import { readPower } from './support/power.js';
 import { JsonDocStore } from './support/json-doc-store.js';
 import {
   FileProviderCache,
@@ -136,6 +148,8 @@ const END_QUIET_MS = 60_000;
 const PROBE_HOST = 'earthquake.usgs.gov';
 const PROBE_URL = `https://${PROBE_HOST}/earthquakes/feed/v1.0/summary/all_hour.geojson`;
 const PROBE_MIN_INTERVAL_MS = 30_000;
+/** Field profile: sources on the internet wait this many times their normal interval. */
+const FIELD_POLL_SCALE = 3;
 const DEFAULT_VERSION = '0.1.0';
 
 /** Project pages that are always openable, independent of which providers are registered. */
@@ -236,6 +250,8 @@ export class RuntimeCore {
   feed!: FeedBuilder;
   watchZones!: WatchZoneEvaluator;
   packs!: WorldPackRegistry;
+  /** Health of the operator's data vaults (external drives), re-checked every 30 s. */
+  vaults!: VaultMonitor;
   connection!: ConnectionMonitor;
   cameras!: CameraHub;
   cameraSecrets!: SecretStore;
@@ -275,6 +291,10 @@ export class RuntimeCore {
   viewCenter: { latitude: number; longitude: number } | undefined;
   /** What the shell's OS network monitor last reported through `setNetworkOnline`. */
   osOnline = true;
+  /** The host's on-battery flag (Electron powerMonitor), through `setPowerSource`. */
+  private onBattery: boolean | undefined;
+  /** When the computer last woke from sleep, through `notifyResume`. */
+  private resumedAt: string | undefined;
   private osListeners = new Set<(online: boolean) => void>();
   private historyOpen = false;
   private lastProbeAt = 0;
@@ -573,7 +593,13 @@ export class RuntimeCore {
   }
 
   private async buildOffline(): Promise<void> {
+    this.vaults = new VaultMonitor({
+      vaults: () => this.settings.get().storage?.vaults ?? [],
+      logger: this.loggerHub.logger('offline'),
+    });
+    await this.vaults.check();
     this.packs = new WorldPackRegistry({
+      vaults: () => this.registryVaults(),
       dataDir: this.dirs.root,
       appVersion: this.version,
       clock: this.clock,
@@ -861,6 +887,26 @@ export class RuntimeCore {
                 : 'starts on the first camera stream request',
             },
           ];
+          const scan = this.deps.hardwareScan ?? (process.platform === 'linux' ? () => scanLocalHardware() : undefined);
+          if (scan)
+            out.push(
+              ...(await scan()
+                .then(hardwareLines)
+                .catch((err: unknown) => [
+                  {
+                    id: 'hardware',
+                    status: 'error' as const,
+                    message: `could not read USB devices: ${errorText(err)}`,
+                  },
+                ])),
+            );
+          for (const v of this.vaults.current())
+            out.push({
+              id: `vault:${v.label}`,
+              status:
+                v.state === 'absent' ? 'stopped' : v.state === 'foreign' || v.state === 'error' ? 'error' : 'running',
+              message: `${v.state}: ${v.message}${v.freeBytes !== undefined ? ` (${(v.freeBytes / 1024 ** 3).toFixed(1)} GB free)` : ''} — ${v.path}`,
+            });
           return out;
         },
         updater: () => this.updater.state(),
@@ -921,6 +967,20 @@ export class RuntimeCore {
       }),
     );
     this.detach.push(
+      // A drive pulled or plugged in: its packs leave or come back.
+      this.vaults.on('changed', () => {
+        void this.packs
+          .refresh()
+          .then(() => {
+            this.emitter.emit('offline.changed', this.offlineStatus());
+            void this.reloadPackDefinitions('vault changed');
+          })
+          .catch((err: unknown) =>
+            this.log.warn('pack refresh after a vault change failed', { error: errorText(err) }),
+          );
+      }),
+    );
+    this.detach.push(
       this.packs.on('changed', () => {
         this.emitter.emit('offline.changed', this.offlineStatus());
         // A pack installed, removed, switched or trusted can bring or take a definition set.
@@ -936,6 +996,7 @@ export class RuntimeCore {
     this.detach.push(
       this.settings.onChange((settings) => {
         this.emitter.emit('settings.changed', settings as ContractSettings);
+        this.applyProfile();
         this.updater.applyPolicy();
         this.history.setMaxBytes(settings.history.maxMB * 1024 * 1024);
       }),
@@ -1221,8 +1282,10 @@ export class RuntimeCore {
   async start(): Promise<void> {
     if (this.started) return;
     this.started = true;
+    this.applyProfile(true);
     await this.providerHost.start();
     this.connection.start();
+    this.vaults.start();
     await this.connection.tick().catch(() => undefined);
     await this.timeline
       .refreshAvailability()
@@ -1320,6 +1383,7 @@ export class RuntimeCore {
     }
     this.detach = [];
     this.connection.stop();
+    this.vaults.stop();
     await this.providerHost.dispose().catch(() => undefined);
     this.events.dispose();
     this.state.dispose();
@@ -1398,7 +1462,141 @@ export class RuntimeCore {
   }
 
   offlineStatus(): OfflineStatus {
-    return this.packs.status(this.connectionSnapshot());
+    return { ...this.packs.status(this.connectionSnapshot()), vaults: this.vaults.current().map(vaultSummary) };
+  }
+
+  /** The configured vaults with what their last check said, for the pack registry. */
+  private registryVaults(): RegistryVault[] {
+    return (this.settings.get().storage?.vaults ?? []).map((v) => ({
+      id: v.id,
+      label: v.label,
+      root: v.path,
+      state: this.vaults.get(v.id)?.state ?? 'absent',
+    }));
+  }
+
+  /**
+   * Make a folder the operator chose a data vault (marking it, or adopting the vault already
+   * there) and add it to settings. Never creates the folder.
+   */
+  async addVault(
+    folder: string,
+    label: string,
+  ): Promise<{ ok: true; adopted: boolean } | { ok: false; reason: string }> {
+    const current = this.settings.get().storage?.vaults ?? [];
+    if (current.length >= 8) return { ok: false, reason: 'at most 8 data vaults' };
+    const r = await initVault(folder, label, {
+      appDataDir: this.dirs.root,
+      now: () => this.clock.now(),
+      ...(this.deps.vaultsOnAppDrive ? { allowSameDrive: true } : {}),
+    });
+    if (!r.ok) return r;
+    if (current.some((v) => v.id === r.vault.id))
+      return { ok: false, reason: `"${r.vault.label}" is already a vault here` };
+    // One vault inside another would read the inner one as a pack folder of the outer.
+    const nested = current.find((v) => isWithin(v.path, r.vault.path) || isWithin(r.vault.path, v.path));
+    if (nested) return { ok: false, reason: `${r.vault.path} overlaps the vault "${nested.label}" (${nested.path})` };
+    await this.settings.patch({ storage: { vaults: [...current, r.vault] } });
+    await this.refreshVaults();
+    this.log.info('vault added', { id: r.vault.id, label: r.vault.label, adopted: r.adopted });
+    return { ok: true, adopted: r.adopted };
+  }
+
+  /** Stop using a vault. Its files, marker included, are left exactly as they are. */
+  async removeVault(id: string): Promise<boolean> {
+    const current = this.settings.get().storage?.vaults ?? [];
+    if (!current.some((v) => v.id === id)) return false;
+    await this.settings.patch({ storage: { vaults: current.filter((v) => v.id !== id) } });
+    await this.refreshVaults();
+    this.log.info('vault removed', { id });
+    return true;
+  }
+
+  /** Install a pack onto a vault, re-checking the vault before writing and before activating. */
+  async installPackToVault(file: string, vaultId: string): ReturnType<WorldPackRegistry['install']> {
+    const setting = (this.settings.get().storage?.vaults ?? []).find((v) => v.id === vaultId);
+    const vault = this.registryVaults().find((v) => v.id === vaultId);
+    if (!setting || !vault) throw new Error('no such data vault');
+    const recheck = async (): Promise<{ ok: true; device: number } | { ok: false; reason: string }> => {
+      const h = await probeVault(setting, { probeWrite: true });
+      if (!vaultWritable(h.state)) return { ok: false, reason: h.message };
+      if (h.device === undefined) return { ok: false, reason: `could not tell which drive ${setting.path} is on` };
+      return { ok: true, device: h.device };
+    };
+    return this.packs.install(file, { vault, recheck });
+  }
+
+  /** Field profile (docs/cyberdeck M5): internet sources poll a third as often; local ones never slow. */
+  private applyProfile(atStart = false): void {
+    const profile = (this.settings.get().display as { profile?: string }).profile;
+    const scale = profile === 'field' ? FIELD_POLL_SCALE : 1;
+    if (!atStart && this.providerHost.pollIntervalScale === scale) return;
+    this.providerHost.setPollScale(scale);
+    this.log.info('profile applied', { profile: profile ?? 'balanced', remotePollScale: scale });
+  }
+
+  /**
+   * Power and disk headroom for the field status strip, read when asked: battery from Linux
+   * sysfs (elsewhere only the host's on-battery flag), free space where the app keeps its data.
+   */
+  async fieldStatus(): Promise<FieldHostStatus> {
+    const power =
+      this.platform === 'linux'
+        ? await readPower({
+            ...(this.deps.powerSysRoot ? { sysRoot: this.deps.powerSysRoot } : {}),
+            ...(this.onBattery !== undefined ? { onBattery: this.onBattery } : {}),
+          })
+        : {
+            source:
+              this.onBattery === undefined
+                ? ('unknown' as const)
+                : this.onBattery
+                  ? ('battery' as const)
+                  : ('ac' as const),
+          };
+    let appDisk: FieldHostStatus['appDisk'];
+    try {
+      const st = await fs.statfs(this.dirs.root);
+      appDisk = { freeBytes: Number(st.bavail) * Number(st.bsize), totalBytes: Number(st.blocks) * Number(st.bsize) };
+    } catch {
+      appDisk = undefined;
+    }
+    return {
+      power,
+      ...(appDisk ? { appDisk } : {}),
+      ...(this.resumedAt ? { resumedAt: this.resumedAt } : {}),
+      at: new Date(this.clock.now()).toISOString(),
+    };
+  }
+
+  /** The OS says the computer moved to battery or to mains (Electron powerMonitor). */
+  setPowerSource(onBattery: boolean): void {
+    if (this.onBattery === onBattery) return;
+    this.onBattery = onBattery;
+    this.log.info('power source', { onBattery });
+    void this.fieldStatus().then((st) => this.emitter.emit('field.changed', st));
+  }
+
+  /**
+   * The computer woke from sleep. Devices may have gone and come back, a drive may be missing:
+   * re-check the vaults now rather than at the next 30 s check, and tell the page. Sources keep
+   * their own reconnect logic (a serial node that went away reconnects on its own back-off).
+   */
+  async notifyResume(): Promise<void> {
+    this.resumedAt = new Date(this.clock.now()).toISOString();
+    this.log.info('resumed from sleep', {});
+    await this.refreshVaults().catch((err: unknown) =>
+      this.log.warn('vault check after resume failed', { message: err instanceof Error ? err.message : String(err) }),
+    );
+    this.emitter.emit('field.changed', await this.fieldStatus());
+  }
+
+  /** Re-check the vaults now, re-read packs, and tell the page. */
+  async refreshVaults(): Promise<void> {
+    await this.vaults.check();
+    await this.packs.refresh();
+    this.emitter.emit('offline.changed', this.offlineStatus());
+    void this.reloadPackDefinitions('vaults changed');
   }
 
   async allLenses(): Promise<LensDefinition[]> {
@@ -1601,4 +1799,10 @@ async function directorySize(dir: string): Promise<number> {
     }
   }
   return total;
+}
+
+/** Is `inner` the same folder as `outer` or inside it? */
+function isWithin(outer: string, inner: string): boolean {
+  const rel = path.relative(path.resolve(outer), path.resolve(inner));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }

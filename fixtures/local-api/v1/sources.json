@@ -1,0 +1,26 @@
+{
+  "request": "GET /v1/sources",
+  "status": 200,
+  "body": {
+    "at": "2026-10-08T20:00:00.000Z",
+    "sources": [
+      {
+        "providerId": "readsb-local",
+        "name": "readsb-local",
+        "locality": "local",
+        "enabled": true,
+        "status": "LIVE",
+        "objectCount": 3,
+        "readable": true
+      },
+      {
+        "providerId": "meshtastic-local",
+        "name": "meshtastic-local",
+        "locality": "local",
+        "enabled": true,
+        "status": "LIVE",
+        "readable": false
+      }
+    ]
+  }
+}

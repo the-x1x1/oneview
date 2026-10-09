@@ -30,6 +30,19 @@ const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const POSITION_ACCURACY_M = 30;
 
 /**
+ * What received it (docs/cyberdeck M3): this computer's own 1090 MHz receiver, through a decoder
+ * the operator installed. Carried on every observation so the details panel and an export say
+ * "received here on 1090 MHz", not just "local". A row flagged `mlat` or `tisb` was not decoded
+ * from this receiver's own signal; the flag says so.
+ */
+export const RECEIVER_PROVENANCE = Object.freeze({
+  kind: 'own-receiver',
+  frequencyMHz: 1090,
+  signal: 'Mode S / ADS-B (1090ES)',
+  decoder: 'readsb / dump1090 (aircraft.json)',
+});
+
+/**
  * Polls a readsb/dump1090 `aircraft.json` on loopback (or a trusted host) once a second.
  * Detection is conservative: the configured endpoint is probed before polling; when it is not
  * reachable the provider reports OFFLINE ("readsb not detected at …") and asks the runtime to
@@ -110,6 +123,7 @@ export class ReadsbLocalProvider extends PollingProvider {
       sourceRef: url,
       hash: (s) => this.context.hash.sha256Hex(s),
     });
+    for (const o of result.observations) o.payload = { ...o.payload, receiver: { ...RECEIVER_PROVENANCE } };
     // Rows without a position (Mode S only, or not yet decoded) are normal for a receiver;
     // only rows broken for other reasons count towards atomic admission.
     const hard = result.rejected.filter((r) => r.reason !== 'missing position').length;

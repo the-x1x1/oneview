@@ -361,6 +361,43 @@ export interface WorldPackSummary {
   /** When the pack was built and when its publisher says it goes out of date (manifest). */
   createdAt?: string;
   expiresAt?: string;
+  /**
+   * (additive, 2026-10-08) The data vault the pack lives on (an external drive, say), when it is
+   * not in the app's own folder. While that vault is not connected the pack is listed `invalid`
+   * with a message saying so — kept, never forgotten or deleted.
+   */
+  vault?: { id: string; label: string };
+}
+
+/**
+ * (additive, 2026-10-08) An operator-granted data folder outside the app's own — an external
+ * SSD, typically (docs/cyberdeck/ARCHITECTURE.md). Identified by the marker file WorldView writes
+ * when it is added, never by its path: an unmounted drive's mount point is an empty folder on the
+ * internal disk, and nothing is ever written there.
+ *
+ *  - `ready`      readable and writable, with room
+ *  - `read-only`  readable; nothing is written (mounted read-only, or no permission)
+ *  - `low-space`  readable; nothing new is written until there is room
+ *  - `absent`     not there, or the folder is there without the marker (drive not mounted)
+ *  - `foreign`    a different vault's marker is there (another drive mounted at that path)
+ *  - `error`      could not be checked (I/O error, unreadable marker)
+ */
+/** A data vault as settings hold it; `id` is the one in the vault's marker file. */
+export interface VaultSetting {
+  id: string;
+  label: string;
+  path: string;
+}
+
+export interface VaultHealthSummary {
+  id: string;
+  label: string;
+  path: string;
+  state: 'ready' | 'read-only' | 'low-space' | 'absent' | 'foreign' | 'error';
+  message: string;
+  freeBytes?: number;
+  totalBytes?: number;
+  checkedAt: string;
 }
 
 /**
@@ -382,6 +419,29 @@ export interface WorldPackTrustSummary {
   publishers: Array<{ keyId: string; name: string; addedAt: string }>;
 }
 
+/**
+ * (additive, 2026-10-08, docs/cyberdeck M5) This computer's power, as the OS reports it: Linux
+ * sysfs for the battery level, the host's on-battery flag elsewhere. Read when asked.
+ */
+export interface PowerStatus {
+  source: 'battery' | 'ac' | 'unknown';
+  /** 0–100 across all batteries; absent when none reports it. */
+  batteryPct?: number;
+  charging?: boolean;
+  /** No battery at all (a desktop, a virtual machine). */
+  noBattery?: boolean;
+}
+
+/** (additive, 2026-10-08) What the field status strip needs from the host, beyond sources and vaults. */
+export interface FieldHostStatus {
+  power: PowerStatus;
+  /** Free and total space on the drive holding the app's data (history, caches). */
+  appDisk?: { freeBytes: number; totalBytes: number };
+  /** When the computer last woke from sleep (ISO), if it has since the app started. */
+  resumedAt?: string;
+  at: string;
+}
+
 export interface OfflineStatus {
   connection: ConnectionSnapshot;
   packs: WorldPackSummary[];
@@ -395,6 +455,8 @@ export interface OfflineStatus {
     collections: boolean;
     localAircraft: boolean;
   };
+  /** (additive, 2026-10-08) The operator's data vaults and their health; absent from older hosts. */
+  vaults?: VaultHealthSummary[];
 }
 
 export interface DiagnosticsSnapshot {
@@ -546,6 +608,18 @@ export interface AppSettings {
      * selection's Position section adds it beside the coordinates. Absent or `none`: degrees only.
      */
     hudGrid?: 'none' | 'mgrs' | 'utm';
+    /**
+     * (additive, 2026-10-08, docs/cyberdeck M5) How hard the app works — the name of the last
+     * profile chosen; choosing one sets other settings, which the operator may change after.
+     * `field`: Low graphics, the 2D map, the field status strip on, and sources on the internet
+     * polled a third as often (the runtime reads this key for that). `balanced` (or absent):
+     * Automatic graphics, normal polling. `docked`: High graphics, the 3D globe, normal polling.
+     * Chosen by the operator only — never switched on battery by itself, and never slows or
+     * stops a source on this computer.
+     */
+    profile?: 'field' | 'balanced' | 'docked';
+    /** (additive, 2026-10-08) The compact field status strip under the top bar; absent means off. */
+    fieldStatus?: boolean;
   };
   /**
    * (additive, 2026-09-28) Online place search (`search.places`): absent means on. Off, the
@@ -562,6 +636,18 @@ export interface AppSettings {
    * the operator's own network keep running. Absent means off.
    */
   network?: { workOffline: boolean };
+  /**
+   * (additive, 2026-10-08, docs/cyberdeck M6, ADR-014) The local read-only API for other programs
+   * of this user on this computer (Formicaria): a Unix socket, Linux only, off unless turned on.
+   * `ownPosition` separately allows it to answer with this computer's own GPS position.
+   */
+  localApi?: { enabled: boolean; ownPosition?: boolean };
+  /**
+   * (additive, 2026-10-08) Data vaults the operator added (Settings → Offline): folders outside
+   * the app's own, usually on an external drive, that hold world packs. Settings, credentials,
+   * history and indexes stay in the app's own folder. Absent: none.
+   */
+  storage?: { vaults: VaultSetting[] };
   /**
    * (additive, 2026-09-28) The operator's home view: set from the current view in Settings,
    * flown to with Home or Shift+H, and at start when `flyOnStart` is on (asked on the
@@ -946,6 +1032,8 @@ export interface WorldRequests {
   'feed.recent': { request: { limit?: number; minimumSeverity?: SeverityClass }; response: FeedItem[] };
 
   'offline.status': { request: void; response: OfflineStatus };
+  /** (additive, 2026-10-08) Power and disk headroom for the field status strip (docs/cyberdeck M5). */
+  'field.status': { request: void; response: FieldHostStatus };
   'offline.installPack': { request: void; response: { installed: WorldPackSummary | null; issues: string[] } };
   'offline.removePack': { request: { id: string }; response: OfflineStatus };
   'offline.setPackEnabled': { request: { id: string; enabled: boolean }; response: OfflineStatus };
@@ -958,6 +1046,18 @@ export interface WorldRequests {
   };
   'offline.removePublisher': { request: { keyId: string }; response: OfflineStatus };
   'offline.setRequireTrusted': { request: { required: boolean }; response: OfflineStatus };
+  /**
+   * (additive, 2026-10-08) Data vaults. `addVault` asks for a folder (the OS folder dialog in
+   * main), marks it as a vault — or adopts the vault already there — and adds it to settings;
+   * `removeVault` stops using one and leaves its files alone; `installPackTo` installs a pack
+   * file the operator picks onto a vault that is connected and writable.
+   */
+  'offline.addVault': { request: void; response: { status: OfflineStatus; added: string | null; issues: string[] } };
+  'offline.removeVault': { request: { id: string }; response: OfflineStatus };
+  'offline.installPackTo': {
+    request: { vaultId: string };
+    response: { installed: WorldPackSummary | null; issues: string[] };
+  };
 
   'export.objects': {
     /** `kml` (additive, 2026-10-05): objects with a position as placemarks, for Google Earth and ATAK. */
@@ -1066,6 +1166,8 @@ export interface WorldEvents {
   };
   'updater.changed': UpdaterState;
   'offline.changed': OfflineStatus;
+  /** (additive, 2026-10-08) Power source changed, or the computer woke from sleep. */
+  'field.changed': FieldHostStatus;
   'settings.changed': AppSettings;
   'lenses.changed': LensDefinition[];
 }
@@ -1133,6 +1235,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'watchzones.import',
   'feed.recent',
   'offline.status',
+  'field.status',
   'offline.installPack',
   'offline.removePack',
   'offline.setPackEnabled',
@@ -1140,6 +1243,9 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'offline.importPublisher',
   'offline.removePublisher',
   'offline.setRequireTrusted',
+  'offline.addVault',
+  'offline.removeVault',
+  'offline.installPackTo',
   'export.objects',
   'export.track',
   'export.readings',
@@ -1171,6 +1277,7 @@ export const EVENT_CHANNELS: readonly EventChannel[] = Object.freeze([
   'notification',
   'updater.changed',
   'offline.changed',
+  'field.changed',
   'settings.changed',
   'lenses.changed',
 ]);
@@ -1212,3 +1319,5 @@ export interface IpcError {
 export function isIpcError(v: unknown): v is IpcError {
   return typeof v === 'object' && v !== null && 'code' in v && 'channel' in v && 'message' in v;
 }
+
+export * from './local-api.js';

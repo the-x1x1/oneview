@@ -345,6 +345,15 @@ export interface ProviderLocalAccess {
     events: ByteStreamEvents,
     opts?: { connectTimeoutMs?: number },
   ): Promise<ByteStreamHandle>;
+  /**
+   * Local transports (ADR-003 amendment 2026-10-08, docs/cyberdeck M4): a USB serial port to a
+   * device on this computer — a Meshtastic node plugged in by cable — with exactly the reading
+   * and writing rules of `openByteStream`. Only a USB serial device is accepted
+   * (`/dev/serial/by-id/…`, `/dev/ttyUSB<n>`, `/dev/ttyACM<n>` on Linux); nothing is scanned or
+   * opened but the one path the operator named. Optional: a host without it (or not on Linux)
+   * refuses with UNSUPPORTED.
+   */
+  openSerialStream?(target: { path: string; baudRate: number }, events: ByteStreamEvents): Promise<ByteStreamHandle>;
 }
 
 export interface ByteStreamEvents {

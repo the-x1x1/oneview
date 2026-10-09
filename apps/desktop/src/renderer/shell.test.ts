@@ -393,3 +393,22 @@ test('start: the splash until the first frame; home view and online search are t
   html = render(s);
   assert.ok(html.includes('Home: 21.3000° N, 157.8500° W · 20 km up'));
 });
+
+test('field status strip: absent by default; with it on, one line of field readings and nothing made up', async () => {
+  const client = new DemoClient({ now: () => T0 });
+  const state = await loadInitialState(client, () => T0);
+  const off = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: state, now: () => T0 }));
+  assert.ok(!off.includes('aria-label="Field status"'));
+  const settings = state.session.settings!;
+  const on = rootReducer(state, {
+    type: 'session/settings',
+    settings: { ...settings, display: { ...settings.display, fieldStatus: true } },
+  });
+  const html = renderToStaticMarkup(createShell({ client, host: fakeHost, initialState: on, now: () => T0 }));
+  const strip = html.slice(html.indexOf('aria-label="Field status"'));
+  assert.ok(strip.length > 0 && html.includes('class="wv-fieldbar"'));
+  assert.ok(/>NET<[\s\S]*>GPS</.test(strip), 'network and GPS first');
+  // The demo knows nothing of this computer's power: no battery item rather than an invented one.
+  assert.ok(!/>PWR</.test(html));
+  assertHonest(html);
+});

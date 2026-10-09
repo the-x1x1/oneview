@@ -96,6 +96,32 @@ produce RC(n+1) → focused retest.
 
 Blocking failures never merge to `main`.
 
+### Linux (x86_64 `.deb`)
+
+Built only on Linux — the **Build desktop** workflow's `linux` job (Ubuntu 24.04), or the
+laptop — never cross-built. The job runs the same gates, then:
+
+```bash
+pnpm release:package                        # empties the output directories first, builds worldview_x.y.z_amd64.deb
+pnpm sbom
+pnpm release:verify                         # hashes the .deb into SHA256SUMS.txt and verification-report.json
+pnpm release:assert-version --platform linux
+```
+
+and installs the `.deb` it just built with apt, runs the packaged-app smoke test with and
+without a keyring (`apps/desktop/scripts/smoke-linux.mjs`), the offline trace
+(`offline-trace-linux.mjs`: no outside connection with Work offline on; its control run must
+reach out) and an uninstall that keeps user data. Its output is the `worldview-linux-x64`
+workflow artifact — `worldview_x.y.z_amd64.deb`, `WorldView-x.y.z.sbom.json`,
+`SHA256SUMS.txt`, `verification-report.json` and the smoke and trace JSON. **It never attaches
+anything to a release**: Linux assets are published only by the operator's decision, by exact
+name, after comparing the hashes in `SHA256SUMS.txt` with the files.
+
+`release:assert-version --platform linux` fails on a `.deb` or SBOM of any other version, a
+report written before packaging, or a commit mismatch — the same guard against stale assets as
+on Windows. There is no AppImage: electron-builder's AppImage launcher adds `--no-sandbox` on
+Ubuntu 24.04+ (docs/cyberdeck/ROADMAP.md, "Decisions taken").
+
 ## Promotion
 
 Only after explicit human approval:

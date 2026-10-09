@@ -1,4 +1,5 @@
 import type { Clock, GeoPosition, SeverityClass } from '@worldview/world-model';
+import type { LocalHardwareScan } from './support/local-hardware.js';
 import type { Logger, LoggerHub, CredentialResolver } from '@worldview/core';
 import type { DataDirs, SettingsStore } from '@worldview/config';
 import type { WorldProvider } from '@worldview/provider-sdk';
@@ -43,6 +44,8 @@ export interface HostBridge {
    */
   showNotification(notification: { title: string; body: string; severity?: SeverityClass }): void;
   appPaths(): { downloads?: string };
+  /** (2026-10-08) The OS folder dialog, for a data vault. Hosts without one cannot add vaults. */
+  pickFolder?(opts: { title: string }): Promise<FileChoice>;
 }
 
 /** The browser / in-process HostBridge: no dialogs, no shell, nothing silently written anywhere. */
@@ -134,6 +137,21 @@ export interface WorldRuntimeDeps {
   manualScheduling?: boolean;
   /** Skip the reachability probe (offline tests, demo). */
   disableReachabilityProbe?: boolean;
+  /**
+   * Tests only: let a data vault sit on the same drive as the app's own data. In the app a vault
+   * must be on another drive — that is what stops an empty mount point on the internal disk from
+   * being marked as one (packages/offline vault.ts initVault).
+   */
+  vaultsOnAppDrive?: boolean;
+  /**
+   * Radio hardware on this computer for Diagnostics (support/local-hardware.ts). Defaults to the
+   * sysfs scan on Linux and nothing elsewhere; tests pass a fixed scan.
+   */
+  hardwareScan?: () => Promise<LocalHardwareScan>;
+  /** Where the local API's socket goes (ADR-014); default `$XDG_RUNTIME_DIR/worldview/api.sock`. */
+  localApiSocket?: string;
+  /** Tests: where `/sys` is for the battery read (support/power.ts); default the real one. */
+  powerSysRoot?: string;
 
   /** electron-updater stand-in. Defaults to the inert updater (status `disabled`). */
   updater?: AutoUpdaterLike;

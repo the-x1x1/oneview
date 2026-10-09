@@ -576,7 +576,19 @@ export class DemoClient implements WorldClient {
       case 'offline.trustPublisher':
       case 'offline.removePublisher':
       case 'offline.setRequireTrusted':
+      case 'offline.removeVault':
         return this.offlineStatus(nowMs);
+      case 'offline.addVault':
+        return {
+          status: this.offlineStatus(nowMs),
+          added: null,
+          issues: ['Adding a data vault needs a folder picker; not available in the browser demo'],
+        };
+      case 'offline.installPackTo':
+        return { installed: null, issues: ['No data vaults in the browser demo'] };
+      case 'field.status':
+        // A browser cannot read this computer's power or disks: said as unknown, never made up.
+        return { power: { source: 'unknown' }, at: new Date(nowMs).toISOString() };
       case 'offline.importPublisher':
         return {
           status: this.offlineStatus(nowMs),

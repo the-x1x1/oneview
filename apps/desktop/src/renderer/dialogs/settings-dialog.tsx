@@ -5,6 +5,7 @@ import { basemapChoices, terrainChoices, type MapProviderChoice } from '../map-p
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { InstallPackButton, PackFreshness, PackPublishers, PackSignature } from './pack-trust.js';
+import { DataVaults } from './data-vaults.js';
 import { VISUAL_STYLE_IDS, type AppSettings, type VisualStyleId } from '@worldview/ipc-contract';
 import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
 import { gpuRenderer } from '../map/gpu-info.js';
@@ -116,6 +117,29 @@ export function SettingsDialog() {
             onChange={(v) =>
               void actions.updateSettings({ reference: { ...REFERENCE_DEFAULT, ...s.reference, labels: v } })
             }
+          />
+          <label className="wv-field">
+            Profile
+            <select
+              className="wv-select"
+              value={display.profile ?? 'balanced'}
+              onChange={(e) => void actions.setProfile(e.target.value as 'field' | 'balanced' | 'docked')}
+            >
+              <option value="field">Field — on battery, in the field</option>
+              <option value="balanced">Balanced</option>
+              <option value="docked">Docked — on mains, at a desk</option>
+            </select>
+            <span className="wv-field__hint">
+              Field: Low graphics, the 2D map, the status strip, and sources on the internet asked a third as often.
+              Docked: High graphics and the globe. Sources on this computer (receivers, a node by USB) are never slowed
+              or stopped by a profile, and nothing switches profile on its own.
+            </span>
+          </label>
+          <Toggle
+            label="Field status strip"
+            description="One line under the top bar: network, this computer's GPS, the aircraft receiver, the mesh, the data vault, free disk and battery, with a switch for each receiver."
+            checked={display.fieldStatus ?? false}
+            onChange={(v) => setDisplay({ fieldStatus: v })}
           />
           <label className="wv-field">
             Graphics quality
@@ -275,6 +299,25 @@ export function SettingsDialog() {
             onChange={(v) => void actions.updateSettings({ network: { workOffline: v } })}
           />
         </Section>
+        {session.appInfo?.platform === 'linux' ? (
+          <Section title="Local API">
+            <Toggle
+              label="Let other programs on this computer read WORLDVIEW"
+              description="A read-only connection for your own programs (Formicaria): source status, objects near a place, tracks and offline status, through a socket only your user can open — never the network. Data whose source does not allow it out of the app (a Meshtastic mesh, among others) is never given. Off unless you turn it on."
+              checked={s.localApi?.enabled === true}
+              onChange={(v) => void actions.updateSettings({ localApi: { ...s.localApi, enabled: v } })}
+            />
+            <Toggle
+              label="Include this computer's position"
+              description="Also answer with this computer's own GPS position (from a node plugged in by USB), with its fix time and accuracy — and no coordinates when there is no fix."
+              checked={s.localApi?.ownPosition === true}
+              disabled={s.localApi?.enabled !== true}
+              onChange={(v) =>
+                void actions.updateSettings({ localApi: { enabled: s.localApi?.enabled === true, ownPosition: v } })
+              }
+            />
+          </Section>
+        ) : null}
         <Section title="Search">
           <Toggle
             label="Online place search"
@@ -387,7 +430,8 @@ export function SettingsDialog() {
                   />
                   <p className="wv-ctx-muted wv-settings__pack-meta">
                     {formatBytes(p.sizeBytes)} · covers {formatPackBounds(p.bounds)} · installed{' '}
-                    {formatAgo(p.installedAt, nowMs)} <PackFreshness pack={p} nowMs={nowMs} />
+                    {formatAgo(p.installedAt, nowMs)}
+                    {p.vault ? ` · on the vault "${p.vault.label}"` : ''} <PackFreshness pack={p} nowMs={nowMs} />
                   </p>
                   <Button
                     size="sm"
@@ -406,9 +450,11 @@ export function SettingsDialog() {
                   >
                     Show on map
                   </Button>
-                  <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.removePack(p.id)}>
-                    Remove
-                  </Button>
+                  {p.vault ? null : (
+                    <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.removePack(p.id)}>
+                      Remove
+                    </Button>
+                  )}
                   <PackSignature pack={p} />
                 </li>
               ))}
@@ -417,6 +463,7 @@ export function SettingsDialog() {
             <p className="wv-ctx-muted">No offline packs installed.</p>
           )}
           <InstallPackButton installed={offline.status?.packs.map((p) => p.name) ?? []} />
+          <DataVaults status={offline.status} />
           <PackPublishers status={offline.status} nowMs={nowMs} />
         </Section>
         <Section title="Cameras">

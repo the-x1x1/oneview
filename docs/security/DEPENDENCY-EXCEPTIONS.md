@@ -82,3 +82,20 @@ Windows gate's `pnpm audit --prod` on the 0.1.13 release merge. 3.4.16 fixes it,
 `package.json` overrides `dompurify` to `^3.4.16` (same package, same licence,
 `MPL-2.0 OR Apache-2.0`); nothing is added to `ignoreGhsas`. Drop the override once
 `@cesium/engine` itself requires 3.4.16 or later.
+
+## Fixed, not accepted: GHSA-68fv-2mgg-jv7q
+
+Recorded 2026-10-09. A high advisory in `source-map-js` < 1.2.2 (indexed source-map section
+offsets can stall the event loop) failed the `dependency-audit` job on the
+`feature/linux-cyberdeck-readiness` CI run 37909198100; the advisory was published after
+v0.2.2, and the path is the same on `develop`: `apps/desktop > vite > postcss >
+source-map-js@1.2.1`. It is build-time only (Vite's CSS pipeline; nothing of it ships in the
+app). 1.2.2 fixes it, so the root `package.json` overrides `source-map-js` to `>=1.2.2` (same
+package, same licence, BSD-3-Clause; `postcss` asks for `^1.2.1`); nothing is added to
+`ignoreGhsas`. Drop the override once `postcss` requires 1.2.2 or later.
+
+The same run reported a moderate advisory below the gate's threshold,
+GHSA-hp3w-g68c-fv3c (`sprintf-js` ≤ 1.1.3, unbounded precision specifiers), on
+`electron-builder > app-builder-lib > @electron/get > global-agent > roarr > sprintf-js`:
+packaging-time only, with no patched version published. Not ignored (it does not fail the
+gate); noted so the next look starts here.

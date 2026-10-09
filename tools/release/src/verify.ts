@@ -172,7 +172,7 @@ export function buildVerificationReport(opts: VerifyOptions): VerificationReport
     for (const f of readdirSync(artifactsDir).sort()) {
       const abs = path.join(artifactsDir, f);
       if (!statSync(abs).isFile()) continue;
-      if (!/\.(exe|zip|yml|blockmap|msi|7z)$/i.test(f)) continue;
+      if (!/\.(exe|zip|yml|blockmap|msi|7z|AppImage|deb)$/i.test(f)) continue;
       artifactHashes.push({ file: f, sizeBytes: statSync(abs).size, sha256: sha256File(abs) });
     }
   }

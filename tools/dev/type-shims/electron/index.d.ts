@@ -9,7 +9,7 @@
  *   the OSM tile User-Agent, permission handlers)
  *   ipcMain.handle / ipcRenderer.invoke+on / contextBridge.exposeInMainWorld
  *   safeStorage, shell.openExternal, dialog.show{Open,Save}Dialog, Notification,
- *   net.isOnline, Menu.setApplicationMenu, powerMonitor (not used), nativeTheme
+ *   net.isOnline, Menu.setApplicationMenu, powerMonitor (power source, sleep), nativeTheme
  *
  * Nothing here is `any`: the shapes follow the Electron API documentation.
  */
@@ -470,6 +470,17 @@ export interface Protocol {
   isProtocolHandled(scheme: string): boolean;
 }
 export declare const net: Net;
+
+/** Power events (main process, after `ready`). */
+export interface PowerMonitor {
+  on(
+    event: 'suspend' | 'resume' | 'on-ac' | 'on-battery' | 'lock-screen' | 'unlock-screen',
+    listener: () => void,
+  ): this;
+  removeListener(event: string, listener: () => void): this;
+  isOnBatteryPower(): boolean;
+}
+export declare const powerMonitor: PowerMonitor;
 
 export interface Menu {}
 export declare const Menu: {

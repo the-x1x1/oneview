@@ -14,6 +14,53 @@ export interface SafeStorageLike {
   isEncryptionAvailable(): boolean;
   encryptString(plainText: string): Buffer;
   decryptString(encrypted: Buffer): string;
+  /**
+   * Linux only (Electron): which secret store backs the encryption key —
+   * `gnome_libsecret`, `kwallet`, `kwallet5`, `kwallet6`, or `basic_text` / `unknown`.
+   */
+  getSelectedStorageBackend?(): string;
+}
+
+/**
+ * Linux backends that are not a secret store. `basic_text` is Chromium's fallback when no
+ * Secret Service (GNOME Keyring, KWallet) answers: the key it encrypts with is a constant
+ * compiled into Chromium, so a file "encrypted" with it is plain text to anyone who reads
+ * it. Electron reports isEncryptionAvailable() = false in that state today, but that is a
+ * default which Electron has changed before; WORLDVIEW checks the backend itself.
+ */
+export const INSECURE_LINUX_BACKENDS: ReadonlySet<string> = new Set(['basic_text', 'unknown']);
+
+/**
+ * The `--password-store` switch WORLDVIEW gives Chromium on Linux, or undefined to leave it be.
+ *
+ * Chromium chooses the secret store from XDG_CURRENT_DESKTOP: GNOME, Unity, Cinnamon, Pantheon,
+ * Deepin and XFCE get libsecret, KDE gets KWallet, and every other desktop — sway, i3, Hyprland,
+ * LXQt, a bare X session — gets `basic_text`, even with GNOME Keyring (or KeePassXC's Secret
+ * Service) running. WORLDVIEW refuses basic_text, so on those desktops keys could never be saved
+ * however the keyring was set up. Asking for libsecret everywhere but KDE uses a Secret Service
+ * when one exists; when none does, Chromium still ends up on basic_text and the store refuses it.
+ * An explicit `--password-store` from the user always wins.
+ *
+ * Changing the store makes keys saved under another one unreadable (they are kept, and reported
+ * as unreadable); before this, those desktops could not have saved any.
+ */
+export function linuxPasswordStore(
+  env: Record<string, string | undefined>,
+  switchGiven: boolean,
+): 'gnome-libsecret' | undefined {
+  if (switchGiven) return undefined;
+  const desktop = `${env['XDG_CURRENT_DESKTOP'] ?? ''}:${env['DESKTOP_SESSION'] ?? ''}`.toLowerCase();
+  if (/kde|plasma/.test(desktop)) return undefined; // KWallet, Chromium's own choice there
+  return 'gnome-libsecret';
+}
+
+/** Why credentials are refused on this system, for Diagnostics and the startup check. */
+export function encryptionUnavailableReason(platform: string, backend: string | undefined): string {
+  if (platform === 'linux')
+    return backend && INSECURE_LINUX_BACKENDS.has(backend)
+      ? `no Secret Service keyring answered (Electron backend "${backend}"); make sure GNOME Keyring, KWallet or another Secret Service is running and unlocked in this desktop session — see docs/cyberdeck/LINUX.md`
+      : 'the desktop keyring (Secret Service) could not be used — see docs/cyberdeck/LINUX.md';
+  return 'the OS keychain/DPAPI could not be used';
 }
 
 export type CredentialErrorCode = 'ENCRYPTION_UNAVAILABLE' | 'INVALID_KEY' | 'INVALID_VALUE' | 'CORRUPT';
@@ -44,6 +91,8 @@ export interface CredentialStoreOptions {
   safeStorage: SafeStorageLike;
   logger?: Logger;
   now?: () => number;
+  /** process.platform; decides whether the Linux backend check applies. */
+  platform?: string;
 }
 
 export class CredentialStore implements CredentialResolver {
@@ -60,10 +109,31 @@ export class CredentialStore implements CredentialResolver {
 
   get encryptionAvailable(): boolean {
     try {
-      return this.opts.safeStorage.isEncryptionAvailable();
+      if (!this.opts.safeStorage.isEncryptionAvailable()) return false;
+      if (this.opts.platform === 'linux') {
+        const backend = this.storageBackend;
+        // An Electron without the call, or a backend that is not a secret store: refuse.
+        if (backend === undefined || INSECURE_LINUX_BACKENDS.has(backend)) return false;
+      }
+      return true;
     } catch {
       return false;
     }
+  }
+
+  /** The Linux secret-store backend Electron chose, when it says; undefined elsewhere. */
+  get storageBackend(): string | undefined {
+    if (this.opts.platform !== 'linux') return undefined;
+    try {
+      return this.opts.safeStorage.getSelectedStorageBackend?.();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** One line for the startup check and the log when encryptionAvailable is false. */
+  unavailableReason(): string {
+    return encryptionUnavailableReason(this.opts.platform ?? process.platform, this.storageBackend);
   }
 
   async load(): Promise<{ status: 'loaded' | 'fresh' | 'corrupt'; keys: number }> {
@@ -160,7 +230,9 @@ export class CredentialStore implements CredentialResolver {
   private persist(): Promise<void> {
     const doc: CredentialFile = { version: 1, entries: { ...this.entries } };
     const run = async () => {
-      await writeFileAtomic(this.opts.file, JSON.stringify(doc, null, 2) + '\n');
+      // Owner-only on POSIX: the entries are ciphertext, but who holds which keys is nobody
+      // else's business either (0600; Windows ignores the mode and the profile ACL applies).
+      await writeFileAtomic(this.opts.file, JSON.stringify(doc, null, 2) + '\n', { mode: 0o600 });
     };
     this.writeChain = this.writeChain.then(run, run);
     return this.writeChain;

@@ -379,3 +379,81 @@ test('the MapLibre worker is staged where the renderer is told to look for it', 
   assert.match(main, /loadMapLibre\(\{ workerUrl \}\)/, 'main.tsx passes the worker URL');
   assert.match(main, /new URL\(MAPLIBRE_WORKER_PATH, document\.baseURI\)/, 'resolved against the page, not the bundle');
 });
+
+/**
+ * Linux (docs/cyberdeck/LINUX.md). release:package packages for the host, so the Linux half
+ * is checked here on any machine: the config, the script's dispatch, and the sandbox advice.
+ */
+test('packaging targets the host: --win on Windows, --linux on Linux x64, nothing elsewhere', async () => {
+  const { packageTargetFor, PACKAGE_TARGETS } = await import('./scripts/platform.mjs');
+  const win = packageTargetFor('win32', 'x64');
+  const linux = packageTargetFor('linux', 'x64');
+  assert.ok(win.ok && linux.ok);
+  assert.equal(win.ok && win.target.flag, '--win');
+  assert.equal(linux.ok && linux.target.flag, '--linux');
+  assert.equal(PACKAGE_TARGETS.win32.unpackedDir, 'win-unpacked');
+  assert.equal(PACKAGE_TARGETS.linux.executable, 'worldview');
+  for (const [platform, arch] of [
+    ['darwin', 'x64'],
+    ['linux', 'arm64'],
+    ['win32', 'arm64'],
+  ] as const) {
+    const r = packageTargetFor(platform, arch);
+    assert.equal(r.ok, false, `${platform}/${arch}`);
+    assert.match(!r.ok ? r.reason : '', /Nothing was packaged/);
+  }
+
+  const script = read('scripts/package.mjs');
+  assert.match(script, /packageTargetFor\(process\.platform, process\.arch\)/);
+  assert.match(script, /TARGET\.flag, '--publish', 'never'/, 'the flag comes from the target; publishing stays manual');
+  assert.doesNotMatch(script, /'--win', '--publish'/, 'no hard-coded Windows flag left');
+  assert.match(script, /if \(TARGET\.platform !== 'win32'\) return;/, 'the locked-exe probe is Windows-only');
+});
+
+test('electron-builder.yml builds an x64 .deb, and no AppImage, with names release tooling expects', () => {
+  const linux = rootBlock(builderYml, 'linux');
+  assert.match(linux, /target: deb\n\s+arch: \[x64\]/);
+  // electron-builder's AppImage launcher appends --no-sandbox whenever `unshare -Ur` fails (Ubuntu
+  // 24.04+ by default), whatever this file says. Until that can be built without, there is none.
+  assert.doesNotMatch(linux, /target: AppImage/);
+  assert.ok(!rootKeys(builderYml).includes('appImage'));
+  assert.match(linux, /executableName: worldview/);
+  assert.match(linux, /syncDesktopName: true/);
+  assert.match(linux, /icon: build\/icon\.png/);
+  assert.doesNotMatch(
+    linux,
+    /^\s+(mimeTypes|fileAssociations):/m,
+    'no file associations until something opens by double-click',
+  );
+  assert.match(rootBlock(builderYml, 'deb'), /artifactName: worldview_\$\{version\}_amd64\.\$\{ext\}/);
+  // The window's app_id / WM_CLASS is package.json desktopName; syncDesktopName names the menu entry after it.
+  // fpm refuses to build a .deb without a homepage (electron-builder FpmTarget, "Please specify project homepage").
+  const desktop = JSON.parse(read('package.json')) as { desktopName?: string; homepage?: string };
+  assert.equal(desktop.desktopName, 'worldview.desktop');
+  assert.match(desktop.homepage ?? '', /^https:\/\//);
+  // Never weaken Chromium's sandbox to make Linux start.
+  const uncommented = (text: string) => text.replace(/^\s*(#|\/\/|\*).*$/gm, '');
+  assert.doesNotMatch(uncommented(builderYml), /no-sandbox/);
+  assert.doesNotMatch(uncommented(read('scripts/dev.mjs')), /'--no-sandbox'/);
+  assert.doesNotMatch(uncommented(read('src/main/main.ts')), /appendSwitch\('no-sandbox'|--no-sandbox/);
+});
+
+test('pnpm dev on Ubuntu 24.04+ explains the sandbox fix instead of failing obscurely', async () => {
+  const { linuxSandboxProblem } = await import('./scripts/platform.mjs');
+  const sandboxPath = '/repo/node_modules/electron/dist/chrome-sandbox';
+  // Restricted user namespaces and a plain helper: the advice, with the exact path.
+  const advice = linuxSandboxProblem({ restrictUserns: '1\n', sandboxPath, sandbox: { uid: 1000, mode: 0o100755 } });
+  assert.match(advice ?? '', /sudo chown root:root '\/repo\/node_modules\/electron\/dist\/chrome-sandbox'/);
+  assert.match(advice ?? '', /sudo chmod 4755/);
+  assert.match(advice ?? '', /never runs with --no-sandbox/);
+  // Already setuid root, or namespaces not restricted, or not Ubuntu's knob at all: nothing to say.
+  assert.equal(
+    linuxSandboxProblem({ restrictUserns: '1', sandboxPath, sandbox: { uid: 0, mode: 0o104755 } }),
+    undefined,
+  );
+  assert.equal(linuxSandboxProblem({ restrictUserns: '0', sandboxPath, sandbox: undefined }), undefined);
+  assert.equal(linuxSandboxProblem({ restrictUserns: undefined, sandboxPath, sandbox: undefined }), undefined);
+  // setuid but owned by someone else is not a working helper.
+  assert.ok(linuxSandboxProblem({ restrictUserns: '1', sandboxPath, sandbox: { uid: 1000, mode: 0o104755 } }));
+  assert.match(read('scripts/dev.mjs'), /linuxSandboxProblem\(/);
+});

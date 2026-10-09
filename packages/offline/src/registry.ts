@@ -25,6 +25,14 @@ import {
   type TrustedPublisher,
 } from './signature.js';
 import { errorText, extractWorldPack, type WorldPackVerification } from './verify.js';
+import {
+  VAULT_PACKS_DIR,
+  vaultMarkerMatches,
+  vaultPacksDir,
+  vaultReadable,
+  vaultWritable,
+  type VaultState,
+} from './vault.js';
 import type { ZipReaderLimits } from './zip.js';
 
 /**
@@ -43,6 +51,15 @@ import type { ZipReaderLimits } from './zip.js';
  * `worldpacks/trust.json`. A pack's signature is re-checked against its manifest on every
  * scan (a few hundred bytes of Ed25519, not the pack's files), so a manifest edited after
  * installation reads as tampered, and a publisher removed from the list stops counting.
+ *
+ * Data vaults (vault.ts; docs/cyberdeck): packs can also live in `<vault>/worldpacks/<id>/` on an
+ * operator-granted folder, usually an external SSD. They are read from every vault that is
+ * readable, installed into one only while it is writable (staging on the vault itself, so the
+ * final rename is atomic there), and never deleted by the registry (only its own staging from an
+ * interrupted install is cleared). A vault's listing is believed only after its marker is read
+ * again in the same scan, and its packs' state is forgotten only after a listing that worked.
+ * Their state (enabled, when installed, which vault) lives in this app's own state.json, so a pulled drive's packs are
+ * still listed — `invalid`, "not connected" — and come back as they were when it returns.
  */
 export type OfflineCapabilities = OfflineStatus['capabilities'];
 
@@ -66,6 +83,35 @@ export interface WorldPackRegistryOptions {
    * when this runtime has `node:sqlite`, else keeps them in memory; `memory` always does.
    */
   placeIndexBackend?: 'auto' | 'memory';
+  /** Data vaults packs are also read from, with their current health (vault.ts). Read on every refresh. */
+  vaults?: () => RegistryVault[];
+}
+
+/** A data vault as the registry sees it: its root folder and what the last health check said. */
+export interface RegistryVault {
+  id: string;
+  label: string;
+  root: string;
+  state: VaultState;
+}
+
+/** Install a pack into a vault rather than the app's own folder. */
+export interface VaultInstallTarget {
+  vault: RegistryVault;
+  /**
+   * Re-checks the vault immediately before anything is written and again before the pack is
+   * activated: its device when it is still the right drive and writable, or why not (pulled
+   * mid-install, remounted read-only, full). Every file extracted must be on that device.
+   */
+  recheck: () => Promise<{ ok: true; device: number } | { ok: false; reason: string }>;
+}
+
+/** Thrown for things the registry refuses to do to a pack on a vault (deleting it). */
+export class VaultPackError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'VaultPackError';
+  }
 }
 
 export interface InstalledWorldPack {
@@ -75,6 +121,8 @@ export interface InstalledWorldPack {
   signature?: PackSignature;
   dir: string;
   enabled: boolean;
+  /** The vault it lives on; absent for packs in the app's own folder. */
+  vault?: { id: string; label: string };
 }
 
 export interface TrustState {
@@ -93,6 +141,15 @@ interface PackState {
   enabled: boolean;
   sourceFile?: string;
   sizeBytes: number;
+  /** Set for a pack on a vault: where it is, and what to list while that vault is not connected. */
+  vault?: PackVaultState;
+}
+interface PackVaultState {
+  id: string;
+  label: string;
+  name: string;
+  version: string;
+  bounds: WorldPackSummary['bounds'];
 }
 interface RegistryState {
   formatVersion: 1;
@@ -120,6 +177,7 @@ export class WorldPackRegistry {
   private sqliteIndexes: SqlitePlaceIndex[] = [];
   private sqlite: SqliteModule | null | undefined;
   private readonly placeIndexBackend: 'auto' | 'memory';
+  private readonly vaultsOf: () => RegistryVault[];
   private trust: TrustState = { formatVersion: 1, requireTrusted: false, publishers: [] };
   private loaded = false;
 
@@ -131,6 +189,7 @@ export class WorldPackRegistry {
     this.limits = opts.limits;
     this.flags = opts.flags ?? (() => ({ history: false, collections: false, localAircraft: false }));
     this.placeIndexBackend = opts.placeIndexBackend ?? 'auto';
+    this.vaultsOf = opts.vaults ?? (() => []);
   }
 
   /** Which store answers place search: 'sqlite' or 'memory' (diagnostics, logs, tests). */
@@ -145,13 +204,47 @@ export class WorldPackRegistry {
     return this.emitter.on(event, listener);
   }
 
-  /** Rescan the pack directory; call once at startup and after external changes. */
-  async refresh(): Promise<InstalledWorldPack[]> {
+  /**
+   * Rescan the pack directory (and the readable vaults); call once at startup and after external
+   * changes. Calls are serialised: a vault plugged in while the operator installs a pack starts
+   * two refreshes, and two scans writing state.json at once would interleave.
+   */
+  refresh(): Promise<InstalledWorldPack[]> {
+    const run = this.refreshQueue.then(() => this.scan());
+    this.refreshQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  private refreshQueue: Promise<unknown> = Promise.resolve();
+
+  private async scan(): Promise<InstalledWorldPack[]> {
     await fs.mkdir(this.root, { recursive: true });
     await fs.rm(path.join(this.root, STAGING_DIR), { recursive: true, force: true }).catch(() => undefined);
     const state = await this.readState();
     this.trust = await this.readTrust();
-    const entries = await fs.readdir(this.root, { withFileTypes: true });
+    const vaults = this.vaultsOf();
+    const sources: Array<{ root: string; vault?: RegistryVault }> = [{ root: this.root }];
+    // Why a configured vault is not read in this scan (absent, a stale "ready" over an empty
+    // mount point, a symlinked packs folder …): its packs are listed as not usable, never forgotten.
+    const notRead = new Map<string, string>();
+    for (const v of vaults) {
+      if (!vaultReadable(v.state)) {
+        notRead.set(v.id, v.state === 'absent' ? 'not connected' : `not usable (${v.state})`);
+        continue;
+      }
+      // The health check can be 30 s old: the marker is read again before the folder is believed.
+      if (!(await vaultMarkerMatches(v.root, v.id))) {
+        notRead.set(v.id, 'not connected');
+        continue;
+      }
+      const dir = await vaultPacksDir(v.root);
+      if (!dir.ok) {
+        this.log.warn('vault packs refused', { vault: v.label, reason: dir.reason });
+        notRead.set(v.id, `not usable: ${dir.reason}`);
+        continue;
+      }
+      sources.push({ root: dir.dir, vault: v });
+    }
     const packs: InstalledWorldPack[] = [];
     const indexes: PlaceIndex[] = [];
     // SQLite indexes hold no handle between searches (a Windows file that is open cannot be
@@ -162,44 +255,154 @@ export class WorldPackRegistry {
     const sqliteIndexes: SqlitePlaceIndex[] = [];
     const startedAt = this.clock.now();
     let built = 0;
-    for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-      if (!e.isDirectory() || e.name.startsWith('.')) continue;
-      const dir = path.join(this.root, e.name);
-      const st = state.packs[e.name];
-      const enabled = st?.enabled ?? true;
-      const installedAt = st?.installedAt ?? (await dirMtimeIso(dir));
-      const pack = await this.loadPack(e.name, dir, enabled, installedAt);
-      packs.push(pack);
-      if (pack.summary.status === 'active' && pack.manifest?.contents.some((c) => c.kind === 'search-index')) {
-        const sha = pack.manifest.contents.find((c) => c.kind === 'search-index')!.sha256;
-        if (sqlite) {
-          try {
-            const r = await SqlitePlaceIndex.openOrBuild(sqlite, this.sqliteIndexFile(e.name), sha, async () => {
-              const ix = await this.loadEntries(dir);
-              if (!ix.ok) throw new Error(ix.error);
-              return ix.entries;
-            });
-            sqliteIndexes.push(r.index);
-            if (r.built) built++;
-          } catch (err) {
-            pack.summary.status = 'invalid';
-            pack.summary.message = `search index unreadable: ${errorText(err)}`;
+    const seen = new Map<string, string>();
+    let stateChanged = false;
+    for (const source of sources) {
+      // A vault is only ever read here: a missing worldpacks folder is an empty vault, not one to create.
+      const entries = await fs.readdir(source.root, { withFileTypes: true }).catch((err: unknown) => {
+        if (!source.vault) throw err;
+        // No worldpacks folder on a vault whose marker matched: an empty vault. Anything else
+        // means its packs could not be read — listed as such, not forgotten.
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          this.log.warn('vault packs unreadable', { vault: source.vault.label, error: errorText(err) });
+          notRead.set(source.vault.id, `not readable (${(err as NodeJS.ErrnoException).code ?? errorText(err)})`);
+          return null;
+        }
+        return [];
+      });
+      if (entries === null) continue;
+      for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+        if (!e.isDirectory() || e.name.startsWith('.')) continue;
+        const dir = path.join(source.root, e.name);
+        const where = source.vault ? `the vault "${source.vault.label}"` : 'this computer';
+        const first = seen.get(e.name);
+        if (first !== undefined) {
+          // The same pack in two places: the first is used, the other listed under its own id.
+          packs.push({
+            summary: {
+              id: `${e.name}:${source.vault?.id ?? 'local'}`,
+              name: e.name,
+              version: '',
+              installedAt: await dirMtimeIso(dir),
+              sizeBytes: 0,
+              bounds: { west: 0, south: 0, east: 0, north: 0 },
+              contents: [],
+              status: 'invalid',
+              message: `also on ${where}; the copy on ${first} is used`,
+              ...(source.vault ? { vault: { id: source.vault.id, label: source.vault.label } } : {}),
+            },
+            dir,
+            enabled: false,
+            ...(source.vault ? { vault: { id: source.vault.id, label: source.vault.label } } : {}),
+          });
+          continue;
+        }
+        seen.set(e.name, where);
+        const st = state.packs[e.name];
+        const enabled = st?.enabled ?? true;
+        const installedAt = st?.installedAt ?? (await dirMtimeIso(dir));
+        const loaded = await this.loadPack(e.name, dir, enabled, installedAt);
+        const pack: InstalledWorldPack = source.vault
+          ? {
+              ...loaded,
+              vault: { id: source.vault.id, label: source.vault.label },
+              summary: { ...loaded.summary, vault: { id: source.vault.id, label: source.vault.label } },
+            }
+          : loaded;
+        packs.push(pack);
+        if (source.vault) {
+          const remembered: PackVaultState = {
+            id: source.vault.id,
+            label: source.vault.label,
+            name: pack.summary.name,
+            version: pack.summary.version,
+            bounds: pack.summary.bounds,
+          };
+          if (JSON.stringify(st?.vault) !== JSON.stringify(remembered)) {
+            state.packs[e.name] = {
+              installedAt,
+              enabled,
+              sizeBytes: st?.sizeBytes ?? pack.summary.sizeBytes,
+              ...(st?.sourceFile ? { sourceFile: st.sourceFile } : {}),
+              vault: remembered,
+            };
+            stateChanged = true;
           }
-        } else {
-          const ix = await this.loadIndex(dir);
-          if (ix.ok) indexes.push(ix.index);
-          else {
-            pack.summary.status = 'invalid';
-            pack.summary.message = `search index unreadable: ${ix.error}`;
+        } else if (st?.vault) {
+          // It was on a vault and is now in the app's own folder.
+          const { vault: _moved, ...rest } = st;
+          state.packs[e.name] = rest;
+          stateChanged = true;
+        }
+        if (pack.summary.status === 'active' && pack.manifest?.contents.some((c) => c.kind === 'search-index')) {
+          const sha = pack.manifest.contents.find((c) => c.kind === 'search-index')!.sha256;
+          if (sqlite) {
+            try {
+              const r = await SqlitePlaceIndex.openOrBuild(sqlite, this.sqliteIndexFile(e.name), sha, async () => {
+                const ix = await this.loadEntries(dir);
+                if (!ix.ok) throw new Error(ix.error);
+                return ix.entries;
+              });
+              sqliteIndexes.push(r.index);
+              if (r.built) built++;
+            } catch (err) {
+              pack.summary.status = 'invalid';
+              pack.summary.message = `search index unreadable: ${errorText(err)}`;
+            }
+          } else {
+            const ix = await this.loadIndex(dir);
+            if (ix.ok) indexes.push(ix.index);
+            else {
+              pack.summary.status = 'invalid';
+              pack.summary.message = `search index unreadable: ${ix.error}`;
+            }
           }
         }
       }
     }
+    // Packs on vaults that are not readable now: listed, not forgotten. Vaults no longer
+    // configured at all are forgotten (their files are untouched).
+    const configured = new Map(vaults.map((v) => [v.id, v]));
+    for (const [id, st] of Object.entries(state.packs)) {
+      if (!st.vault || seen.has(id)) continue;
+      const v = configured.get(st.vault.id);
+      if (!v) {
+        delete state.packs[id];
+        stateChanged = true;
+        continue;
+      }
+      const why = notRead.get(v.id);
+      if (why === undefined) {
+        // Its vault was read just now, marker and all, and the pack is not on it: removed from the drive.
+        delete state.packs[id];
+        stateChanged = true;
+        continue;
+      }
+      packs.push({
+        summary: {
+          id,
+          name: st.vault.name,
+          version: st.vault.version,
+          installedAt: st.installedAt,
+          sizeBytes: st.sizeBytes,
+          bounds: st.vault.bounds,
+          contents: [],
+          status: 'invalid',
+          message: `on the vault "${v.label}", which is ${why}`,
+          vault: { id: v.id, label: v.label },
+        },
+        dir: path.join(v.root, VAULT_PACKS_DIR, id),
+        enabled: st.enabled,
+        vault: { id: v.id, label: v.label },
+      });
+    }
+    if (stateChanged) await this.writeState(state);
     this.packs = packs;
     this.sqliteIndexes = sqliteIndexes;
     this.index = sqlite ? new CompositePlaceSearch(sqliteIndexes) : PlaceIndex.merge(indexes);
     if (sqlite) {
-      await this.dropStaleIndexes(new Set(packs.map((p) => p.summary.id)));
+      // Indexes of packs on a vault that is away are kept for when it comes back.
+      await this.dropStaleIndexes(new Set([...packs.map((p) => p.summary.id), ...Object.keys(state.packs)]));
       if (sqliteIndexes.length)
         this.log.info('place index', {
           backend: 'sqlite',
@@ -421,13 +624,50 @@ export class WorldPackRegistry {
     return this.index;
   }
 
+  /**
+   * Run `fn` in the refresh queue: install, remove and setEnabled read and write state.json, and
+   * so does a scan; one at a time, or a scan that started first writes back a stale copy.
+   */
+  private exclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.refreshQueue.then(fn);
+    this.refreshQueue = run.catch(() => undefined);
+    return run;
+  }
+
   /** Verify, extract to staging, then atomically activate. Replaces an existing pack with the same id. */
-  async install(
+  install(
     archivePath: string,
+    target?: VaultInstallTarget,
   ): Promise<{ installed: WorldPackSummary | null; issues: string[]; verification: WorldPackVerification }> {
-    if (!this.loaded) await this.refresh();
-    const stagingRoot = path.join(this.root, STAGING_DIR);
-    await fs.mkdir(stagingRoot, { recursive: true });
+    return this.exclusive(() => this.installNow(archivePath, target));
+  }
+
+  private async installNow(
+    archivePath: string,
+    target?: VaultInstallTarget,
+  ): Promise<{ installed: WorldPackSummary | null; issues: string[]; verification: WorldPackVerification }> {
+    // What is installed now, not at the last scan: a placeholder for a pack on a drive that has
+    // since come back must not be "replaced" without the version and signer checks.
+    await this.scan();
+    const notInstalled = (message: string) => ({
+      installed: null,
+      issues: [message],
+      verification: { ok: false, file: archivePath, sizeBytes: 0, entries: [], issues: [message], warnings: [] },
+    });
+    // Into a vault: only while it proves, right now, that it is the right drive and writable.
+    // Staging sits on the vault itself, so activation is a rename on the same filesystem.
+    const packsRoot = target ? path.join(target.vault.root, VAULT_PACKS_DIR) : this.root;
+    const stagingRoot = path.join(packsRoot, STAGING_DIR);
+    let device: number | undefined;
+    if (target) {
+      if (!vaultWritable(target.vault.state))
+        return notInstalled(`the vault "${target.vault.label}" cannot be written to (${target.vault.state})`);
+      const checked = await target.recheck();
+      if (!checked.ok) return notInstalled(checked.reason);
+      device = checked.device;
+      const prepared = await prepareVaultStaging(target.vault.root, stagingRoot, device);
+      if (prepared) return notInstalled(prepared);
+    } else await fs.mkdir(stagingRoot, { recursive: true });
     const staging = path.join(
       stagingRoot,
       `${path
@@ -438,6 +678,7 @@ export class WorldPackRegistry {
     let verification: WorldPackVerification;
     try {
       verification = await extractWorldPack(archivePath, staging, {
+        ...(device !== undefined ? { device } : {}),
         appVersion: this.appVersion,
         now: this.clock.now(),
         trustedPublishers: this.trust.publishers,
@@ -462,14 +703,23 @@ export class WorldPackRegistry {
       return { installed: null, issues: verification.issues, verification };
     }
     const manifest = verification.manifest;
-    const target = path.join(this.root, manifest.id);
+    const targetDir = path.join(packsRoot, manifest.id);
     const refuse = async (message: string) => {
       await fs.rm(staging, { recursive: true, force: true }).catch(() => undefined);
       this.log.warn('worldpack rejected', { file: path.basename(archivePath), issues: [message] });
       return { installed: null, issues: [message], verification: { ...verification, ok: false, issues: [message] } };
     };
-    // Replacing an installed pack: never an older one, never a different signer's.
+    // Replacing an installed pack: never an older one, never a different signer's — and only
+    // where it already is (a pack is in one place; moving it is the operator's job).
     const installed = this.get(manifest.id);
+    if (installed && installed.vault && !installed.manifest)
+      return refuse(
+        `"${manifest.id}" on the vault "${installed.vault.label}" cannot be read (${installed.summary.message ?? 'invalid'}); fix or remove it there first`,
+      );
+    if (installed && path.resolve(installed.dir) !== path.resolve(targetDir))
+      return refuse(
+        `"${manifest.id}" is already installed ${installed.vault ? `on the vault "${installed.vault.label}"` : 'on this computer'}; remove it there first, or install the update there`,
+      );
     const replacing = installed?.manifest;
     const replaceProblem = replacing
       ? replacementProblem(replacing, installed!.signature, manifest, verification.signature)
@@ -483,9 +733,14 @@ export class WorldPackRegistry {
         `updated from the pack created ${replacing!.createdAt.slice(0, 10)}: ${assembled} of ${manifest.contents.length} files kept`,
       );
     } else if (replacing) notes.unshift(`replaced the pack created ${replacing.createdAt.slice(0, 10)}`);
+    if (target) {
+      const checked = await target.recheck();
+      if (!checked.ok) return refuse(`not activated: ${checked.reason}`);
+      if (checked.device !== device) return refuse('not activated: the drive changed during the install');
+    }
     try {
-      await fs.rm(target, { recursive: true, force: true });
-      await fs.rename(staging, target);
+      await fs.rm(targetDir, { recursive: true, force: true });
+      await fs.rename(staging, targetDir);
     } catch (err) {
       await fs.rm(staging, { recursive: true, force: true }).catch(() => undefined);
       const message = `activation failed: ${errorText(err)}`;
@@ -498,9 +753,21 @@ export class WorldPackRegistry {
       enabled: state.packs[manifest.id]?.enabled ?? true,
       sourceFile: path.basename(archivePath),
       sizeBytes: verification.entries.reduce((n, e) => n + e.sizeBytes, 0),
+      ...(target
+        ? {
+            vault: {
+              id: target.vault.id,
+              label: target.vault.label,
+              name: manifest.name,
+              version: versionOf(manifest),
+              bounds: manifest.geographicBounds,
+            },
+          }
+        : {}),
     };
     await this.writeState(state);
-    await this.refresh();
+    // Inside the queue already: a refresh() here would wait for itself.
+    await this.scan();
     this.log.info('worldpack installed', {
       id: manifest.id,
       name: manifest.name,
@@ -553,24 +820,37 @@ export class WorldPackRegistry {
     return kept;
   }
 
-  async remove(id: string): Promise<boolean> {
-    if (!this.loaded) await this.refresh();
+  remove(id: string): Promise<boolean> {
+    return this.exclusive(() => this.removeNow(id));
+  }
+
+  private async removeNow(id: string): Promise<boolean> {
+    if (!this.loaded) await this.scan();
     const pack = this.get(id);
     if (!pack) return false;
+    if (pack.vault)
+      throw new VaultPackError(
+        `"${pack.summary.name}" is on the vault "${pack.vault.label}". WorldView does not delete files on a vault: switch the pack off here, or delete ${pack.dir} yourself.`,
+      );
     await fs.rm(pack.dir, { recursive: true, force: true });
     const state = await this.readState();
     delete state.packs[id];
     await this.writeState(state);
-    await this.refresh();
+    await this.scan();
     this.log.info('worldpack removed', { id });
     this.emitChanged();
     return true;
   }
 
-  async setEnabled(id: string, enabled: boolean): Promise<boolean> {
-    if (!this.loaded) await this.refresh();
+  setEnabled(id: string, enabled: boolean): Promise<boolean> {
+    return this.exclusive(() => this.setEnabledNow(id, enabled));
+  }
+
+  private async setEnabledNow(id: string, enabled: boolean): Promise<boolean> {
+    if (!this.loaded) await this.scan();
     const pack = this.get(id);
-    if (!pack) return false;
+    // A duplicate listed under `<id>:<vault>` is not a pack of its own: nothing to switch.
+    if (!pack || pack.summary.id !== path.basename(pack.dir)) return false;
     const state = await this.readState();
     const prev = state.packs[id];
     state.packs[id] = {
@@ -578,9 +858,11 @@ export class WorldPackRegistry {
       enabled,
       sizeBytes: prev?.sizeBytes ?? pack.summary.sizeBytes,
       ...(prev?.sourceFile ? { sourceFile: prev.sourceFile } : {}),
+      // Where it lives stays remembered — switching a pack off while its drive is away included.
+      ...(prev?.vault ? { vault: prev.vault } : {}),
     };
     await this.writeState(state);
-    await this.refresh();
+    await this.scan();
     this.emitChanged();
     return true;
   }
@@ -720,11 +1002,13 @@ export class WorldPackRegistry {
       for (const [id, v] of Object.entries(raw.packs)) {
         if (!v || typeof v !== 'object') continue;
         const p = v as Partial<PackState>;
+        const vault = readPackVault(p.vault);
         packs[id] = {
           installedAt: typeof p.installedAt === 'string' ? p.installedAt : new Date(this.clock.now()).toISOString(),
           enabled: p.enabled !== false,
           sizeBytes: typeof p.sizeBytes === 'number' ? p.sizeBytes : 0,
           ...(typeof p.sourceFile === 'string' ? { sourceFile: p.sourceFile } : {}),
+          ...(vault ? { vault } : {}),
         };
       }
     }
@@ -822,6 +1106,55 @@ export function replacementProblem(
 
 function versionOf(m: WorldPackManifest): string {
   return m.version ?? m.createdAt.slice(0, 10);
+}
+
+/**
+ * Make `<vault>/worldpacks/.staging` without ever creating anything above the vault root, check
+ * that both folders are on the vault's device, and clear what an earlier, interrupted install of
+ * ours left in staging. Returns why not, or undefined.
+ */
+async function prepareVaultStaging(
+  vaultRoot: string,
+  stagingRoot: string,
+  device: number,
+): Promise<string | undefined> {
+  const packsDir = await vaultPacksDir(vaultRoot);
+  if (!packsDir.ok) return packsDir.reason;
+  for (const dir of [packsDir.dir, stagingRoot]) {
+    try {
+      await fs.mkdir(dir).catch((err: unknown) => {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+      });
+      const st = await fs.lstat(dir);
+      if (st.isSymbolicLink() || !st.isDirectory()) return `${dir} is not a folder on the vault`;
+      if (st.dev !== device) return `${dir} is not on the vault's drive (was it unplugged?)`;
+    } catch (err) {
+      return `could not prepare ${dir}: ${errorText(err)}`;
+    }
+  }
+  // Our own leftovers only: staging holds nothing else.
+  for (const name of await fs.readdir(stagingRoot).catch(() => [] as string[]))
+    await fs.rm(path.join(stagingRoot, name), { recursive: true, force: true }).catch(() => undefined);
+  return undefined;
+}
+
+/** A remembered vault location from state.json, or undefined when it is not a well-formed one. */
+function readPackVault(v: unknown): PackVaultState | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Partial<PackVaultState>;
+  if (typeof o.id !== 'string' || !/^[0-9a-f]{32}$/.test(o.id) || typeof o.label !== 'string') return undefined;
+  const b = o.bounds;
+  const bounds =
+    b && [b.west, b.south, b.east, b.north].every((n) => typeof n === 'number' && Number.isFinite(n))
+      ? { west: b.west, south: b.south, east: b.east, north: b.north }
+      : { west: 0, south: 0, east: 0, north: 0 };
+  return {
+    id: o.id,
+    label: o.label.slice(0, 80),
+    name: typeof o.name === 'string' ? o.name.slice(0, 200) : '',
+    version: typeof o.version === 'string' ? o.version.slice(0, 40) : '',
+    bounds,
+  };
 }
 
 async function dirMtimeIso(dir: string): Promise<string> {

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { ErrorState, LoadingState } from '@worldview/ui';
 import { useAppState } from './store/store.js';
 import { TopBar } from './components/top-bar.js';
+import { FieldStatus } from './components/field-status.js';
 import { LensRail } from './components/lens-rail.js';
 import { MapHost } from './map/map-host.js';
 import { ContextRail } from './components/context-rail.js';
@@ -45,6 +46,7 @@ export function Shell() {
       className={`wv-shell${session.appInfo?.demoMode ? ' wv-shell--demo' : ''}${ui.cleanView ? ' wv-shell--clean' : ''}`}
     >
       <TopBar />
+      <FieldStatus />
       <DemoBanner />
       <OfflineNotice />
       <LensRail />

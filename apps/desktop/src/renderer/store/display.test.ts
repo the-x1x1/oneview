@@ -192,3 +192,25 @@ test('measure actions: Area stays as it was while points are added, taken back o
   h.actions.toggleMeasureArea();
   assert.equal(h.get().ui.measure, null, 'nothing to close while the tool is off');
 });
+
+test('profiles: Field is Low graphics, the 2D map and the status strip; Docked is High and the globe; B toggles the strip', async () => {
+  const { actions, get } = await harness();
+  await actions.setProfile('field');
+  let d = displaySettings(get().session.settings);
+  assert.equal(d.profile, 'field');
+  assert.equal(d.graphics, 'low');
+  assert.equal(d.fieldStatus, true);
+  assert.equal(get().session.settings?.renderMode, '2D');
+  await actions.setProfile('docked');
+  d = displaySettings(get().session.settings);
+  assert.equal(d.profile, 'docked');
+  assert.equal(d.graphics, 'high');
+  assert.equal(d.fieldStatus, true, 'the strip stays as the operator left it');
+  assert.equal(get().session.settings?.renderMode, '3D');
+  await actions.setProfile('balanced');
+  assert.equal(displaySettings(get().session.settings).graphics, 'auto');
+  await actions.toggleFieldStatus();
+  assert.equal(displaySettings(get().session.settings).fieldStatus, false);
+  await actions.refreshFieldStatus();
+  assert.deepEqual(get().offline.field?.power, { source: 'unknown' }, 'the demo says it does not know');
+});

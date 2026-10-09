@@ -212,7 +212,23 @@ export interface MeshPosition {
   /** Bits of precision the sender kept (1–31 = deliberately coarsened; 0 or 32 = full). */
   precisionBits?: number;
   satsInView?: number;
+  /** Where the sender's position came from: 0 unset, 1 set by hand, 2 its own GPS, 3 an external GPS. */
+  locationSource?: number;
+  /** Dilution of precision, in hundredths (PDOP, HDOP). */
+  pdop?: number;
+  hdop?: number;
+  /** The GPS receiver's accuracy figure in millimetres (multiplied by a DOP for metres). */
+  gpsAccuracyMm?: number;
+  /** NMEA fix quality (0 invalid, 1 GPS, 2 DGPS …) and fix type (1 none, 2 2D, 3 3D). */
+  fixQuality?: number;
+  fixType?: number;
 }
+
+/** `Position.location_source` values. */
+export const LOC_UNSET = 0;
+export const LOC_MANUAL = 1;
+export const LOC_INTERNAL = 2;
+export const LOC_EXTERNAL = 3;
 
 export interface MeshUser {
   id?: string;
@@ -295,8 +311,26 @@ export function readPosition(buf: Uint8Array): MeshPosition {
       case 4:
         p.time = r.fixed32(f.wire);
         break;
+      case 5:
+        p.locationSource = r.uint32(f.wire);
+        break;
       case 7:
         p.fixTime = r.fixed32(f.wire);
+        break;
+      case 11:
+        p.pdop = r.uint32(f.wire);
+        break;
+      case 12:
+        p.hdop = r.uint32(f.wire);
+        break;
+      case 14:
+        p.gpsAccuracyMm = r.uint32(f.wire);
+        break;
+      case 17:
+        p.fixQuality = r.uint32(f.wire);
+        break;
+      case 18:
+        p.fixType = r.uint32(f.wire);
         break;
       case 19:
         p.satsInView = r.uint32(f.wire);

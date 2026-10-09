@@ -1,0 +1,29 @@
+{
+  "request": "GET /v1",
+  "status": 200,
+  "body": {
+    "api": "worldview-local",
+    "version": 1,
+    "app": {
+      "version": "0.2.2",
+      "channel": "dev",
+      "commit": "abc1234"
+    },
+    "endpoints": [
+      "/v1",
+      "/v1/health",
+      "/v1/sources",
+      "/v1/objects",
+      "/v1/track",
+      "/v1/offline",
+      "/v1/own-position"
+    ],
+    "ownPosition": true,
+    "limits": {
+      "maxObjects": 500,
+      "maxRadiusKm": 500,
+      "maxTrackHours": 24,
+      "requestsPerMinute": 120
+    }
+  }
+}

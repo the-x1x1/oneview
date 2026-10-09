@@ -1109,6 +1109,33 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
     async toggleDayNight(): Promise<void> {
       await setDisplay({ dayNight: !displaySettings(getState().session.settings).dayNight });
     },
+    /**
+     * Field / Balanced / Docked (docs/cyberdeck M5), chosen by the operator only. Field: Low
+     * graphics, the 2D map, the status strip on, and the runtime polls internet sources a third
+     * as often. Balanced: graphics chosen for the GPU. Docked: High graphics and the globe.
+     * None of them stops a source on this computer.
+     */
+    async setProfile(profile: 'field' | 'balanced' | 'docked'): Promise<void> {
+      if (profile === 'field') {
+        await setDisplay({ profile, graphics: 'low', fieldStatus: true });
+        await actions.setMode('2D');
+      } else if (profile === 'docked') {
+        await setDisplay({ profile, graphics: 'high' });
+        await actions.setMode('3D');
+      } else await setDisplay({ profile, graphics: 'auto' });
+    },
+    /** The field status strip under the top bar. */
+    async toggleFieldStatus(): Promise<void> {
+      await setDisplay({ fieldStatus: !(displaySettings(getState().session.settings).fieldStatus ?? false) });
+    },
+    /** Power and disk headroom, asked again (the strip does this once a minute while shown). */
+    async refreshFieldStatus(): Promise<void> {
+      try {
+        dispatch({ type: 'offline/field', field: await client.request('field.status', undefined) });
+      } catch {
+        /* the strip keeps the last answer */
+      }
+    },
     setCleanView(on: boolean) {
       dispatch({ type: 'ui/cleanView', on });
     },
@@ -1457,6 +1484,42 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         dispatch({ type: 'offline/status', status: await client.request('offline.setRequireTrusted', { required }) });
       } catch (err) {
         fail('Pack setting not changed', err);
+      }
+    },
+    /** Choose a folder (an external drive, usually) and make it a data vault; the result is also returned. */
+    async addDataVault(): Promise<{ added: string | null; issues: string[] }> {
+      try {
+        const r = await client.request('offline.addVault', undefined);
+        dispatch({ type: 'offline/status', status: r.status });
+        const issues = r.issues.filter((i) => i !== 'cancelled');
+        if (r.added) notify('Data vault added', [r.added, ...issues.slice(0, 1)].join(' — '));
+        else if (issues.length) notify('Data vault not added', issues.slice(0, 2).join('; '), 'MINOR');
+        return { added: r.added, issues };
+      } catch (err) {
+        fail('Data vault not added', err);
+        return { added: null, issues: [err instanceof Error ? err.message : String(err)] };
+      }
+    },
+    /** Stop using a data vault; its files stay exactly as they are. */
+    async removeDataVault(id: string): Promise<void> {
+      try {
+        dispatch({ type: 'offline/status', status: await client.request('offline.removeVault', { id }) });
+      } catch (err) {
+        fail('Data vault not removed', err);
+      }
+    },
+    /** Install a pack file onto a data vault; the result is also returned, for the line under the vault. */
+    async installPackToVault(vaultId: string): Promise<{ installed: string | null; issues: string[] }> {
+      try {
+        const r = await client.request('offline.installPackTo', { vaultId });
+        const issues = r.issues.filter((i) => i !== 'cancelled');
+        if (r.installed) notify('Offline pack installed', [r.installed.name, ...issues.slice(0, 2)].join(' — '));
+        else if (issues.length) notify('Pack not installed', issues.slice(0, 3).join('; '), 'MINOR');
+        dispatch({ type: 'offline/status', status: await client.request('offline.status', undefined) });
+        return { installed: r.installed?.name ?? null, issues };
+      } catch (err) {
+        fail('Pack not installed', err);
+        return { installed: null, issues: [err instanceof Error ? err.message : String(err)] };
       }
     },
     async removePack(id: string): Promise<void> {

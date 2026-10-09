@@ -16,7 +16,7 @@ export const localSensorFactories: Readonly<Record<string, ProviderFactory>> = O
   'weatherlink-local': () => createWeatherLinkLocal(),
   'purpleair-local': () => createPurpleAirLocal(),
   'ais-local': () => createAisLocal(),
-  // Roadmap 0.6: the user's own Meshtastic mesh, through one of their nodes over TCP.
+  // Roadmap 0.6: the user's own Meshtastic mesh, through one of their nodes over USB serial (Linux) or TCP.
   'meshtastic-local': () => createMeshtasticLocal(),
   // Roadmap 0.6: the user's own boat on NMEA 2000, through a gateway serving YD RAW over TCP.
   'nmea2000-local': () => createNmea2000Local(),

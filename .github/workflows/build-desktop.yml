@@ -4,6 +4,14 @@ name: Build desktop
 # never automatic: tagged runs create a DRAFT prerelease that a human promotes after QA
 # (docs/releases/RELEASE-PROCESS.md, ADR-012). Builds are unsigned until a Windows
 # code-signing certificate exists — SIGNING_REQUIRED in docs/releases/KNOWN-LIMITATIONS.md.
+#
+# The linux job builds the x86_64 .deb, installs it on the runner and smoke-tests the installed
+# app (docs/cyberdeck/LINUX.md). There is no AppImage: electron-builder's AppImage launcher
+# disables Chromium's sandbox on Ubuntu 24.04+ (apps/desktop/electron-builder.yml). Its packages are uploaded as a
+# workflow artifact only: nothing Linux is attached to any release, draft or otherwise,
+# until the operator decides to publish Linux builds.
+#
+# To build a branch: gh workflow run build-desktop.yml --ref <branch> -f ref=<branch>
 
 on:
   push:
@@ -127,3 +135,141 @@ jobs:
             artifacts/release/verification-report.json
             artifacts/release/THIRD_PARTY_NOTICES.txt
             artifacts/release/latest.yml
+
+  # Linux x86_64: the .deb, installed and smoke-tested on the runner. Artifacts only — this job
+  # never creates or edits a release.
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      # Test tools only; the app itself needs none of these. xvfb gives the smoke test a
+      # display, gnome-keyring a Secret Service, desktop-file-utils validates the menu entry.
+      - name: Smoke-test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth gnome-keyring desktop-file-utils strace
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:resources -- --check
+      - run: pnpm typecheck
+      - run: pnpm boundary-check
+      - run: pnpm test
+      - run: pnpm provider:test --all
+      - run: pnpm license-audit
+
+      - name: Build and package (.deb)
+        run: pnpm release:package
+
+      - name: SBOM and verification report
+        run: |
+          pnpm sbom
+          pnpm release:verify
+
+      - name: Assert release version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            pnpm release:assert-version --platform linux --require-tag
+          else
+            pnpm release:assert-version --platform linux
+          fi
+
+      - name: Inspect the .deb
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          DEB="apps/desktop/release/worldview_${VERSION}_amd64.deb"
+          mkdir -p artifacts/verification /tmp/wv-deb
+          dpkg-deb --info "$DEB" | tee artifacts/verification/linux-deb-info.txt
+          dpkg-deb --contents "$DEB" > artifacts/verification/linux-deb-contents.txt
+          dpkg-deb -x "$DEB" /tmp/wv-deb
+          desktop-file-validate /tmp/wv-deb/usr/share/applications/worldview.desktop
+          cat /tmp/wv-deb/usr/share/applications/worldview.desktop
+          # The native history engine must ship unpacked, for this platform.
+          find /tmp/wv-deb/opt/WorldView/resources/app.asar.unpacked -name duckdb.node | tee /tmp/duckdb-bindings.txt
+          grep -q 'node-bindings-linux-x64/duckdb.node' /tmp/duckdb-bindings.txt
+          test -f /tmp/wv-deb/opt/WorldView/resources/apparmor-profile
+
+      - name: Install the .deb as a user would
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y "./apps/desktop/release/worldview_${VERSION}_amd64.deb"
+          command -v worldview
+          ls -l /opt/WorldView/worldview /opt/WorldView/chrome-sandbox
+          echo "apparmor_restrict_unprivileged_userns=$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo n/a)"
+          ls -l /etc/apparmor.d/worldview || echo "no AppArmor profile installed (AppArmor off or too old for it)"
+
+      # Sandbox on, isolated profile, no keyring: keys must be refused, DuckDB must load.
+      - name: Smoke test — installed app, no keyring
+        run: >-
+          xvfb-run -a -s "-screen 0 1920x1080x24"
+          node apps/desktop/scripts/smoke-linux.mjs /opt/WorldView/worldview
+          --expect-history duckdb-parquet --expect-keyring refused
+          --out artifacts/verification/linux-smoke-deb.json
+
+      # Same, with a running GNOME Keyring: keys must be storable through libsecret.
+      - name: Smoke test — installed app, GNOME Keyring
+        run: |
+          dbus-run-session -- bash -c '
+            set -euo pipefail
+            # Create and unlock a login keyring, then make sure the Secret Service is up.
+            printf "smoke\n" | gnome-keyring-daemon --unlock --components=secrets > /dev/null
+            eval "$(gnome-keyring-daemon --start --components=secrets)"
+            xvfb-run -a -s "-screen 0 1920x1080x24" \
+              node apps/desktop/scripts/smoke-linux.mjs /opt/WorldView/worldview \
+              --expect-history duckdb-parquet --expect-keyring usable \
+              --out artifacts/verification/linux-smoke-deb-keyring.json'
+
+      # Work offline: strace every connect() of the whole process tree for a minute. Only Unix
+      # sockets and loopback may appear — no DNS, no outside address. The control run (offline
+      # off) must show the app reaching out, or the trace proves nothing.
+      - name: Work offline attempts no WAN connection (strace)
+        run: >-
+          xvfb-run -a -s "-screen 0 1920x1080x24"
+          node apps/desktop/scripts/offline-trace-linux.mjs /opt/WorldView/worldview --seconds 60
+          --out artifacts/verification/linux-offline-trace.json
+      - name: Offline trace control (online, must reach out)
+        run: >-
+          xvfb-run -a -s "-screen 0 1920x1080x24"
+          node apps/desktop/scripts/offline-trace-linux.mjs /opt/WorldView/worldview --seconds 60 --control
+          --out artifacts/verification/linux-offline-trace-control.json
+
+      - name: Uninstall removes the app, not the user's data
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.config/@worldview/desktop" && echo keep > "$HOME/.config/@worldview/desktop/marker"
+          sudo apt-get remove -y worldview
+          test ! -e /opt/WorldView/worldview
+          test -f "$HOME/.config/@worldview/desktop/marker"
+
+      # By exact name, never by glob: only what assert-version just checked.
+      - name: Collect Linux assets
+        run: |
+          set -euo pipefail
+          cp "apps/desktop/release/worldview_${VERSION}_amd64.deb" artifacts/release/
+          # Written by electron-builder when it has update info for the .deb; checked by
+          # assert-version when present. Nothing installs Linux updates from it yet.
+          if [[ -f apps/desktop/release/latest-linux.yml ]]; then cp apps/desktop/release/latest-linux.yml artifacts/release/; fi
+          cp THIRD_PARTY_NOTICES.md artifacts/release/THIRD_PARTY_NOTICES.txt
+          ls -la artifacts/release
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worldview-linux-x64
+          path: |
+            artifacts/release/**
+            artifacts/verification/**
+          retention-days: 30

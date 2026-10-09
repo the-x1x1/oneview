@@ -6,6 +6,7 @@ import {
   stringSetting,
   type ByteStreamHandle,
   type ObservationEmitter,
+  type OwnPositionHealth,
   type ProviderContext,
   type ProviderHealth,
   type ProviderManifest,
@@ -26,7 +27,16 @@ import {
 } from './wire.js';
 
 export { MESHTASTIC_LOCAL_MANIFEST } from './manifest.js';
-export { NodeStore, precisionMetres, MAX_NODES } from './nodes.js';
+export {
+  NodeStore,
+  precisionMetres,
+  MAX_NODES,
+  OWN_FIX_FRESH_SECONDS,
+  ageText,
+  evaluateOwnFix,
+  hardwareName,
+} from './nodes.js';
+export type { OwnFix, OwnFixState } from './nodes.js';
 export {
   DEFAULT_MESHTASTIC_PORT,
   FrameReader,
@@ -48,6 +58,10 @@ export {
   PORT_POSITION,
   PORT_TELEMETRY,
   PORT_TEXT_MESSAGE,
+  LOC_UNSET,
+  LOC_MANUAL,
+  LOC_INTERNAL,
+  LOC_EXTERNAL,
 } from './wire.js';
 export type { FromRadio, MeshNodeInfo, MeshPacket, MeshPosition, MeshTelemetry, MeshUser } from './wire.js';
 
@@ -74,13 +88,25 @@ export interface MeshtasticLocalOptions {
 export interface MeshtasticLocalSettings {
   host: string;
   port: number;
+  /** A USB serial port (Linux): when set, the node is read over USB and host/port are not used. */
+  serialPort?: string;
 }
 
+/** Meshtastic's serial client API speaks at this rate. */
+export const MESHTASTIC_SERIAL_BAUD = 115200;
+
 export function parseMeshtasticLocalSettings(raw: Record<string, unknown>): MeshtasticLocalSettings {
+  const serialPort = stringSetting(raw, 'serialPort');
   return {
     host: stringSetting(raw, 'host', { host: true }) ?? '127.0.0.1',
     port: numberSetting(raw, 'port', 1, 65535) ?? DEFAULT_MESHTASTIC_PORT,
+    ...(serialPort ? { serialPort: serialPort.slice(0, 256) } : {}),
   };
+}
+
+/** Where the node is, in words for health messages and logs. */
+export function describeTarget(s: MeshtasticLocalSettings): string {
+  return s.serialPort ? s.serialPort : `${s.host}:${s.port}`;
 }
 
 export interface MeshtasticLocalStats {
@@ -102,6 +128,10 @@ interface Session {
   heartbeatTimer: unknown;
   retryMs: number;
   closed: boolean;
+  /** This computer's own node is on the map now (so losing its fix must take it off). */
+  ownDrawn: boolean;
+  /** Replace everything this provider has on the map at the next flush (the own node changed). */
+  resnapshot: boolean;
 }
 
 /**
@@ -142,13 +172,20 @@ export class MeshtasticLocalProvider implements WorldProvider {
     this.settings = parseMeshtasticLocalSettings(await context.settings.get());
     context.settings.onChange((raw) => {
       const next = parseMeshtasticLocalSettings(raw);
-      if (next.host === this.settings.host && next.port === this.settings.port) return;
+      if (
+        next.host === this.settings.host &&
+        next.port === this.settings.port &&
+        next.serialPort === this.settings.serialPort
+      )
+        return;
       this.settings = next;
       // A new address: drop the old connection and dial the new one now.
       const s = this.session;
       if (s && !s.closed) {
-        s.stream?.close();
+        // Let go of the stream before closing it, so its close is not taken for a drop.
+        const old = s.stream;
         s.stream = undefined;
+        old?.close();
         this.connected = false;
         this.stopHeartbeat(s);
         this.scheduleReconnect(s, 0);
@@ -182,6 +219,10 @@ export class MeshtasticLocalProvider implements WorldProvider {
       heartbeatTimer: undefined,
       retryMs: RECONNECT_MIN_MS,
       closed: false,
+      ownDrawn: false,
+      // A new session starts from the full set: what an earlier session drew (this node's
+      // last fix included) may no longer hold.
+      resnapshot: true,
     };
     this.session = session;
     request.signal.addEventListener('abort', () => this.closeSession(session), { once: true });
@@ -195,41 +236,53 @@ export class MeshtasticLocalProvider implements WorldProvider {
   }
 
   private async connect(session: Session): Promise<void> {
-    const open = this.context.local.openByteStream?.bind(this.context.local);
-    if (!open)
-      throw this.fail(new ProviderError('UNSUPPORTED', 'this host cannot open TCP byte streams', { retryable: false }));
-    // Loopback, or the one host named — the runtime refuses anything else (ADR-003).
-    const { host, port } = this.target;
+    const serialPort = this.settings.serialPort;
+    const where = describeTarget(this.settings);
     this.lastAttempt = this.nowIso();
     let stream: ByteStreamHandle | undefined;
     // Only the session's current stream may report a drop: one closed on purpose (the address
     // changed) must not schedule a reconnect over the one already dialling.
     const current = () => stream !== undefined && session.stream === stream;
+    const events = {
+      onData: (bytes: Uint8Array) => {
+        if (current()) this.onData(session, bytes);
+      },
+      onClose: () => {
+        if (current())
+          this.onDrop(
+            session,
+            new ProviderError(
+              'OFFLINE',
+              serialPort
+                ? `the Meshtastic node on ${serialPort} went away (unplugged?)`
+                : `the Meshtastic node at ${where} closed the connection`,
+            ),
+          );
+      },
+      onError: (error: ProviderError) => {
+        if (current()) this.onDrop(session, error);
+      },
+    };
     try {
-      stream = await open(
-        { host, port },
-        {
-          onData: (bytes) => {
-            if (current()) this.onData(session, bytes);
-          },
-          onClose: () => {
-            if (current())
-              this.onDrop(
-                session,
-                new ProviderError('OFFLINE', `the Meshtastic node at ${host}:${port} closed the connection`),
-              );
-          },
-          onError: (error) => {
-            if (current()) this.onDrop(session, error);
-          },
-        },
-        { connectTimeoutMs: this.manifest.refreshPolicy.timeoutMs },
-      );
+      if (serialPort) {
+        // A node plugged in by USB (Linux): only that port; the runtime refuses anything else.
+        const openSerial = this.context.local.openSerialStream?.bind(this.context.local);
+        if (!openSerial)
+          throw new ProviderError('UNSUPPORTED', 'this host cannot open serial ports', { retryable: false });
+        stream = await openSerial({ path: serialPort, baudRate: MESHTASTIC_SERIAL_BAUD }, events);
+      } else {
+        const open = this.context.local.openByteStream?.bind(this.context.local);
+        if (!open)
+          throw new ProviderError('UNSUPPORTED', 'this host cannot open TCP byte streams', { retryable: false });
+        // Loopback, or the one host named — the runtime refuses anything else (ADR-003).
+        const { host, port } = this.target;
+        stream = await open({ host, port }, events, { connectTimeoutMs: this.manifest.refreshPolicy.timeoutMs });
+      }
     } catch (err) {
       const pe =
         err instanceof ProviderError
-          ? err.code === 'OFFLINE'
-            ? new ProviderError('OFFLINE', `no Meshtastic node at ${host}:${port}`, { retryAfterMs: RECONNECT_MIN_MS })
+          ? err.code === 'OFFLINE' && !serialPort
+            ? new ProviderError('OFFLINE', `no Meshtastic node at ${where}`, { retryAfterMs: RECONNECT_MIN_MS })
             : err
           : new ProviderError('NETWORK', err instanceof Error ? err.message : String(err));
       throw this.fail(pe);
@@ -245,7 +298,7 @@ export class MeshtasticLocalProvider implements WorldProvider {
     this.configured = false;
     this.lastError = undefined;
     this.lastSuccess = this.nowIso();
-    this.context.logger.info('Meshtastic node connected', { host, port });
+    this.context.logger.info('Meshtastic node connected', { via: serialPort ? 'usb' : 'tcp', at: where });
     this.requestConfig(stream);
     this.scheduleHeartbeat(session);
     session.emit([], { snapshot: false });
@@ -287,9 +340,17 @@ export class MeshtasticLocalProvider implements WorldProvider {
         continue;
       }
       switch (message.kind) {
-        case 'my-info':
-          this.nodes.myNodeNum = message.myNodeNum || undefined;
+        case 'my-info': {
+          const num = message.myNodeNum || undefined;
+          if (num !== this.nodes.myNodeNum) {
+            // Another node is plugged in (or the first one is known now): what was drawn as
+            // "this node" is redrawn from scratch.
+            if (this.nodes.myNodeNum !== undefined) session.resnapshot = true;
+            this.nodes.myNodeNum = num;
+            if (num !== undefined) session.pending.add(num);
+          }
           break;
+        }
         case 'node-info': {
           const num = this.nodes.nodeInfo(message.node);
           if (num !== undefined) session.pending.add(num);
@@ -318,7 +379,7 @@ export class MeshtasticLocalProvider implements WorldProvider {
           break;
       }
     }
-    if (session.pending.size === 0) return;
+    if (session.pending.size === 0 && !session.resnapshot) return;
     if (this.flushIntervalMs <= 0) this.flush(session);
     else if (session.flushTimer === undefined)
       session.flushTimer = this.timers.setTimeout(() => {
@@ -328,20 +389,37 @@ export class MeshtasticLocalProvider implements WorldProvider {
   }
 
   private flush(session: Session): void {
-    if (session.closed || session.pending.size === 0) return;
+    if (session.closed || (session.pending.size === 0 && !session.resnapshot)) return;
     const now = this.context.clock.now();
     const receivedAt = new Date(now).toISOString();
-    const sourceRef = `tcp://${this.target.host}:${this.target.port}`;
-    const batch: Observation[] = [];
-    for (const num of session.pending) {
-      const draft = this.nodes.draft(num, Math.floor(now / 1000), sourceRef);
-      if (draft) batch.push(buildObservation(this.manifest, receivedAt, draft));
+    const sourceRef = this.settings.serialPort
+      ? `serial://${this.settings.serialPort}`
+      : `tcp://${this.target.host}:${this.target.port}`;
+    const nowSec = Math.floor(now / 1000);
+    const own = this.nodes.myNodeNum;
+    let snapshot = session.resnapshot;
+    if (own !== undefined && session.pending.has(own)) {
+      const drawn = this.nodes.draft(own, nowSec) !== undefined;
+      // NO FIX: the own node comes off the map. An incremental batch cannot take an object
+      // away, so everything this provider shows is sent again without it.
+      if (!drawn && session.ownDrawn) snapshot = true;
+      session.ownDrawn = drawn;
     }
+    const batch: Observation[] = [];
+    const drafts = snapshot
+      ? this.nodes.drafts(nowSec, sourceRef)
+      : [...session.pending].map((num) => this.nodes.draft(num, nowSec, sourceRef));
+    for (const draft of drafts) if (draft) batch.push(buildObservation(this.manifest, receivedAt, draft));
     session.pending.clear();
-    if (!batch.length) return;
+    session.resnapshot = false;
+    if (snapshot) {
+      if (own !== undefined) session.ownDrawn = this.nodes.draft(own, nowSec) !== undefined;
+      this.context.logger.info('Meshtastic: full node set sent', { nodes: batch.length });
+    }
+    if (!batch.length && !snapshot) return;
     this.lastObservation = receivedAt as IsoTimestamp;
     this.lastSuccess = this.lastObservation;
-    session.emit(batch, { snapshot: false });
+    session.emit(batch, { snapshot });
   }
 
   private onDrop(session: Session, error: ProviderError): void {
@@ -362,9 +440,12 @@ export class MeshtasticLocalProvider implements WorldProvider {
       session.retryTimer = undefined;
       if (session.closed || !this.running) return;
       this.stats.reconnects++;
-      this.connect(session).catch(() => {
+      this.connect(session).catch((err: unknown) => {
         if (session.closed) return;
         session.emit([], { snapshot: false });
+        // A setting that can never work (a serial port off Linux, a path that is not a USB
+        // serial device) stays an error until the setting changes.
+        if (err instanceof ProviderError && !err.retryable) return;
         this.scheduleReconnect(session, session.retryMs);
         session.retryMs = Math.min(RECONNECT_MAX_MS, session.retryMs * 2);
       });
@@ -393,6 +474,36 @@ export class MeshtasticLocalProvider implements WorldProvider {
     return new Date(this.context.clock.now()).toISOString() as IsoTimestamp;
   }
 
+  /** "; this node: Base (LilyGO T-Beam), battery 87%, GPS fix (3D, 9 satellites), 40 s old" */
+  private ownText(): string {
+    const node = this.nodes.ownNode();
+    if (!node) return '';
+    const fix = this.nodes.ownFix(Math.floor(this.context.clock.now() / 1000));
+    const who = [node.name ?? node.id, node.hardware ? `(${node.hardware})` : undefined].filter(Boolean).join(' ');
+    const power = node.externalPower
+      ? 'on external power'
+      : node.batteryPct !== undefined
+        ? `battery ${node.batteryPct}%`
+        : undefined;
+    return `; this node: ${[who, power, fix?.text].filter(Boolean).join(', ')}`;
+  }
+
+  /** This node's fix, structured for the field status strip (no coordinates in it). */
+  private ownPosition(): OwnPositionHealth | undefined {
+    const node = this.nodes.ownNode();
+    if (!node) return undefined;
+    const f = this.nodes.ownFix(Math.floor(this.context.clock.now() / 1000));
+    if (!f) return undefined;
+    return {
+      state: f.state,
+      node: node.name ?? node.id,
+      ...(f.fixSec ? { fixAt: new Date(f.fixSec * 1000).toISOString() as IsoTimestamp } : {}),
+      ...(f.satellites !== undefined ? { satellites: f.satellites } : {}),
+      ...(f.fixType ? { fixType: f.fixType } : {}),
+      ...(f.accuracyM !== undefined ? { accuracyM: f.accuracyM } : {}),
+    };
+  }
+
   async health(): Promise<ProviderHealth> {
     let status: ProviderStatus;
     let message: string | undefined;
@@ -402,7 +513,7 @@ export class MeshtasticLocalProvider implements WorldProvider {
       const nodes = this.nodes.size;
       if (this.connected)
         message = this.configured
-          ? `${nodes} node${nodes === 1 ? '' : 's'} on the mesh, ${this.nodes.placed} with a position`
+          ? `${nodes} node${nodes === 1 ? '' : 's'} on the mesh, ${this.nodes.placed} with a position${this.ownText()}`
           : 'waiting for the node list';
     } else if (this.lastError) {
       status = this.lastError.code === 'OFFLINE' || this.lastError.code === 'TIMEOUT' ? 'OFFLINE' : 'ERROR';
@@ -417,6 +528,8 @@ export class MeshtasticLocalProvider implements WorldProvider {
       objectCount: this.nodes.placed,
     };
     if (message) h.message = message;
+    const own = this.connected && this.configured ? this.ownPosition() : undefined;
+    if (own) h.ownPosition = own;
     if (this.lastAttempt) h.lastAttempt = this.lastAttempt;
     if (this.lastSuccess) h.lastSuccess = this.lastSuccess;
     if (this.lastObservation) h.lastObservation = this.lastObservation;

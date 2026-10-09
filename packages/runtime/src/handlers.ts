@@ -24,7 +24,7 @@ import {
   searchWorld,
 } from '@worldview/query-engine';
 import { whatChanged } from '@worldview/event-engine';
-import { parsePublisherKeyFile, placeHitToSearchResult } from '@worldview/offline';
+import { VaultPackError, parsePublisherKeyFile, placeHitToSearchResult } from '@worldview/offline';
 import { exportBundle } from '@worldview/diagnostics';
 import {
   EVENT_TYPE_LABELS,
@@ -100,6 +100,12 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
     'settings.set': async (patch) => {
       if (typeof patch !== 'object' || patch === null || Array.isArray(patch))
         throw new InvalidRequestError('settings patch must be an object');
+      // Vaults are granted through the folder dialog (offline.addVault), which marks the folder;
+      // a path typed into settings from the page is never one.
+      if ('storage' in patch)
+        throw new InvalidRequestError(
+          'data vaults are added with offline.addVault and removed with offline.removeVault',
+        );
       let next: AppSettings;
       try {
         next = await core.settings.patch(patch as Partial<AppSettings>);
@@ -768,6 +774,7 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
 
     // ---- offline ---------------------------------------------------------------
     'offline.status': async () => core.offlineStatus(),
+    'field.status': async () => core.fieldStatus(),
     'offline.installPack': async () => {
       const choice = await core.hostBridge.pickOpenFile({
         title: 'Install world pack',
@@ -778,9 +785,49 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       core.emitter.emit('offline.changed', core.offlineStatus());
       return { installed: result.installed, issues: result.issues };
     },
+    'offline.installPackTo': async ({ vaultId }) => {
+      requireId(vaultId, 'vaultId');
+      if (!(core.settings.get().storage?.vaults ?? []).some((v) => v.id === vaultId))
+        throw new InvalidRequestError('no such data vault');
+      const choice = await core.hostBridge.pickOpenFile({
+        title: 'Install world pack onto the vault',
+        filters: [{ name: 'WorldView pack', extensions: ['worldpack'] }],
+      });
+      if ('cancelled' in choice) return { installed: null, issues: ['cancelled'] };
+      const result = await core.installPackToVault(choice.path, vaultId);
+      core.emitter.emit('offline.changed', core.offlineStatus());
+      return { installed: result.installed, issues: result.issues };
+    },
+    'offline.addVault': async () => {
+      if (!core.hostBridge.pickFolder)
+        return { status: core.offlineStatus(), added: null, issues: ['this window cannot choose folders'] };
+      const choice = await core.hostBridge.pickFolder({
+        title: 'Choose a folder for WorldView data (an external drive)',
+      });
+      if ('cancelled' in choice) return { status: core.offlineStatus(), added: null, issues: ['cancelled'] };
+      const label = choice.path.split(/[\\/]/).filter(Boolean).pop() ?? 'Vault';
+      const r = await core.addVault(choice.path, label);
+      if (!r.ok) return { status: core.offlineStatus(), added: null, issues: [r.reason] };
+      const added = (core.settings.get().storage?.vaults ?? []).at(-1)?.label ?? label;
+      return {
+        status: core.offlineStatus(),
+        added,
+        issues: r.adopted ? [`"${added}" was already a WorldView vault; its packs are read from it again`] : [],
+      };
+    },
+    'offline.removeVault': async ({ id }) => {
+      requireId(id, 'id');
+      await core.removeVault(id);
+      return core.offlineStatus();
+    },
     'offline.removePack': async ({ id }) => {
       requireId(id, 'id');
-      await core.packs.remove(id);
+      try {
+        await core.packs.remove(id);
+      } catch (err) {
+        if (err instanceof VaultPackError) throw new InvalidRequestError(err.message);
+        throw err;
+      }
       const status = core.offlineStatus();
       core.emitter.emit('offline.changed', status);
       return status;

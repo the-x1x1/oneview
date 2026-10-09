@@ -14,6 +14,9 @@
  *   sign    <file.worldpack> --key key.worldpack-key [--out file]
  *   update  --from old.worldpack --to new.worldpack [--out file] [--sign key.worldpack-key]
  *           an update pack: only the files that changed, the rest taken from the installed old one
+ *   bundle  <dir> [--trust a.worldpack-pub,…]   verify every pack in <dir>, write worldview-bundle.json
+ *           and SHA256SUMS.txt (sizes, SHA-256, ids) for carrying them to the field drive
+ *   bundle  <dir> --check                        re-hash a copied bundle against its manifest
  *   regions
  *
  * A private key is written with owner-only permissions and never inside a git work tree
@@ -52,6 +55,8 @@ import {
   type WorldPackInclude,
   type WorldPackRegionInput,
 } from '@worldview/offline';
+
+import { BUNDLE_MANIFEST, BUNDLE_SUMS, checkBundle, makeBundle, writeBundle } from './bundle.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const argv = process.argv.slice(2);
@@ -485,6 +490,35 @@ async function update(args: Args): Promise<number> {
   }
 }
 
+async function bundle(args: Args): Promise<number> {
+  const dir = args.positional[1];
+  if (!dir) usage(2);
+  if (args.flags.get('check') === true) {
+    const r = await checkBundle(dir);
+    for (const p of r.problems) console.error(`  FAIL ${p}`);
+    console.log(
+      r.ok ? `bundle OK: ${r.checked} pack(s) match ${BUNDLE_MANIFEST}` : `bundle FAILED (${r.problems.length})`,
+    );
+    return r.ok ? 0 : 1;
+  }
+  const trust = trustedFrom(args);
+  if (!trust) return 2;
+  const r = await makeBundle(dir, trust.length ? { trustedPublishers: trust } : {});
+  if (!r.ok) {
+    for (const i of r.issues) console.error(`  FAIL ${i}`);
+    return 1;
+  }
+  await writeBundle(dir, r.manifest);
+  for (const p of r.manifest.packs)
+    console.log(
+      `  ${p.file}  ${p.id} ${p.version}  ${(p.sizeBytes / 1024 ** 2).toFixed(1)} MB  ${p.signature}  ${p.sha256.slice(0, 16)}…`,
+    );
+  console.log(
+    `wrote ${BUNDLE_MANIFEST} and ${BUNDLE_SUMS}: ${r.manifest.packs.length} pack(s), ${(r.manifest.totalBytes / 1024 ** 2).toFixed(1)} MB`,
+  );
+  return 0;
+}
+
 function regions(): number {
   for (const p of REGION_PRESETS)
     console.log(
@@ -513,6 +547,9 @@ switch (command) {
     break;
   case 'update':
     code = await update(args);
+    break;
+  case 'bundle':
+    code = await bundle(args);
     break;
   case 'regions':
     code = regions();

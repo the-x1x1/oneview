@@ -55,6 +55,14 @@ export interface PositionFields {
   time?: number;
   fixTime?: number;
   precisionBits?: number;
+  /** location_source: 1 set by hand, 2 own GPS, 3 external GPS. */
+  source?: number;
+  pdop?: number;
+  hdop?: number;
+  accuracyMm?: number;
+  fixQuality?: number;
+  fixType?: number;
+  sats?: number;
 }
 
 export function position(p: PositionFields): Part {
@@ -63,7 +71,14 @@ export function position(p: PositionFields): Part {
     pb.sfixed32(2, Math.round(p.lon * 1e7)),
     p.alt !== undefined ? pb.varint(3, p.alt) : [],
     p.time !== undefined ? pb.fixed32(4, p.time) : [],
+    p.source !== undefined ? pb.varint(5, p.source) : [],
     p.fixTime !== undefined ? pb.fixed32(7, p.fixTime) : [],
+    p.pdop !== undefined ? pb.varint(11, p.pdop) : [],
+    p.hdop !== undefined ? pb.varint(12, p.hdop) : [],
+    p.accuracyMm !== undefined ? pb.varint(14, p.accuracyMm) : [],
+    p.fixQuality !== undefined ? pb.varint(17, p.fixQuality) : [],
+    p.fixType !== undefined ? pb.varint(18, p.fixType) : [],
+    p.sats !== undefined ? pb.varint(19, p.sats) : [],
     p.precisionBits !== undefined ? pb.varint(23, p.precisionBits) : [],
   );
 }

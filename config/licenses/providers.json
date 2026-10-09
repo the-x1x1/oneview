@@ -140,8 +140,8 @@
     },
     {
       "providerId": "meshtastic-local",
-      "name": "Meshtastic mesh through the user's own node (TCP client API) — the user's own mesh",
-      "sourceUrl": "tcp://<user-node>:4403 (Meshtastic client API frames)",
+      "name": "Meshtastic mesh through the user's own node (USB serial or TCP client API) — the user's own mesh",
+      "sourceUrl": "serial:///dev/serial/by-id/<user-node> or tcp://<user-node>:4403 (Meshtastic client API frames)",
       "termsUrl": "n/a — data originates from the user's own node and mesh; protocol reference https://meshtastic.org/docs/development/device/client-api/",
       "license": "No third-party data policy (what the user's own node hears on the user's own mesh). No Meshtastic code or protocol definition is distributed: the decoder is written from the published wire format (Meshtastic's definitions are GPL-3.0 and are not included).",
       "category": "infrastructure",
@@ -149,7 +149,7 @@
       "dataPolicy": {
         "cacheAllowed": true,
         "rawPayloadRetentionAllowed": false,
-        "normalizedRetentionAllowed": true,
+        "normalizedRetentionAllowed": false,
         "redistributionAllowed": false,
         "offlinePackAllowed": false,
         "exportAllowed": false,

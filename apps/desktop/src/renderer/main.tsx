@@ -8,7 +8,7 @@ import type { RendererHostLike } from './renderer-host-like.js';
 import { MAPLIBRE_WORKER_PATH } from '../shared/renderer-assets.js';
 import { wireClient } from './wire-client.js';
 import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
-import { gpuRenderer } from './map/gpu-info.js';
+import { gpuRenderer, noWebGlMessage } from './map/gpu-info.js';
 
 /**
  * Composition root.
@@ -98,6 +98,8 @@ function resolveHost(electron: boolean): RendererHostLike {
     // renderer's WebGL context is often created before they do.
     graphics: graphicsProfile(resolveGraphicsQuality('auto', gpuRenderer())),
     create2D: async () => {
+      // MapLibre needs WebGL2 too; without it, say why in words the operator can act on.
+      if (!caps.webgl2) throw new Error(noWebGlMessage(window.worldview?.platform));
       const [{ MapLibreWorldRenderer }, { loadMapLibre }] = await Promise.all([
         import('@worldview/render-maplibre'),
         import('@worldview/render-maplibre'),
@@ -116,6 +118,7 @@ function resolveHost(electron: boolean): RendererHostLike {
       });
     },
     create3D: async () => {
+      if (!caps.webgl2) throw new Error(noWebGlMessage(window.worldview?.platform));
       const [{ CesiumWorldRenderer }, { loadCesium }] = await Promise.all([
         import('@worldview/render-cesium'),
         import('@worldview/render-cesium'),

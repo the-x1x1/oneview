@@ -1,0 +1,56 @@
+{
+  "request": "GET /v1/objects?lat=21.3&lon=-157.9&radiusKm=20&limit=2",
+  "status": 200,
+  "body": {
+    "at": "2026-10-08T20:00:00.000Z",
+    "basis": "live",
+    "recorded": false,
+    "objects": [
+      {
+        "id": "aircraft:icao24:a00001",
+        "type": "aircraft",
+        "position": {
+          "latitude": 21.3,
+          "longitude": -157.9
+        },
+        "observedAt": "2026-10-08T19:59:55.000Z",
+        "freshness": "LIVE",
+        "labels": {
+          "name": "aircraft:icao24:a00001"
+        },
+        "provenance": {
+          "providerId": "readsb-local",
+          "sourceName": "readsb-local",
+          "origin": "local",
+          "receivedAt": "2026-10-08T19:59:56.000Z"
+        },
+        "sources": [
+          "readsb-local"
+        ]
+      },
+      {
+        "id": "aircraft:icao24:a00002",
+        "type": "aircraft",
+        "position": {
+          "latitude": 21.35,
+          "longitude": -157.85
+        },
+        "observedAt": "2026-10-08T19:59:55.000Z",
+        "freshness": "LIVE",
+        "labels": {
+          "name": "aircraft:icao24:a00002"
+        },
+        "provenance": {
+          "providerId": "readsb-local",
+          "sourceName": "readsb-local",
+          "origin": "local",
+          "receivedAt": "2026-10-08T19:59:56.000Z"
+        },
+        "sources": [
+          "readsb-local"
+        ]
+      }
+    ],
+    "next": "YWlyY3JhZnQ6aWNhbzI0OmEwMDAwMg"
+  }
+}

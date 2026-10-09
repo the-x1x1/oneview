@@ -57,7 +57,7 @@ export function initialState(nowMs: number): RootState {
     lenses: { lenses: BUILT_IN_LENSES, activeId: 'overview' },
     collections: { collections: [], activeId: null },
     watchzones: { zones: [] },
-    offline: { status: null },
+    offline: { status: null, field: null },
     updater: { state: null },
     ui: {
       contextTab: 'selection',
@@ -348,7 +348,13 @@ function watchzones(state: RootState['watchzones'], action: RootAction): RootSta
 }
 
 function offline(state: RootState['offline'], action: RootAction): RootState['offline'] {
-  return action.type === 'offline/status' ? { status: action.status } : state;
+  if (action.type === 'offline/status') return { ...state, status: action.status };
+  // A slow answer to a request must not replace a newer pushed one.
+  if (action.type === 'offline/field')
+    return state.field && Date.parse(state.field.at) > Date.parse(action.field.at)
+      ? state
+      : { ...state, field: action.field };
+  return state;
 }
 
 function updater(state: RootState['updater'], action: RootAction): RootState['updater'] {

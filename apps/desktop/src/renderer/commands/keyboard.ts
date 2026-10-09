@@ -24,6 +24,7 @@ export type KeyResult =
   | 'toggleHud'
   | 'toggleGrid'
   | 'toggleRangeRings'
+  | 'toggleFieldStatus'
   | 'nextStyle'
   | 'previousStyle'
   | 'toggleDayNight'
@@ -41,7 +42,7 @@ export type KeyResult =
  *   Ctrl/Cmd+K → palette · Esc → close palette/dialog, else What's here, else leave clean view,
  *   else stop measuring, else clear selection · / → focus search · 2 / 3 → render modes · Space → play/pause · L → jump to live
  *   H → HUD · V / Shift+V → next / previous visual style · N → day and night · O → orbit ·
- *   F → follow the selection · C → clean view · M → measure · ] and [ → the next and previous
+ *   F → follow the selection · B → the field status strip · C → clean view · M → measure · ] and [ → the next and previous
  *   object out from the middle of the view · Home or Shift+H → the home view (all outside
  *   editable controls, and never with Ctrl, Cmd or Alt, so Ctrl+C still copies).
  */
@@ -89,6 +90,8 @@ export function resolveKey(input: KeyInput): KeyResult {
       return 'toggleGrid';
     case 'r':
       return 'toggleRangeRings';
+    case 'b':
+      return 'toggleFieldStatus';
     default:
       return null;
   }
@@ -187,6 +190,9 @@ export function applyKey(result: KeyResult, state: RootState, actions: ShellActi
       return actions.selectNearby(result === 'nextNearby' ? 1 : -1);
     case 'toggleRangeRings':
       actions.toggleRangeRings();
+      return true;
+    case 'toggleFieldStatus':
+      void actions.toggleFieldStatus();
       return true;
     case 'goHome':
       actions.goHome();

@@ -1,0 +1,17 @@
+{
+  "request": "GET /v1/health",
+  "status": 200,
+  "body": {
+    "at": "2026-10-08T20:00:00.000Z",
+    "recorded": false,
+    "connection": {
+      "state": "OFFLINE",
+      "workOffline": true,
+      "networkOnline": false
+    },
+    "sources": {
+      "live": 2,
+      "total": 2
+    }
+  }
+}

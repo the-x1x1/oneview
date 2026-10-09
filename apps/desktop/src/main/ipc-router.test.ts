@@ -174,6 +174,8 @@ test('router: every channel rejects a malformed payload and accepts a well-forme
     'offline.trustPublisher': { packId: 'pack-1', name: 'Example Maps' },
     'offline.removePublisher': { keyId: '0123456789abcdef' },
     'offline.setRequireTrusted': { required: true },
+    'offline.removeVault': { id: '0123456789abcdef0123456789abcdef' },
+    'offline.installPackTo': { vaultId: '0123456789abcdef0123456789abcdef' },
     'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
     'export.readings': {
       objectId: 'sensor:purpleair-local:abc',

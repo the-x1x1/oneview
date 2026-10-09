@@ -470,6 +470,17 @@ test('settings: the HUD grid reference is optional — absent, degrees only; MGR
   assert.equal(DEFAULT_SETTINGS.display.hudGrid, undefined);
   const next = applySettingsPatch(DEFAULT_SETTINGS, { display: { ...DEFAULT_SETTINGS.display, hudGrid: 'mgrs' } });
   assert.equal(next.display.hudGrid, 'mgrs');
+  // Field profile and status strip (docs/cyberdeck M5): optional, absent by default.
+  for (const profile of ['field', 'balanced', 'docked'])
+    assert.equal(
+      appSettingsPatchSchema.parse({ display: { ...display, profile, fieldStatus: true } }).ok,
+      true,
+      profile,
+    );
+  assert.equal(appSettingsPatchSchema.parse({ display: { ...display, profile: 'turbo' } }).ok, false);
+  assert.equal(appSettingsPatchSchema.parse({ display: { ...display, fieldStatus: 'yes' } }).ok, false);
+  assert.equal(DEFAULT_SETTINGS.display.profile, undefined);
+  assert.equal(DEFAULT_SETTINGS.display.fieldStatus, undefined);
 });
 
 test('settings: a Martin source is optional; its trusted host is a host name, its fields bounded', () => {
@@ -499,4 +510,18 @@ test('pass alerts: up to 20 satellites, warned 1–60 minutes ahead; kept apart 
   assert.deepEqual(next.passAlerts, ok.passAlerts);
   next.passAlerts!.satellites[0]!.name = 'changed';
   assert.equal(ok.passAlerts.satellites[0]!.name, 'ISS (ZARYA)', 'the patch is copied, not shared');
+});
+
+test('settings: the local API is optional and off by default; own position is its own switch', () => {
+  assert.equal(DEFAULT_SETTINGS.localApi, undefined);
+  assert.equal(appSettingsPatchSchema.parse({ localApi: { enabled: true } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ localApi: { enabled: true, ownPosition: true } }).ok, true);
+  assert.equal(appSettingsPatchSchema.parse({ localApi: { enabled: 'yes' } }).ok, false);
+  assert.equal(
+    appSettingsPatchSchema.parse({ localApi: { enabled: true, port: 8080 } }).ok,
+    false,
+    'no network port to set',
+  );
+  const next = applySettingsPatch(DEFAULT_SETTINGS, { localApi: { enabled: true } });
+  assert.deepEqual(next.localApi, { enabled: true });
 });
