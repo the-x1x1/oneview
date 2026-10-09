@@ -456,6 +456,31 @@ claimed more than the code. Not changed: `/v1/objects` walks the matching object
 thread (the spatial index first when a point is given) — measured cost on the laptop with a busy
 sky is part of H12.
 
+## M7 — gates, guides, readiness checklist (container, 2026-10-08)
+
+Every gate the spec lists that the container can run, on the branch head:
+
+| Gate                                                                                              | Result                                                                                     |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `format:check`                                                                                    | PASS (Prettier 3.9.8)                                                                      |
+| `typecheck`                                                                                       | the same 19 shim-only errors as the v0.2.2 baseline, none new                              |
+| `boundary-check`                                                                                  | PASS, 1,007 files                                                                          |
+| `test`                                                                                            | 342 files, **2,231 pass, 0 fail**, 17 skipped (opt-in live tests and other-platform tests) |
+| `test:offline` (network off)                                                                      | 2 files, 4 pass                                                                            |
+| `provider:test --all`                                                                             | PASS                                                                                       |
+| `connector:test --all`                                                                            | 36 / 38 — the two example fixtures failing since §M0 (expected exception)                  |
+| `license-audit`                                                                                   | 0 errors                                                                                   |
+| `stage:resources -- --check`                                                                      | up to date                                                                                 |
+| `install --frozen-lockfile`, `lint`, `build`, `.deb` build, packaged smoke on the `.deb`, Windows | BLOCKED here (no npm registry, no ESLint/Vite, no Windows); CI's                           |
+
+Written: [READINESS.md](READINESS.md) (the checklist: owner, environment, evidence, status for
+every gate and for field demonstration steps A–I), [USB-DEVICES.md](USB-DEVICES.md) (permissions,
+udev, stable names, what gets in the way), [EXTERNAL-SSD.md](EXTERNAL-SSD.md) (formatting,
+mounting, what WORLDVIEW does with a vault), the Linux section of
+`docs/releases/RELEASE-PROCESS.md`, and an index ([README.md](README.md)). The guides' device
+behaviour is from documentation and WORLDVIEW's own tested code; their walk-through on the P16s
+is part of H7–H11.
+
 ## Hardware test matrix
 
 | #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |
