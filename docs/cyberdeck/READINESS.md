@@ -6,7 +6,7 @@ who proves it, where, with what evidence, and where it stands. Statuses follow
 yet run where it counts), **BLOCKED** (cannot run here; says why), **EXPECTED EXCEPTION**
 (fails for a known reason outside this work, recorded, not hidden).
 
-Owners: **container** — Claude's Linux container (no USB, no GPU, no battery, no npm
+Owners: **container** — the development container (no USB, no GPU, no battery, no npm
 registry); **CI** — the `Build desktop` workflow on GitHub (Ubuntu 24.04 / Windows); **operator**
 — on the P16s, by hand. Automatic evidence (container, CI) and operator-observed results are kept
 in separate columns of the record: the container never stands in for hardware.

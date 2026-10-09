@@ -5,6 +5,67 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-09
+
+WORLDVIEW on Linux and the cyberdeck: an installable `.deb` for x86_64 Linux beside the Windows
+build, packs on an external drive, your own ADS-B receiver and Meshtastic node by USB with this
+computer's own GPS fix, a field status strip and power profiles, and a narrow read-only
+connection for other programs on the same computer. Released to `main` on the operator's
+decision before the Windows installer checklist and the hardware checks on the P16s
+(docs/cyberdeck/READINESS.md); see Known limitations.
+
+### Added
+
+- **Linux (x86_64).** `worldview_0.3.0_amd64.deb` for Ubuntu 24.04 and similar: a menu entry,
+  the Chromium sandbox kept on (an AppArmor profile is installed for it; there is no AppImage,
+  whose launcher turns the sandbox off), API keys only in a real keyring (GNOME Keyring or
+  KWallet; a "basic text" store is refused), files where Linux expects them. Built, installed
+  and smoke-tested by CI on every run. docs/cyberdeck/LINUX.md.
+- **Data vaults.** Packs can live on an external SSD: a folder you choose, marked as WORLDVIEW's
+  vault, checked every 30 s and at once on waking. Pulled out, its packs show as not connected
+  and nothing is ever written to the empty mount point; plugged back in, they return. WORLDVIEW
+  starts and runs without it. docs/cyberdeck/EXTERNAL-SSD.md, OFFLINE-FIELD.md (the O'ahu
+  field bundle, with checksums).
+- **Your own aircraft receiver.** The Local ADS-B receiver reads readsb's own API on this
+  computer (`http://127.0.0.1:8042/?all`) as well as `aircraft.json`, and each aircraft says it
+  was received here on 1090 MHz. Settings → Diagnostics on Linux says whether an RTL-SDR is
+  plugged in, held by the TV driver, or not allowed to this user, and the fix.
+  docs/cyberdeck/RTL-SDR.md.
+- **A Meshtastic node by USB (Linux).** "Node plugged in by USB" reads a T-Beam (or any node) on
+  its `/dev/serial/by-id/…` port, besides the network. That node is this computer: its own GPS
+  fix is shown with age, satellites and accuracy, STALE after five minutes, "age unknown" when
+  dated ahead of the clock, and with NO FIX it comes off the map — never a neighbour's position
+  in its place. docs/cyberdeck/T-BEAM.md, USB-DEVICES.md.
+- **Field status strip (B).** One line under the top bar: network (LOCAL when working offline),
+  GPS, ADS-B, mesh, vault, free disk and battery, with a switch for each receiver, and
+  "connected" and "data received" kept apart.
+- **Profiles.** Field (Low graphics, the 2D map, the strip, internet sources asked a third as
+  often), Balanced and Docked (High, the globe), in Settings and the palette. You choose; nothing
+  switches by itself, and sources on this computer are never slowed. docs/cyberdeck/FIELD.md,
+  with `apps/desktop/scripts/measure-linux.mjs` for memory, CPU and battery figures.
+- **Local read-only API (Linux, off by default).** Settings → Local API lets your own programs
+  read sources, objects near a place, a track and offline status over a socket only your user
+  can open — never the network — and, with a second permission, this computer's position. Data
+  whose source does not allow it out of the app is never given. ADR-014, docs/cyberdeck/LOCAL-API.md.
+
+### Changed
+
+- **Meshtastic positions are no longer kept in history.** The mesh carries other people's precise
+  positions; they are shown while connected and not archived (`normalizedRetentionAllowed:
+false`). Positions recorded by earlier versions are not deleted.
+- Waking from sleep checks the network and the vaults at once; mains and battery changes are
+  logged.
+
+### Fixed
+
+- The sandbox and keyring problems a Linux build would have shipped with (an AppImage that
+  starts unsandboxed on Ubuntu 24.04+, a keyring Chromium would not use), found in review before
+  any release.
+
+### Security
+
+- `source-map-js` 1.2.2 (GHSA-68fv-2mgg-jv7q, build-time only, through Vite).
+
 ## [0.2.2] — 2026-10-05
 
 The map as an instrument (measuring, grids and MGRS, What's here, Sun and Moon, course vectors,
