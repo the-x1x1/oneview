@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node 22 LTS (`.nvmrc`), pnpm 10.28.0 (`corepack enable && corepack prepare pnpm@10.28.0 --activate`)
-- Windows 10/11 x64 for packaging the desktop app (builds also run on Linux/macOS for tests)
+- Windows 10/11 x64 or Linux x86_64 for packaging the desktop app (each packages for itself; Linux: docs/cyberdeck/LINUX.md)
 
 ## Clone / install / dev
 
