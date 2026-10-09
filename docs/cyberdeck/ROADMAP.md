@@ -12,7 +12,7 @@ merged, tagged or published without the operator. Status words are defined in
 | M3 — RTL-SDR → readsb → local aircraft                                            | P1       | M1 (M2 for offline proof)    | **Done in the container** with a real readsb decoder fed textbook frames; real stick + antenna on the P16s UNVERIFIED (H9)                                                                                |
 | M4 — T-Beam USB serial + own GNSS                                                 | P1       | M1                           | **Done in the container**: USB serial transport, own GPS fix / STALE / NO FIX, tested end to end over a pseudo-terminal; real T-Beam UNVERIFIED (H10)                                                     |
 | M5 — Field status, profiles, power evidence                                       | P2       | M3, M4                       | **Done in the container**: field status strip (B), Field/Balanced/Docked profiles, battery from sysfs, sleep/wake and power events, a measuring script; P16s numbers and sleep/wake UNVERIFIED (H11, H12) |
-| M6 — Local read-only API for Formicaria                                           | P2       | M1                           | Not started                                                                                                                                                                                               |
+| M6 — Local read-only API for Formicaria                                           | P2       | M1                           | **Done in the container**: ADR-014; `/v1` over a 0600 Unix socket, Linux, off by default; policy-filtered; tested with a separate client process and in the real Electron app                             |
 | M7 — Full gates, operator docs, disconnected acceptance                           | P0/P1    | all                          | Not started                                                                                                                                                                                               |
 | Later — Offline topographic map style (Topo GPS-like)                             | P3       | M2, offline terrain decision | Requested by the operator 2026-10-08; not scheduled                                                                                                                                                       |
 
@@ -144,6 +144,16 @@ merged, tagged or published without the operator. Status words are defined in
 - `apps/desktop/scripts/measure-linux.mjs`: start time, PSS/RSS, CPU, GPU busy, whole-computer
   battery draw with a `--baseline` mode; conditions recorded with the numbers. FIELD.md says how.
 - `ProviderHealth.ownPosition` (additive): the GPS state structured for the strip.
+
+## M6 — done in the container
+
+- ADR-014: a separate, versioned, GET-only API — not the renderer's IPC — over
+  `$XDG_RUNTIME_DIR/worldview/api.sock` (folder 0700, socket 0600, never a network port), Linux
+  only, off until turned on in Settings → Local API; own position a second permission.
+- Data policy enforced in the server: only objects whose every source allows export; the
+  Meshtastic mesh never; tracks only where history is allowed too; vault paths never.
+- Bounded and validated; contract fixtures in `fixtures/local-api/v1/`; a dependency-free
+  example consumer in `tools/local-api-client/`; LOCAL-API.md for the operator.
 
 ## Later — offline topographic map style
 

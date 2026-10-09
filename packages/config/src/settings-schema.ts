@@ -98,6 +98,7 @@ const settingsShape = {
   search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),
   // Optional (additive): absent means not working offline.
   network: s.optional(s.object({ workOffline: s.boolean() })),
+  localApi: s.optional(s.object({ enabled: s.boolean(), ownPosition: s.optional(s.boolean()) }, { strict: true })),
   // Optional (additive, 2026-10-08): data vaults (packages/offline vault.ts). Absent: none. The
   // id is the vault marker's; a path whose marker differs is never used as this vault.
   storage: s.optional(
@@ -165,6 +166,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     display: s.optional(settingsShape.display),
     search: settingsShape.search,
     network: settingsShape.network,
+    localApi: settingsShape.localApi,
     storage: settingsShape.storage,
     home: settingsShape.home,
     martin: settingsShape.martin,
@@ -188,6 +190,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     display: { ...settings.display },
     ...(settings.search ? { search: { ...settings.search } } : {}),
     ...(settings.network ? { network: { ...settings.network } } : {}),
+    ...(settings.localApi ? { localApi: { ...settings.localApi } } : {}),
     ...(settings.storage ? { storage: { vaults: settings.storage.vaults.map((v) => ({ ...v })) } } : {}),
     ...(settings.martin ? { martin: { ...settings.martin } } : {}),
     ...(settings.home
@@ -228,6 +231,7 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.display !== undefined) next.display = { ...patch.display };
   if (patch.search !== undefined) next.search = { ...patch.search };
   if (patch.network !== undefined) next.network = { ...patch.network };
+  if (patch.localApi !== undefined) next.localApi = { ...patch.localApi };
   if (patch.storage !== undefined) next.storage = { vaults: patch.storage.vaults.map((v) => ({ ...v })) };
   if (patch.martin !== undefined) next.martin = { ...patch.martin };
   if (patch.home !== undefined) next.home = { ...patch.home, view: patch.home.view ? { ...patch.home.view } : null };

@@ -1,0 +1,10 @@
+{
+  "request": "GET /v1/objects?lat=91&lon=0",
+  "status": 400,
+  "body": {
+    "error": {
+      "code": "bad-request",
+      "message": "\"lat\" must be between -90 and 90"
+    }
+  }
+}

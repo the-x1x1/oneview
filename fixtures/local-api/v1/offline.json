@@ -1,0 +1,30 @@
+{
+  "request": "GET /v1/offline",
+  "status": 200,
+  "body": {
+    "at": "2026-10-08T20:00:00.000Z",
+    "connection": "OFFLINE",
+    "workOffline": true,
+    "capabilities": {
+      "localMap": true,
+      "localSearch": true,
+      "history": true,
+      "collections": true,
+      "localAircraft": true
+    },
+    "packs": [
+      {
+        "id": "oahu",
+        "name": "O'ahu",
+        "status": "active"
+      }
+    ],
+    "vaults": [
+      {
+        "label": "Field SSD",
+        "state": "ready",
+        "freeBytes": 5
+      }
+    ]
+  }
+}

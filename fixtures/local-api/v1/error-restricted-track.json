@@ -1,0 +1,10 @@
+{
+  "request": "GET /v1/track?id=sensor:meshtastic:!22222222",
+  "status": 403,
+  "body": {
+    "error": {
+      "code": "forbidden",
+      "message": "this object's sources do not allow their data out of the app"
+    }
+  }
+}

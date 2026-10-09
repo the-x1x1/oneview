@@ -299,6 +299,25 @@ export function SettingsDialog() {
             onChange={(v) => void actions.updateSettings({ network: { workOffline: v } })}
           />
         </Section>
+        {session.appInfo?.platform === 'linux' ? (
+          <Section title="Local API">
+            <Toggle
+              label="Let other programs on this computer read WORLDVIEW"
+              description="A read-only connection for your own programs (Formicaria): source status, objects near a place, tracks and offline status, through a socket only your user can open — never the network. Data whose source does not allow it out of the app (a Meshtastic mesh, among others) is never given. Off unless you turn it on."
+              checked={s.localApi?.enabled === true}
+              onChange={(v) => void actions.updateSettings({ localApi: { ...s.localApi, enabled: v } })}
+            />
+            <Toggle
+              label="Include this computer's position"
+              description="Also answer with this computer's own GPS position (from a node plugged in by USB), with its fix time and accuracy — and no coordinates when there is no fix."
+              checked={s.localApi?.ownPosition === true}
+              disabled={s.localApi?.enabled !== true}
+              onChange={(v) =>
+                void actions.updateSettings({ localApi: { enabled: s.localApi?.enabled === true, ownPosition: v } })
+              }
+            />
+          </Section>
+        ) : null}
         <Section title="Search">
           <Toggle
             label="Online place search"

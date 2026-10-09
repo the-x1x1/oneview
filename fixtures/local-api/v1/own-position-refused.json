@@ -1,0 +1,10 @@
+{
+  "request": "GET /v1/own-position",
+  "status": 403,
+  "body": {
+    "error": {
+      "code": "forbidden",
+      "message": "this computer's position is not shared: allow it in Settings → Local API"
+    }
+  }
+}

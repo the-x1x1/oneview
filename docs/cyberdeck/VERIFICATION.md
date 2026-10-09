@@ -410,6 +410,52 @@ files PASS; provider:test all PASS; license-audit 0 errors; Prettier clean. Lint
 Not done: a sunlight theme — the app has one dark palette and no theme system, and the spec asks
 for one only "if existing styles support it" (DEFER).
 
+## M6 — local read-only API (container, 2026-10-08)
+
+**Router** (`packages/runtime/src/support/local-api.test.ts`, 7 tests over an invented world):
+anything but GET 405; any body 413; an over-long URL 413; unknown paths 404 (`/v1/../etc/passwd`
+included); unknown, repeated or malformed parameters 400; radius, limit, track span bounded;
+pages by id with a cursor until the end. Data policy: the mesh's nodes, an aircraft merged with a
+mesh source, a source with no known policy, and a vessel a closed source once fed (past its
+capped refs) are never listed and leave no count; a track is refused if any provider with points
+in the stored history, or that ever fed the object, forbids export or keeping history; a closed
+source's size and last activity are not given. Own position: 403 until separately allowed; then
+the fix with time and accuracy, an old fix said stale, NO FIX with no coordinates though the old
+node object exists, `no-source` with nothing plugged in. Vaults: labels and states, never mount
+paths. The contract fixtures (`fixtures/local-api/v1/`, 10 answers) are checked against the
+router. **State engine**: every provider that fed an object is remembered past the eight-ref cap
+(`contributors`, tested).
+
+**Socket** (`packages/runtime/test/integration/local-api.test.ts`, 5 tests, the composed runtime):
+off by default, no socket; on, folder 0700, socket 0600, the example consumer run as a separate
+process reads `/v1`, `/v1/objects` (bounded); own position refused, then allowed; a different
+user (`nobody`) cannot open it; turned off, the socket goes and the consumer says WORLDVIEW is not
+there. A file at the path, or a live socket of another server, is refused and left alone; a
+runtime folder writable by others is refused; 125 requests in a minute → 119 + the POST answered,
+the rest 429; a POST with a body gets 405 without the body being read; a connection that never
+finishes its headers is dropped within seconds; not offered off Linux.
+
+**In the real app, as an ordinary user** (Electron 44.5.1 linux-x64 with the branch's main
+process, user `smoke`, its own `XDG_RUNTIME_DIR`, Xvfb; `m6-electron.log`): the socket appears
+`srw------- smoke`, the consumer as that user reads `/v1`, `/v1/health`, `/v1/sources` (35 of 44
+sources readable, `meshtastic-local` not), three objects with a next page; own position 403; a
+POST 405; no TCP listener; after quit the socket is gone. **PASS.**
+
+Gates after M6: 342 files, **2,231 pass, 0 fail**; typecheck same 19
+shim-only; boundary 1,007 files PASS; provider:test all PASS; license-audit 0 errors; Prettier
+clean. Lint not run.
+
+**Independent security review** found 11 problems, all fixed: a track could carry history from a
+closed source no longer behind the object (now gated on stored-history providers too); the
+`withheld` count, under a 10 m radius, located mesh nodes (removed); labels from a closed source
+outlived its capped ref (`contributors`); the umask stayed tightened across async ticks (now only
+around the synchronous `listen`); a failure after `listen` could orphan a listener; a live socket
+of another instance was unlinked; the runtime folder itself was not checked; the socket stayed
+after quit; timeouts were checked only every 30 s; a closed source's size was listed; the docs
+claimed more than the code. Not changed: `/v1/objects` walks the matching objects on the main
+thread (the spatial index first when a point is given) — measured cost on the laptop with a busy
+sky is part of H12.
+
 ## Hardware test matrix
 
 | #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |

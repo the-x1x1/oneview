@@ -88,6 +88,12 @@ export class WorldState {
   private readonly byType = new Map<string, Set<string>>();
   private readonly byProvider = new Map<string, Set<string>>();
   private readonly tracks = new Map<string, TrackPoint[]>();
+  /**
+   * Every provider that has fed each object while it has been in the world — not capped like
+   * `sourceRefs` and not trimmed when a provider leaves: its labels, properties and track
+   * points stay merged into the object, so whoever reads the object reads what it gave.
+   */
+  private readonly contributorsById = new Map<string, Set<string>>();
   private readonly recent: Observation[] = [];
   /** Observations already admitted (by identity), so one handed in again is recognised. */
   private readonly admitted = new WeakSet<Observation>();
@@ -132,6 +138,10 @@ export class WorldState {
   }
   all(): IterableIterator<WorldObject> {
     return this.objects.values();
+  }
+  /** Every provider that has contributed to this object since it entered the world (sorted). */
+  contributors(id: string): string[] {
+    return [...(this.contributorsById.get(id) ?? [])].sort();
   }
   ids(): IterableIterator<string> {
     return this.objects.keys();
@@ -230,6 +240,9 @@ export class WorldState {
       this.admitted.add(obs);
       result.accepted++;
       this.pushRecent(obs);
+      let contributors = this.contributorsById.get(objectId);
+      if (!contributors) this.contributorsById.set(objectId, (contributors = new Set()));
+      contributors.add(obs.providerId);
 
       const ref: ObservationReference = {
         observationId: obs.id,
@@ -512,6 +525,7 @@ export class WorldState {
     for (const r of obj.sourceRefs) this.byProvider.get(r.providerId)?.delete(id);
     this.spatial.remove(id);
     this.tracks.delete(id);
+    this.contributorsById.delete(id);
     // Added and removed within one batch: listeners never saw it, so announce neither.
     if (!this.pending.added.delete(id)) this.pending.removed.add(id);
     this.pending.updated.delete(id);

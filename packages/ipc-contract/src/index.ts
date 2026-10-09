@@ -637,6 +637,12 @@ export interface AppSettings {
    */
   network?: { workOffline: boolean };
   /**
+   * (additive, 2026-10-08, docs/cyberdeck M6, ADR-014) The local read-only API for other programs
+   * of this user on this computer (Formicaria): a Unix socket, Linux only, off unless turned on.
+   * `ownPosition` separately allows it to answer with this computer's own GPS position.
+   */
+  localApi?: { enabled: boolean; ownPosition?: boolean };
+  /**
    * (additive, 2026-10-08) Data vaults the operator added (Settings → Offline): folders outside
    * the app's own, usually on an external drive, that hold world packs. Settings, credentials,
    * history and indexes stay in the app's own folder. Absent: none.
@@ -1313,3 +1319,5 @@ export interface IpcError {
 export function isIpcError(v: unknown): v is IpcError {
   return typeof v === 'object' && v !== null && 'code' in v && 'channel' in v && 'message' in v;
 }
+
+export * from './local-api.js';

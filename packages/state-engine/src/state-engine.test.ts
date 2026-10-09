@@ -426,3 +426,28 @@ test('media: valid payload.media entries are lifted onto the object, invalid one
   );
   assert.equal(state.get('camera:cctv-public:CAM2')!.media, undefined);
 });
+
+test('contributors: every provider that fed an object is remembered, past the capped source refs', () => {
+  const clock = new VirtualClock(T0);
+  const state = new WorldState({ clock, flushDelayMs: 0 });
+  const at = (s: number) => new Date(T0 + s * 1000).toISOString();
+  const aircraft = (providerId: string, s: number) =>
+    obs({
+      providerId,
+      objectType: 'aircraft',
+      externalId: 'a1b2c3',
+      observedAt: at(s),
+      payload: { icao24: 'a1b2c3', callsign: providerId === 'a' ? 'SECRET1' : 'OPEN1' },
+    });
+  state.ingest([aircraft('a', 0)], { snapshot: false, providerId: 'a' });
+  for (let i = 1; i <= 10; i++) state.ingest([aircraft('b', i)], { snapshot: false, providerId: 'b' });
+  const id = [...state.all()][0]!.id;
+  assert.deepEqual(
+    new Set(state.get(id)!.sourceRefs.map((r) => r.providerId)),
+    new Set(['b']),
+    "a's ref was capped out",
+  );
+  assert.deepEqual(state.contributors(id), ['a', 'b'], 'but it is still one of the sources behind it');
+  state.removeProvider('b');
+  assert.deepEqual(state.contributors(id), [], 'gone with the object');
+});

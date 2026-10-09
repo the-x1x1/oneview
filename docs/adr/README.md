@@ -13,3 +13,4 @@
 - [ADR-011-identity-resolution](ADR-011-identity-resolution.md)
 - [ADR-012-update-trust-model](ADR-012-update-trust-model.md)
 - [ADR-013-connector-architecture](ADR-013-connector-architecture.md)
+- [ADR-014-local-api](ADR-014-local-api.md)

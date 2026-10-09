@@ -1,0 +1,22 @@
+{
+  "request": "GET /v1/track?id=aircraft:icao24:a00001",
+  "status": 200,
+  "body": {
+    "id": "aircraft:icao24:a00001",
+    "from": "2026-10-08T19:00:00.000Z",
+    "to": "2026-10-08T20:00:00.000Z",
+    "points": [
+      {
+        "at": "2026-10-08T19:59:00.000Z",
+        "latitude": 21.3,
+        "longitude": -157.9
+      },
+      {
+        "at": "2026-10-08T20:00:00.000Z",
+        "latitude": 21.31,
+        "longitude": -157.91,
+        "altitudeM": 900
+      }
+    ]
+  }
+}

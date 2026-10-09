@@ -484,6 +484,8 @@ async function bootstrap(): Promise<void> {
   });
   app.on('before-quit', () => {
     clearInterval(networkTimer);
+    // The local API's socket goes now: the asynchronous stop below may not finish before exit.
+    runtime.localApi?.closeNow();
     router.dispose();
     updater.dispose();
     void runtime
