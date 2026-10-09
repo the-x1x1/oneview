@@ -1,4 +1,4 @@
-# Known limitations — 0.2.2
+# Known limitations — 0.3.0
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -348,3 +348,27 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   licence record, which is not in the registry until you confirm its terms (use
   `--pmtiles-only` meanwhile). A Martin server can be read by the tool, not chosen as the
   app's basemap.
+
+## Linux and the cyberdeck (0.3.0)
+
+0.3.0 went to `main` on the operator's decision before its installer checklist and before the
+hardware checks; what that leaves unproven is listed here and, line by line, in
+docs/cyberdeck/READINESS.md.
+
+- The Linux `.deb` is built, installed and smoke-tested by CI under a virtual display with no
+  GPU: the window starts and the shell mounts, but the map has never been seen drawing on a real
+  Linux GPU (the reference is the P16s's Radeon 740M). `HARDWARE_REQUIRED`
+- An RTL-SDR and a T-Beam on real USB, an external SSD pulled while running, sleep and wake, and
+  the battery and memory figures have been tested only against stand-ins (a decoder fed recorded
+  frames, a pseudo-terminal, folders, a fake `/sys`). `HARDWARE_REQUIRED`
+- The Windows installer checklist (docs/releases/QA-CHECKLIST-0.2.0.md) was not walked for
+  0.3.0; CI built the Windows installer and ran every test on it.
+- Linux builds are unsigned and do not update themselves; install a newer `.deb` by hand.
+- USB serial (a Meshtastic node by cable), the local API and the USB diagnostics are Linux only;
+  on Windows a Meshtastic node is read over the network as before. On Windows the field status
+  strip shows mains or battery without a percentage.
+- How often a node's firmware reports its own position to a USB client, how it reports a lost
+  fix, and whether opening the port resets the board are not yet known from a real T-Beam: a fix
+  older than five minutes is shown STALE.
+- The local API answers what the app holds now, not history beyond one object's track; it is
+  not offered on Windows.

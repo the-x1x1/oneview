@@ -26,7 +26,9 @@ are carried to 0.3.0: the operator's decisions, the checklist items only the ope
 walk, the 180° infrared line on the globe and the 2D profile. 0.2.1 (2026-10-04,
 prerelease) is a security release on top of it: Electron 39 → 44. 0.2.2 (2026-10-05,
 prerelease) adds the map as an instrument, offline work with history in DuckDB by default,
-and emergencies and distress beacons as events (CHANGELOG).
+and emergencies and distress beacons as events (CHANGELOG). 0.3.0 (2026-10-09) adds Linux
+and the cyberdeck (docs/cyberdeck/ROADMAP.md): released to `main` on the operator's decision
+before the installer checklist and the hardware checks (docs/cyberdeck/READINESS.md).
 
 The acceleration directive: a source is a JSON definition, the code that runs it is a
 connector written once. Landed on `develop` from `feature/connector-architecture`:
