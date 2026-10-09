@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  linuxPasswordStore,
   CredentialStore,
   CredentialStoreError,
   INSECURE_LINUX_BACKENDS,
@@ -42,7 +43,7 @@ for (const backend of ['basic_text', 'unknown']) {
     );
     await assert.rejects(fs.access(file), 'nothing is written, not even ciphertext');
     assert.match(store.unavailableReason(), new RegExp(`"${backend}"`));
-    assert.match(store.unavailableReason(), /GNOME Keyring or KWallet/);
+    assert.match(store.unavailableReason(), /GNOME Keyring, KWallet or another Secret Service/);
   });
 }
 
@@ -113,4 +114,14 @@ test('encryptionUnavailableReason names the fix for each platform', () => {
   assert.match(encryptionUnavailableReason('linux', 'basic_text'), /Secret Service/);
   assert.match(encryptionUnavailableReason('linux', 'gnome_libsecret'), /Secret Service/);
   assert.match(encryptionUnavailableReason('win32', undefined), /DPAPI/);
+});
+
+test("linuxPasswordStore: libsecret everywhere but KDE, and never over the user's own switch", () => {
+  // Chromium would pick basic_text on all of these and WORLDVIEW would refuse every key.
+  for (const desktop of ['sway', 'i3', 'Hyprland', 'LXQt', '', 'GNOME', 'ubuntu:GNOME', 'XFCE'])
+    assert.equal(linuxPasswordStore({ XDG_CURRENT_DESKTOP: desktop }, false), 'gnome-libsecret', desktop);
+  assert.equal(linuxPasswordStore({}, false), 'gnome-libsecret', 'no desktop at all (SSH, CI)');
+  for (const env of [{ XDG_CURRENT_DESKTOP: 'KDE' }, { DESKTOP_SESSION: 'plasma' }, { XDG_CURRENT_DESKTOP: 'kde' }])
+    assert.equal(linuxPasswordStore(env, false), undefined, JSON.stringify(env));
+  assert.equal(linuxPasswordStore({ XDG_CURRENT_DESKTOP: 'sway' }, true), undefined, '--password-store given wins');
 });

@@ -57,27 +57,21 @@ export function expectedArtifacts(version: string): {
   };
 }
 
-/** The Linux x86_64 package names (electron-builder.yml `deb` and `appImage` artifactName). */
-export function expectedLinuxArtifacts(version: string): {
-  deb: string;
-  appImage: string;
-  appImageBlockmap: string;
-  sbom: string;
-} {
-  return {
-    deb: `worldview_${version}_amd64.deb`,
-    appImage: `WorldView-${version}-x86_64.AppImage`,
-    appImageBlockmap: `WorldView-${version}-x86_64.AppImage.blockmap`,
-    sbom: `WorldView-${version}.sbom.json`,
-  };
+/**
+ * The Linux x86_64 package name (electron-builder.yml `deb.artifactName`). There is no AppImage:
+ * its launcher turns Chromium's sandbox off on Ubuntu 24.04+ (electron-builder.yml), so one in
+ * the release folder is foreign like any other unexpected file.
+ */
+export function expectedLinuxArtifacts(version: string): { deb: string; sbom: string } {
+  return { deb: `worldview_${version}_amd64.deb`, sbom: `WorldView-${version}.sbom.json` };
 }
 
 /** What a release of `version` for `platform` must contain, may contain, and where the updater points. */
 interface ReleasePlan {
   allowed: Set<string>;
   required: string[];
-  /** electron-updater's feed file and the artifact it must name. */
-  updater: { file: string; path: string };
+  /** electron-updater's feed file and the artifact it must name; `required` when its absence is a fault. */
+  updater: { file: string; path: string; required: boolean };
   /** The file the verification report must hash: proof it ran after packaging. */
   primary: string;
   sbom: string;
@@ -87,9 +81,11 @@ function releasePlan(version: string, platform: ReleasePlatform): ReleasePlan {
   if (platform === 'linux') {
     const l = expectedLinuxArtifacts(version);
     return {
-      allowed: new Set([l.deb, l.appImage, l.appImageBlockmap]),
-      required: [l.deb, l.appImage],
-      updater: { file: 'latest-linux.yml', path: l.appImage },
+      allowed: new Set([l.deb]),
+      required: [l.deb],
+      // Written beside the .deb when electron-builder has update info for it; nothing installs
+      // Linux updates from it yet, so it is checked when present and not required.
+      updater: { file: 'latest-linux.yml', path: l.deb, required: false },
       primary: l.deb,
       sbom: l.sbom,
     };
@@ -98,7 +94,7 @@ function releasePlan(version: string, platform: ReleasePlatform): ReleasePlan {
   return {
     allowed: new Set([w.installer, w.blockmap, w.portable]),
     required: [w.installer, w.portable],
-    updater: { file: 'latest.yml', path: w.installer },
+    updater: { file: 'latest.yml', path: w.installer, required: true },
     primary: w.installer,
     sbom: w.sbom,
   };
@@ -151,7 +147,7 @@ export function assertReleaseVersion(opts: AssertVersionOptions): AssertVersionR
   for (const f of plan.required) if (!built.includes(f)) problems.push(`missing apps/desktop/release/${f}`);
   checked.push(`apps/desktop/release: ${built.length} artifact(s)`);
 
-  // The updater feed (latest.yml on Windows, latest-linux.yml for the AppImage).
+  // The updater feed (latest.yml on Windows; latest-linux.yml, when written, on Linux).
   const feed = plan.updater.file;
   const latestFile = path.join(releaseDir, feed);
   if (existsSync(latestFile)) {
@@ -161,7 +157,8 @@ export function assertReleaseVersion(opts: AssertVersionOptions): AssertVersionR
     const p = /^path:\s*(\S+)\s*$/m.exec(latest)?.[1];
     if (p !== plan.updater.path) problems.push(`${feed} path ${p ?? '(none)'} is not ${plan.updater.path}`);
     checked.push(feed);
-  } else if (built.includes(plan.updater.path)) problems.push(`missing apps/desktop/release/${feed}`);
+  } else if (plan.updater.required && built.includes(plan.updater.path))
+    problems.push(`missing apps/desktop/release/${feed}`);
 
   // SBOM: this version's only, naming this version and commit.
   const outDir = path.join(opts.root, 'artifacts', 'release');
@@ -215,8 +212,6 @@ export function releaseAssetPaths(version: string, platform: ReleasePlatform = '
     const l = expectedLinuxArtifacts(version);
     return [
       `apps/desktop/release/${l.deb}`,
-      `apps/desktop/release/${l.appImage}`,
-      'apps/desktop/release/latest-linux.yml',
       `artifacts/release/${l.sbom}`,
       'artifacts/release/SHA256SUMS.txt',
       'artifacts/release/verification-report.json',

@@ -10,9 +10,11 @@
 # Outputs on Linux x86_64 (apps/desktop/release/):
 #   worldview_<version>_amd64.deb       Debian/Ubuntu package: /opt/WorldView, /usr/bin/worldview,
 #                                       a menu entry, and an AppArmor profile so Chromium's
-#                                       sandbox works on Ubuntu 24.04+ without --no-sandbox
-#   WorldView-<version>-x86_64.AppImage single-file build for other distributions
-#   latest-linux.yml                    electron-updater metadata for the AppImage
+#                                       sandbox works on Ubuntu 24.04+
+#
+# No AppImage: electron-builder's AppImage launcher (AppRun) adds --no-sandbox by itself whenever
+# unprivileged user namespaces are unavailable — which is Ubuntu 24.04+ by default — and no
+# option turns that off. WorldView never runs unsandboxed (docs/cyberdeck/ARCHITECTURE.md).
 #
 # Publishing is MANUAL until a Windows code-signing certificate exists
 # (SIGNING_REQUIRED blocker): `pnpm release:package` runs with `--publish never`;
@@ -92,8 +94,6 @@ linux:
   target:
     - target: deb
       arch: [x64]
-    - target: AppImage
-      arch: [x64]
   # The command, the .deb's /usr/bin link and the AppArmor profile's name. Without it
   # electron-builder derives "worldview-desktop" from the package name.
   executableName: worldview
@@ -125,9 +125,6 @@ deb:
   # desktop runs (GNOME Keyring, KWallet); without one, API keys are refused, never stored in
   # plain text (src/main/credential-store.ts).
   maintainer: WorldView contributors
-
-appImage:
-  artifactName: WorldView-${version}-x86_64.${ext}
 
 publish:
   provider: github

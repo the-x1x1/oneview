@@ -26,7 +26,7 @@ export const PACKAGE_TARGETS = {
     unpackedDir: 'linux-unpacked',
     // linux.executableName in electron-builder.yml; the .deb links /usr/bin/worldview to it.
     executable: 'worldview',
-    label: 'Linux x86_64 (AppImage + .deb)',
+    label: 'Linux x86_64 (.deb)',
   },
 };
 

@@ -30,11 +30,35 @@ export interface SafeStorageLike {
  */
 export const INSECURE_LINUX_BACKENDS: ReadonlySet<string> = new Set(['basic_text', 'unknown']);
 
+/**
+ * The `--password-store` switch WORLDVIEW gives Chromium on Linux, or undefined to leave it be.
+ *
+ * Chromium chooses the secret store from XDG_CURRENT_DESKTOP: GNOME, Unity, Cinnamon, Pantheon,
+ * Deepin and XFCE get libsecret, KDE gets KWallet, and every other desktop — sway, i3, Hyprland,
+ * LXQt, a bare X session — gets `basic_text`, even with GNOME Keyring (or KeePassXC's Secret
+ * Service) running. WORLDVIEW refuses basic_text, so on those desktops keys could never be saved
+ * however the keyring was set up. Asking for libsecret everywhere but KDE uses a Secret Service
+ * when one exists; when none does, Chromium still ends up on basic_text and the store refuses it.
+ * An explicit `--password-store` from the user always wins.
+ *
+ * Changing the store makes keys saved under another one unreadable (they are kept, and reported
+ * as unreadable); before this, those desktops could not have saved any.
+ */
+export function linuxPasswordStore(
+  env: Record<string, string | undefined>,
+  switchGiven: boolean,
+): 'gnome-libsecret' | undefined {
+  if (switchGiven) return undefined;
+  const desktop = `${env['XDG_CURRENT_DESKTOP'] ?? ''}:${env['DESKTOP_SESSION'] ?? ''}`.toLowerCase();
+  if (/kde|plasma/.test(desktop)) return undefined; // KWallet, Chromium's own choice there
+  return 'gnome-libsecret';
+}
+
 /** Why credentials are refused on this system, for Diagnostics and the startup check. */
 export function encryptionUnavailableReason(platform: string, backend: string | undefined): string {
   if (platform === 'linux')
     return backend && INSECURE_LINUX_BACKENDS.has(backend)
-      ? `no Secret Service keyring answered (Electron backend "${backend}"); start GNOME Keyring or KWallet in your desktop session — see docs/cyberdeck/LINUX.md`
+      ? `no Secret Service keyring answered (Electron backend "${backend}"); make sure GNOME Keyring, KWallet or another Secret Service is running and unlocked in this desktop session — see docs/cyberdeck/LINUX.md`
       : 'the desktop keyring (Secret Service) could not be used — see docs/cyberdeck/LINUX.md';
   return 'the OS keychain/DPAPI could not be used';
 }

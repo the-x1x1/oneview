@@ -29,7 +29,7 @@
  * this just stops it being required.
  *
  * It packages for the machine it runs on (scripts/platform.mjs): Windows → NSIS installer +
- * portable zip, Linux x86_64 → AppImage + .deb. The signing-tool seed and the locked-exe
+ * portable zip, Linux x86_64 → .deb. The signing-tool seed and the locked-exe
  * probe are Windows-only steps; the build, the emptied output folders and the manual
  * publish gate are the same on both.
  */

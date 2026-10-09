@@ -410,10 +410,13 @@ test('packaging targets the host: --win on Windows, --linux on Linux x64, nothin
   assert.match(script, /if \(TARGET\.platform !== 'win32'\) return;/, 'the locked-exe probe is Windows-only');
 });
 
-test('electron-builder.yml builds a .deb and an AppImage for x64 with names release tooling expects', () => {
+test('electron-builder.yml builds an x64 .deb, and no AppImage, with names release tooling expects', () => {
   const linux = rootBlock(builderYml, 'linux');
   assert.match(linux, /target: deb\n\s+arch: \[x64\]/);
-  assert.match(linux, /target: AppImage\n\s+arch: \[x64\]/);
+  // electron-builder's AppImage launcher appends --no-sandbox whenever `unshare -Ur` fails (Ubuntu
+  // 24.04+ by default), whatever this file says. Until that can be built without, there is none.
+  assert.doesNotMatch(linux, /target: AppImage/);
+  assert.ok(!rootKeys(builderYml).includes('appImage'));
   assert.match(linux, /executableName: worldview/);
   assert.match(linux, /syncDesktopName: true/);
   assert.match(linux, /icon: build\/icon\.png/);
@@ -423,10 +426,11 @@ test('electron-builder.yml builds a .deb and an AppImage for x64 with names rele
     'no file associations until something opens by double-click',
   );
   assert.match(rootBlock(builderYml, 'deb'), /artifactName: worldview_\$\{version\}_amd64\.\$\{ext\}/);
-  assert.match(rootBlock(builderYml, 'appImage'), /artifactName: WorldView-\$\{version\}-x86_64\.\$\{ext\}/);
   // The window's app_id / WM_CLASS is package.json desktopName; syncDesktopName names the menu entry after it.
-  const desktop = JSON.parse(read('package.json')) as { desktopName?: string };
+  // fpm refuses to build a .deb without a homepage (electron-builder FpmTarget, "Please specify project homepage").
+  const desktop = JSON.parse(read('package.json')) as { desktopName?: string; homepage?: string };
   assert.equal(desktop.desktopName, 'worldview.desktop');
+  assert.match(desktop.homepage ?? '', /^https:\/\//);
   // Never weaken Chromium's sandbox to make Linux start.
   const uncommented = (text: string) => text.replace(/^\s*(#|\/\/|\*).*$/gm, '');
   assert.doesNotMatch(uncommented(builderYml), /no-sandbox/);

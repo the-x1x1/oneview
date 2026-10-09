@@ -5,8 +5,9 @@ name: Build desktop
 # (docs/releases/RELEASE-PROCESS.md, ADR-012). Builds are unsigned until a Windows
 # code-signing certificate exists — SIGNING_REQUIRED in docs/releases/KNOWN-LIMITATIONS.md.
 #
-# The linux job builds the x86_64 .deb and AppImage, installs the .deb on the runner and
-# smoke-tests the installed app (docs/cyberdeck/LINUX.md). Its packages are uploaded as a
+# The linux job builds the x86_64 .deb, installs it on the runner and smoke-tests the installed
+# app (docs/cyberdeck/LINUX.md). There is no AppImage: electron-builder's AppImage launcher
+# disables Chromium's sandbox on Ubuntu 24.04+ (apps/desktop/electron-builder.yml). Its packages are uploaded as a
 # workflow artifact only: nothing Linux is attached to any release, draft or otherwise,
 # until the operator decides to publish Linux builds.
 #
@@ -135,8 +136,8 @@ jobs:
             artifacts/release/THIRD_PARTY_NOTICES.txt
             artifacts/release/latest.yml
 
-  # Linux x86_64: .deb + AppImage, the installed .deb smoke-tested on the runner. Artifacts
-  # only — this job never creates or edits a release.
+  # Linux x86_64: the .deb, installed and smoke-tested on the runner. Artifacts only — this job
+  # never creates or edits a release.
   linux:
     runs-on: ubuntu-24.04
     steps:
@@ -168,7 +169,7 @@ jobs:
       - run: pnpm provider:test --all
       - run: pnpm license-audit
 
-      - name: Build and package (.deb + AppImage)
+      - name: Build and package (.deb)
         run: pnpm release:package
 
       - name: SBOM and verification report
@@ -223,7 +224,9 @@ jobs:
         run: |
           dbus-run-session -- bash -c '
             set -euo pipefail
-            printf "smoke" | gnome-keyring-daemon --unlock --components=secrets > /dev/null
+            # Create and unlock a login keyring, then make sure the Secret Service is up.
+            printf "smoke\n" | gnome-keyring-daemon --unlock --components=secrets > /dev/null
+            eval "$(gnome-keyring-daemon --start --components=secrets)"
             xvfb-run -a -s "-screen 0 1920x1080x24" \
               node apps/desktop/scripts/smoke-linux.mjs /opt/WorldView/worldview \
               --expect-history duckdb-parquet --expect-keyring usable \
@@ -242,8 +245,9 @@ jobs:
         run: |
           set -euo pipefail
           cp "apps/desktop/release/worldview_${VERSION}_amd64.deb" artifacts/release/
-          cp "apps/desktop/release/WorldView-${VERSION}-x86_64.AppImage" artifacts/release/
-          cp apps/desktop/release/latest-linux.yml artifacts/release/
+          # Written by electron-builder when it has update info for the .deb; checked by
+          # assert-version when present. Nothing installs Linux updates from it yet.
+          if [[ -f apps/desktop/release/latest-linux.yml ]]; then cp apps/desktop/release/latest-linux.yml artifacts/release/; fi
           cp THIRD_PARTY_NOTICES.md artifacts/release/THIRD_PARTY_NOTICES.txt
           ls -la artifacts/release
 
@@ -254,44 +258,4 @@ jobs:
           path: |
             artifacts/release/**
             artifacts/verification/**
-          retention-days: 30
-
-  # The AppImage on a stock Ubuntu 24.04 runner. Separate so its result is its own: Ubuntu
-  # 24.04+ restricts the unprivileged user namespaces Chromium's sandbox needs, and unlike the
-  # .deb an AppImage cannot install an AppArmor profile for itself (docs/cyberdeck/LINUX.md).
-  linux-appimage:
-    needs: linux
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: worldview-linux-x64
-          path: linux-artifact
-      - name: Smoke-test tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth
-      - name: Smoke test — AppImage
-        run: |
-          set -euo pipefail
-          VERSION=$(node -p "require('./apps/desktop/package.json').version")
-          APP="linux-artifact/release/WorldView-${VERSION}-x86_64.AppImage"
-          chmod +x "$APP"
-          echo "apparmor_restrict_unprivileged_userns=$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo n/a)"
-          mkdir -p artifacts/verification
-          # Extract-and-run: the runner has no FUSE 2; users with libfuse2t64 run it directly.
-          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a -s "-screen 0 1920x1080x24" \
-            node apps/desktop/scripts/smoke-linux.mjs "$APP" --expect-history duckdb-parquet \
-            --out artifacts/verification/linux-smoke-appimage.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: worldview-linux-appimage-smoke
-          path: artifacts/verification/**
           retention-days: 30

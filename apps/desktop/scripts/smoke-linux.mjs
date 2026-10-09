@@ -22,7 +22,7 @@
  * could not start" panel. That is recorded as `webgl` in the result, never as a pass.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -73,6 +73,32 @@ function records() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Every running process started from the app's own directory, with its command line. Read from
+ * /proc, so "sandbox on" is what the processes were actually started with — not an assumption
+ * about what a launcher passed (electron-builder's AppImage launcher, for one, adds
+ * --no-sandbox by itself where user namespaces are restricted).
+ */
+function appProcesses() {
+  const appDir = path.dirname(realpathSync(executable));
+  const found = [];
+  for (const pid of readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
+    try {
+      // Chromium's child processes rewrite their title into one space-separated string.
+      const argv = readFileSync(`/proc/${pid}/cmdline`, 'utf8')
+        .split('\0')
+        .filter(Boolean)
+        .flatMap((a) => a.split(' '))
+        .filter(Boolean);
+      const exe = realpathSync(`/proc/${pid}/exe`);
+      if (path.dirname(exe) === appDir) found.push({ pid: Number(pid), argv });
+    } catch {
+      // gone, or not ours to read
+    }
+  }
+  return found;
+}
+
 /** Launch once; resolve with the records this launch wrote once the renderer has mounted. */
 async function launch(label) {
   const before = records().length;
@@ -97,6 +123,7 @@ async function launch(label) {
     mounted = mine.some((r) => r.message === 'runtime started') && mine.some((r) => r.message === 'renderer media');
     if (mounted) break;
   }
+  const processes = mounted ? appProcesses() : [];
   const elapsedMs = Date.now() - started;
   if (!exited) {
     child.kill('SIGTERM');
@@ -105,7 +132,16 @@ async function launch(label) {
   }
   await sleep(500);
   mine = records().slice(before);
-  return { label, mounted, elapsedMs, exitedEarly: exited !== null && !mounted, exited, output, records: mine };
+  return {
+    label,
+    mounted,
+    elapsedMs,
+    exitedEarly: exited !== null && !mounted,
+    exited,
+    output,
+    records: mine,
+    processes,
+  };
 }
 
 const field = (rs, message, key) => rs.find((r) => r.message === message)?.fields?.[key];
@@ -155,6 +191,14 @@ if (second) {
   if (!existsSync(settingsFile)) problems.push(`no settings file at ${settingsFile}`);
 }
 
+// The sandbox, as the processes were actually started.
+const unsandboxed = first.processes.filter((p) => p.argv.includes('--no-sandbox'));
+const processTypes = first.processes.map((p) => p.argv.find((a) => a.startsWith('--type='))?.slice(7) ?? 'browser');
+if (first.mounted && first.processes.length === 0)
+  problems.push('could not see the app processes in /proc to check the sandbox');
+for (const p of unsandboxed) problems.push(`process ${p.pid} (${p.argv[0]}) runs with --no-sandbox`);
+if (first.mounted && !processTypes.includes('renderer')) problems.push('no renderer process found');
+
 const webgl = first.records.some((r) =>
   /WebGL2? is required|WebGL.*not supported|no hardware 3D graphics/i.test(r.fields?.message ?? ''),
 )
@@ -174,7 +218,12 @@ const result = {
   providers: field(first.records, 'runtime started', 'providers') ?? null,
   settingsPersisted: Boolean(second?.mounted && !second.records.some((r) => r.message === 'migration applied')),
   webgl,
-  sandbox: 'on (no --no-sandbox was passed)',
+  sandbox:
+    first.processes.length === 0
+      ? 'not checked'
+      : unsandboxed.length === 0
+        ? `on: none of ${first.processes.length} app processes (${[...new Set(processTypes)].sort().join(', ')}) has --no-sandbox`
+        : `OFF in ${unsandboxed.length} process(es)`,
 };
 
 console.log(JSON.stringify(result, null, 2));

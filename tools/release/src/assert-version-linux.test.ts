@@ -15,7 +15,7 @@ const V = '0.3.0-rc.1';
 const COMMIT = 'c'.repeat(40);
 
 /** A Linux release folder as `pnpm release:package` + `sbom` + `release:verify` leave it on Linux. */
-function linuxRelease(opts: { extra?: string[]; omit?: string[]; feed?: string; hashed?: string[] } = {}) {
+function linuxRelease(opts: { extra?: string[]; omit?: string[]; feed?: string | null; hashed?: string[] } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'wv-release-linux-'));
   const l = expectedLinuxArtifacts(V);
   mkdirSync(path.join(root, 'apps', 'desktop', 'release'), { recursive: true });
@@ -23,16 +23,16 @@ function linuxRelease(opts: { extra?: string[]; omit?: string[]; feed?: string; 
   writeFileSync(path.join(root, 'apps', 'desktop', 'package.json'), JSON.stringify({ version: V }));
   const rel = (f: string) => path.join(root, 'apps', 'desktop', 'release', f);
   const out = (f: string) => path.join(root, 'artifacts', 'release', f);
-  for (const f of [l.deb, l.appImage, ...(opts.extra ?? [])])
-    if (!(opts.omit ?? []).includes(f)) writeFileSync(rel(f), 'x');
-  writeFileSync(rel('latest-linux.yml'), opts.feed ?? `version: ${V}\npath: ${l.appImage}\nsha512: x\n`);
+  for (const f of [l.deb, ...(opts.extra ?? [])]) if (!(opts.omit ?? []).includes(f)) writeFileSync(rel(f), 'x');
+  if (opts.feed !== null)
+    writeFileSync(rel('latest-linux.yml'), opts.feed ?? `version: ${V}\npath: ${l.deb}\nsha512: x\n`);
   writeFileSync(
     out(l.sbom),
     JSON.stringify({
       metadata: { component: { version: V }, properties: [{ name: 'worldview:commit', value: COMMIT }] },
     }),
   );
-  const hashes = (opts.hashed ?? [l.deb, l.appImage, 'latest-linux.yml']).map((file) => ({
+  const hashes = (opts.hashed ?? [l.deb, 'latest-linux.yml']).map((file) => ({
     file,
     sha256: 'e'.repeat(64),
     sizeBytes: 1,
@@ -56,7 +56,6 @@ function withRoot(root: string, fn: () => void): void {
 test('linux artifact names are the ones electron-builder.yml declares', () => {
   const l = expectedLinuxArtifacts(V);
   assert.equal(l.deb, `worldview_${V}_amd64.deb`);
-  assert.equal(l.appImage, `WorldView-${V}-x86_64.AppImage`);
   assert.equal(l.sbom, expectedArtifacts(V).sbom, 'one SBOM name: it describes the lockfile, not the platform');
 });
 
@@ -73,11 +72,9 @@ test('release:assert-version --platform linux passes on a complete Linux release
   });
 });
 
-test('release:assert-version --platform linux fails on a missing package, a stale one, or a Windows file', () => {
-  const l = expectedLinuxArtifacts(V);
+test('release:assert-version --platform linux fails on a stale package, a Windows file, or an AppImage', () => {
   const root = linuxRelease({
-    omit: [l.appImage],
-    extra: ['worldview_0.2.9_amd64.deb', `WorldView-Setup-${V}.exe`],
+    extra: ['worldview_0.2.9_amd64.deb', `WorldView-Setup-${V}.exe`, `WorldView-${V}-x86_64.AppImage`],
   });
   withRoot(root, () => {
     const r = assertReleaseVersion({ root, commit: COMMIT, platform: 'linux' });
@@ -85,7 +82,7 @@ test('release:assert-version --platform linux fails on a missing package, a stal
     assert.deepEqual(
       r.problems.sort(),
       [
-        `missing apps/desktop/release/${l.appImage}`,
+        `stale or foreign artifact apps/desktop/release/WorldView-${V}-x86_64.AppImage`,
         `stale or foreign artifact apps/desktop/release/WorldView-Setup-${V}.exe`,
         'stale or foreign artifact apps/desktop/release/worldview_0.2.9_amd64.deb',
       ].sort(),
@@ -93,15 +90,28 @@ test('release:assert-version --platform linux fails on a missing package, a stal
   });
 });
 
+test('release:assert-version --platform linux fails when the .deb is missing; latest-linux.yml is optional', () => {
+  const l = expectedLinuxArtifacts(V);
+  const missing = linuxRelease({ omit: [l.deb] });
+  withRoot(missing, () => {
+    const r = assertReleaseVersion({ root: missing, commit: COMMIT, platform: 'linux' });
+    assert.ok(r.problems.includes(`missing apps/desktop/release/${l.deb}`));
+  });
+  const noFeed = linuxRelease({ feed: null, hashed: [l.deb] });
+  withRoot(noFeed, () => {
+    assert.deepEqual(assertReleaseVersion({ root: noFeed, commit: COMMIT, platform: 'linux' }).problems, []);
+  });
+});
+
 test('release:assert-version --platform linux checks latest-linux.yml and that the report hashed the .deb', () => {
   const root = linuxRelease({
-    feed: 'version: 0.2.9\npath: WorldView-0.2.9-x86_64.AppImage\n',
+    feed: 'version: 0.2.9\npath: worldview_0.2.9_amd64.deb\n',
     hashed: ['latest-linux.yml'],
   });
   withRoot(root, () => {
     const text = assertReleaseVersion({ root, commit: COMMIT, platform: 'linux' }).problems.join('\n');
     assert.match(text, /latest-linux\.yml version 0\.2\.9 is not/);
-    assert.match(text, /latest-linux\.yml path WorldView-0\.2\.9-x86_64\.AppImage/);
+    assert.match(text, /latest-linux\.yml path worldview_0\.2\.9_amd64\.deb/);
     assert.match(text, /verification report does not hash worldview_0\.3\.0-rc\.1_amd64\.deb/);
   });
 });

@@ -33,7 +33,7 @@ import { APP_ORIGIN, DEV_SERVER_ORIGIN, isTrustedRendererUrl } from '../shared/a
 import { registerAppScheme, serveRenderer } from './app-protocol.js';
 import { PACK_BASEMAP_ROUTE, packBasemapResponse } from './pack-basemap.js';
 import { buildInfo } from './build-info.js';
-import { CredentialStore, CredentialStoreError } from './credential-store.js';
+import { CredentialStore, CredentialStoreError, linuxPasswordStore } from './credential-store.js';
 import { IDENTIFIED_TILE_URLS, appUserAgent, identifiedTileHeaders, mergeSecurityHeaders } from './csp.js';
 import { buildExternalHostAllowlist, checkExternalUrl, type ExternalHostAllowlist } from './external-links.js';
 import { IpcRouter, type IpcInvokeEventLike } from './ipc-router.js';
@@ -66,6 +66,13 @@ registerAppScheme(protocol);
 // live HLS video cannot play in the window, and no third-party player is bundled. Whether it
 // took is logged at startup ("renderer media", renderer-watchdog.ts).
 app.commandLine.appendSwitch('enable-features', 'BuiltInHlsPlayer');
+
+// Linux: which secret store Chromium keeps the credential key in (credential-store.ts
+// linuxPasswordStore). Before whenReady, like every switch Chromium reads at start-up.
+if (process.platform === 'linux') {
+  const store = linuxPasswordStore(process.env, app.commandLine.hasSwitch('password-store'));
+  if (store) app.commandLine.appendSwitch('password-store', store);
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();

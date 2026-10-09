@@ -4,6 +4,7 @@
   "private": true,
   "description": "WORLDVIEW desktop application: Electron main + preload + Vite/React renderer shell.",
   "license": "MIT",
+  "homepage": "https://github.com/the-x1x1/oneview",
   "type": "module",
   "main": "dist/main/main.cjs",
   "desktopName": "worldview.desktop",
