@@ -1,5 +1,5 @@
 /** Node-only helpers (main process, tools): atomic file writes, rotating file log sink, sha256. */
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { promises as fs, existsSync, mkdirSync, appendFileSync, statSync, renameSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import type { LogRecord, LogSink } from './logger.js';
@@ -19,7 +19,12 @@ export async function writeFileAtomic(
 ): Promise<void> {
   const dir = path.dirname(target);
   await fs.mkdir(dir, { recursive: true });
-  const tmp = path.join(dir, `.${path.basename(target)}.${process.pid}.${Date.now()}.tmp`);
+  // pid + time alone collide when two writes of one file start in the same millisecond (two
+  // refreshes racing); the random part makes each temporary file its own.
+  const tmp = path.join(
+    dir,
+    `.${path.basename(target)}.${process.pid}.${Date.now()}.${randomBytes(4).toString('hex')}.tmp`,
+  );
   // The temporary file is always new, so `mode` (less the umask) is what the target ends up
   // with after the rename. Windows keeps only the read-only bit of it.
   const handle = await fs.open(tmp, 'w', options.mode ?? 0o666);

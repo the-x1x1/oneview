@@ -11,7 +11,7 @@ import { createProvider as createSeedAirports, SEED_AIRPORTS_FILE } from '@world
 import type { ProviderDataPolicy } from '@worldview/provider-sdk';
 import type { Observation } from '@worldview/world-model';
 import type { ConnectionSnapshot } from '@worldview/source-health';
-import { fixture, offlineFetch, settle, startRuntime } from '../helpers/harness.js';
+import { fakeHost, fixture, offlineFetch, settle, startRuntime } from '../helpers/harness.js';
 
 /**
  * (ii) Offline proof for the composed runtime (ADR-007). With WORLDVIEW_NETWORK=off and
@@ -230,5 +230,100 @@ test('offline: the composed runtime goes OFFLINE, keeps local providers answerin
     }
   } finally {
     await fs.rm(tmp, { recursive: true, force: true }).catch(() => undefined);
+  }
+});
+
+/**
+ * Data vaults (docs/cyberdeck M2): the whole runtime, with a plain folder standing in for an
+ * external SSD. Add it through the folder dialog, install the Hawaii pack onto it, search it
+ * offline, pull the drive, leave its empty mount point behind, plug it back in.
+ */
+test('offline: a pack on a data vault is searched offline, reported missing when the drive is pulled, and back when it returns', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'worldview-runtime-vault-'));
+  const networkCalls = { count: 0 };
+  try {
+    const clock = new testing.VirtualClock(Date.parse('2026-09-21T12:00:00.000Z'));
+    const packPath = await buildHawaiiPack(tmp, clock);
+    const drive = path.join(tmp, 'media', 'FIELD');
+    await fs.mkdir(drive, { recursive: true });
+    const host = { ...fakeHost(), pickFolder: async () => ({ path: drive }) };
+    const h = await startRuntime({
+      dataDir: path.join(tmp, 'data'),
+      clock,
+      host,
+      fetchImpl: offlineFetch(networkCalls),
+      network: { isOnline: () => false },
+      providerInstances: [],
+    });
+    const fromPacks = async (text: string) =>
+      (await h.client.request('search.query', { text })).some((r) => r.source === 'worldpack');
+    try {
+      const added = await h.client.request('offline.addVault', undefined);
+      assert.equal(added.added, 'FIELD', added.issues.join('; '));
+      const vault = added.status.vaults?.[0];
+      assert.equal(vault?.state, 'ready', vault?.message);
+
+      host.openQueue.push(packPath);
+      const install = await h.client.request('offline.installPackTo', { vaultId: vault!.id });
+      assert.ok(install.installed, install.issues.join('; '));
+      assert.deepEqual(install.installed?.vault, { id: vault!.id, label: 'FIELD' });
+      assert.ok((await fs.stat(path.join(drive, 'worldpacks', 'hawaii', 'manifest.json'))).isFile());
+      assert.equal(await fromPacks('Honolulu'), true, 'searched from the vault');
+
+      // The page cannot delete it, and cannot set vaults through settings.
+      await assert.rejects(
+        h.client.request('offline.removePack', { id: 'hawaii' }),
+        /does not delete files on a vault/,
+      );
+      await assert.rejects(h.client.request('settings.set', { storage: { vaults: [] } } as never), /offline\.addVault/);
+
+      // Pulled: the folder is gone.
+      await fs.rename(drive, `${drive}-away`);
+      await h.runtime.core.refreshVaults();
+      let status = await h.client.request('offline.status', undefined);
+      assert.equal(status.vaults?.[0]?.state, 'absent');
+      const away = status.packs.find((p) => p.id === 'hawaii');
+      assert.equal(away?.status, 'invalid');
+      assert.match(away?.message ?? '', /"FIELD", which is not connected/);
+      assert.equal(await fromPacks('Honolulu'), false, 'nothing is searched from a drive that is not there');
+
+      // Unmounted: the mount point is an empty folder on this computer. Nothing is written there.
+      await fs.mkdir(drive);
+      await h.runtime.core.refreshVaults();
+      status = await h.client.request('offline.status', undefined);
+      assert.equal(status.vaults?.[0]?.state, 'absent');
+      host.openQueue.push(packPath);
+      const refused = await h.client.request('offline.installPackTo', { vaultId: vault!.id });
+      assert.equal(refused.installed, null);
+      assert.deepEqual(await fs.readdir(drive), [], 'the empty mount point stays empty');
+
+      // Plugged back in.
+      await fs.rmdir(drive);
+      await fs.rename(`${drive}-away`, drive);
+      await h.runtime.core.refreshVaults();
+      status = await h.client.request('offline.status', undefined);
+      assert.equal(status.vaults?.[0]?.state, 'ready');
+      assert.equal(status.packs.find((p) => p.id === 'hawaii')?.status, 'active');
+      assert.equal(await fromPacks('Honolulu'), true);
+
+      // Diagnostics lists the vault beside the other local services.
+      const diag = await h.client.request('diagnostics.get', undefined);
+      assert.ok(diag.sidecars.some((s) => s.id === 'vault:FIELD' && s.status === 'running'));
+
+      // Stop using it: gone from the list, every file on the drive left as it was.
+      status = await h.client.request('offline.removeVault', { id: vault!.id });
+      assert.deepEqual(status.vaults, []);
+      assert.equal(
+        status.packs.find((p) => p.id === 'hawaii'),
+        undefined,
+      );
+      assert.ok((await fs.stat(path.join(drive, 'worldpacks', 'hawaii', 'manifest.json'))).isFile());
+      assert.ok((await fs.stat(path.join(drive, '.worldview-vault.json'))).isFile());
+      assert.equal(networkCalls.count, 0, 'nothing asked of the network');
+    } finally {
+      await h.dispose();
+    }
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true });
   }
 });

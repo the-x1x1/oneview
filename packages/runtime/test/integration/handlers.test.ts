@@ -109,6 +109,9 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'offline.importPublisher': undefined,
   'offline.removePublisher': { keyId: '0123456789abcdef' },
   'offline.setRequireTrusted': { required: false },
+  'offline.addVault': undefined,
+  'offline.removeVault': { id: '0123456789abcdef0123456789abcdef' },
+  'offline.installPackTo': { vaultId: '0123456789abcdef0123456789abcdef' },
   'export.objects': { query: { objectTypes: ['earthquake'] }, format: 'geojson' },
   'export.readings': {
     objectId: 'sensor:purpleair-local:nope',
@@ -151,6 +154,8 @@ const MAY_REPORT_MISSING = new Set<RequestChannel>([
   'camera.unregister',
   'camera.register',
   'offline.removePack',
+  // No vault is configured in the harness: "no such data vault" is the correct answer.
+  'offline.installPackTo',
   'offline.setPackEnabled',
   'offline.trustPublisher',
   // No recorded track for a made-up object: an answer, not an unimplemented channel.
@@ -215,6 +220,15 @@ test('every channel answers a benign request in demo mode without throwing', asy
       issues: ['cancelled'],
     });
     assert.deepEqual(await h.client.request('diagnostics.export', undefined), { cancelled: true });
+    // No folder dialog in-process: no vault is added, and nothing is written anywhere.
+    const vault = await h.client.request('offline.addVault', undefined);
+    assert.equal(vault.added, null);
+    assert.deepEqual(vault.issues, ['this window cannot choose folders']);
+    await assert.rejects(
+      h.client.request('settings.set', { storage: { vaults: [] } } as never),
+      /offline\.addVault/,
+      'vaults are never set from the page',
+    );
 
     // app.openExternal is an allowlist derived from the registered manifests, not a pass-through.
     await assert.rejects(

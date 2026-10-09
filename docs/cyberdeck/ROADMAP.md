@@ -4,17 +4,17 @@ Branch: `feature/linux-cyberdeck-readiness`, from `develop` `092133a` (v0.2.2). 
 merged, tagged or published without the operator. Status words are defined in
 [NORTHSTAR.md](NORTHSTAR.md); evidence is in [VERIFICATION.md](VERIFICATION.md).
 
-| Milestone                                                                         | Priority | Depends on                   | Status                                                                                                                                                         |
-| --------------------------------------------------------------------------------- | -------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 — Baseline, docs, truth matrix                                                 | P0       | —                            | **Done** (container baseline; Windows/CI baseline is v0.2.2's gate)                                                                                            |
-| M1 — Native Linux app, packaging, keyring/XDG/DuckDB, Linux CI, Windows preserved | P0       | M0                           | **Code done; packaging evidence pending CI run.** Runtime verified on Linux Electron in a container; `.deb` build + install + smoke written as CI, not yet run |
-| M2 — Offline field reliability, external SSD vault                                | P0       | M1                           | Not started                                                                                                                                                    |
-| M3 — RTL-SDR → readsb → local aircraft                                            | P1       | M1 (M2 for offline proof)    | Not started; physical test UNVERIFIED until hardware                                                                                                           |
-| M4 — T-Beam USB serial + own GNSS                                                 | P1       | M1                           | Not started; physical test UNVERIFIED until hardware                                                                                                           |
-| M5 — Field status, profiles, power evidence                                       | P2       | M3, M4                       | Not started                                                                                                                                                    |
-| M6 — Local read-only API for Formicaria                                           | P2       | M1                           | Not started                                                                                                                                                    |
-| M7 — Full gates, operator docs, disconnected acceptance                           | P0/P1    | all                          | Not started                                                                                                                                                    |
-| Later — Offline topographic map style (Topo GPS-like)                             | P3       | M2, offline terrain decision | Requested by the operator 2026-10-08; not scheduled                                                                                                            |
+| Milestone                                                                         | Priority | Depends on                   | Status                                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------- | -------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 — Baseline, docs, truth matrix                                                 | P0       | —                            | **Done** (container baseline; Windows/CI baseline is v0.2.2's gate)                                                                                                                                                              |
+| M1 — Native Linux app, packaging, keyring/XDG/DuckDB, Linux CI, Windows preserved | P0       | M0                           | **Code done; packaging evidence pending CI run.** Runtime verified on Linux Electron in a container; `.deb` build + install + smoke written as CI, not yet run                                                                   |
+| M2 — Offline field reliability, external SSD vault                                | P0       | M1                           | **In progress.** Data vaults (marker-identified external folders, health monitor, packs read/installed there, page UI) done and tested in the container; offline-gate packaged tests, Oahu workflow, no-hardware start-up remain |
+| M3 — RTL-SDR → readsb → local aircraft                                            | P1       | M1 (M2 for offline proof)    | Not started; physical test UNVERIFIED until hardware                                                                                                                                                                             |
+| M4 — T-Beam USB serial + own GNSS                                                 | P1       | M1                           | Not started; physical test UNVERIFIED until hardware                                                                                                                                                                             |
+| M5 — Field status, profiles, power evidence                                       | P2       | M3, M4                       | Not started                                                                                                                                                                                                                      |
+| M6 — Local read-only API for Formicaria                                           | P2       | M1                           | Not started                                                                                                                                                                                                                      |
+| M7 — Full gates, operator docs, disconnected acceptance                           | P0/P1    | all                          | Not started                                                                                                                                                                                                                      |
+| Later — Offline topographic map style (Topo GPS-like)                             | P3       | M2, offline terrain decision | Requested by the operator 2026-10-08; not scheduled                                                                                                                                                                              |
 
 ## M1 — what was done
 
@@ -66,12 +66,36 @@ merged, tagged or published without the operator. Status words are defined in
    too (`network-gate.test.ts`: "the internet and the LAN do"); raw-TCP receivers (Meshtastic,
    NMEA 2000, AIS over TCP) are not fetches and keep running. A readsb on another machine would
    therefore stop offline; on the cyberdeck everything is on loopback, so this does not bite.
-2. Operator-granted external data roots (settings + safe path resolution), internal state kept
-   on the internal SSD.
-3. Vault health: absent / ejected / read-only / low space / remounted; pause and resume, never
-   write through a broken mount.
+2. ~~Operator-granted external data roots~~ **done** as _data vaults_ (below).
+3. ~~Vault health~~ **done**: absent / not mounted / foreign drive / read-only / low space /
+   I/O error / remounted (logged); packs leave and come back with the drive; nothing is written
+   through a missing mount.
 4. Oahu exemplar workflow with multiple regional packs and a SHA-256 bundle manifest.
 5. Start-up and shut-down with SSD, RTL-SDR and T-Beam all absent.
+
+## M2 — data vaults (done in the container)
+
+- `packages/offline/src/vault.ts` (new): a vault is a folder WorldView marked with
+  `.worldview-vault.json` (128-bit random id) when the operator added it. `probeVault` reads only
+  (stat, the marker, statfs) plus an optional write probe that runs only after the marker proved
+  it is the right drive; `initVault` never creates the folder; `VaultMonitor` re-checks every
+  30 s, write-probes at most every 10 min or on a change, and reports state changes only.
+- `WorldPackRegistry`: also reads `<vault>/worldpacks/*` from every readable vault (never creates
+  anything there), installs into a writable vault with staging on the vault and a re-check before
+  writing and before activating, refuses to delete anything on a vault, keeps vault packs' state
+  in the app's own state.json (so a pulled drive's packs are listed "not connected" and return as
+  they were), lists the same pack in two places once (the other under `<id>:<vault>`), forgets a
+  vault taken out of settings without touching its files. Refreshes are serialised.
+- Runtime: `storage.vaults` setting (8 at most; never settable from the page —
+  `settings.set` refuses it), the monitor started with the runtime, packs refreshed when a vault
+  changes, `OfflineStatus.vaults`, a Diagnostics line per vault. IPC (additive):
+  `offline.addVault` (OS folder dialog in main), `offline.removeVault`, `offline.installPackTo`.
+- Page: Settings → Offline packs → Data vaults (state, path, free space, packs; Install pack onto
+  it; Stop using; Add a data vault…); a vault pack shows where it is and has no Remove button.
+- History stays on the internal SSD (spec: "unless moved through a verified migration"); moving
+  it is deferred.
+- `writeFileAtomic` temporary names gained a random part: the suite caught two refreshes writing
+  state.json in the same millisecond.
 
 ## Later — offline topographic map style
 

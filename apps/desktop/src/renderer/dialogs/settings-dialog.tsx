@@ -5,6 +5,7 @@ import { basemapChoices, terrainChoices, type MapProviderChoice } from '../map-p
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { useNow } from '../hooks/use-now.js';
 import { InstallPackButton, PackFreshness, PackPublishers, PackSignature } from './pack-trust.js';
+import { DataVaults } from './data-vaults.js';
 import { VISUAL_STYLE_IDS, type AppSettings, type VisualStyleId } from '@worldview/ipc-contract';
 import { graphicsProfile, resolveGraphicsQuality } from '@worldview/render-core';
 import { gpuRenderer } from '../map/gpu-info.js';
@@ -387,7 +388,8 @@ export function SettingsDialog() {
                   />
                   <p className="wv-ctx-muted wv-settings__pack-meta">
                     {formatBytes(p.sizeBytes)} · covers {formatPackBounds(p.bounds)} · installed{' '}
-                    {formatAgo(p.installedAt, nowMs)} <PackFreshness pack={p} nowMs={nowMs} />
+                    {formatAgo(p.installedAt, nowMs)}
+                    {p.vault ? ` · on the vault "${p.vault.label}"` : ''} <PackFreshness pack={p} nowMs={nowMs} />
                   </p>
                   <Button
                     size="sm"
@@ -406,9 +408,11 @@ export function SettingsDialog() {
                   >
                     Show on map
                   </Button>
-                  <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.removePack(p.id)}>
-                    Remove
-                  </Button>
+                  {p.vault ? null : (
+                    <Button size="sm" variant="ghost" icon="trash" onClick={() => void actions.removePack(p.id)}>
+                      Remove
+                    </Button>
+                  )}
                   <PackSignature pack={p} />
                 </li>
               ))}
@@ -417,6 +421,7 @@ export function SettingsDialog() {
             <p className="wv-ctx-muted">No offline packs installed.</p>
           )}
           <InstallPackButton installed={offline.status?.packs.map((p) => p.name) ?? []} />
+          <DataVaults status={offline.status} />
           <PackPublishers status={offline.status} nowMs={nowMs} />
         </Section>
         <Section title="Cameras">

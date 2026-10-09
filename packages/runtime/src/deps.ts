@@ -43,6 +43,8 @@ export interface HostBridge {
    */
   showNotification(notification: { title: string; body: string; severity?: SeverityClass }): void;
   appPaths(): { downloads?: string };
+  /** (2026-10-08) The OS folder dialog, for a data vault. Hosts without one cannot add vaults. */
+  pickFolder?(opts: { title: string }): Promise<FileChoice>;
 }
 
 /** The browser / in-process HostBridge: no dialogs, no shell, nothing silently written anywhere. */

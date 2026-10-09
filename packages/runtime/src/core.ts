@@ -47,7 +47,16 @@ import {
   type Gazetteer,
   type HistoryReader,
 } from '@worldview/query-engine';
-import { ConnectionMonitor, WorldPackRegistry } from '@worldview/offline';
+import {
+  ConnectionMonitor,
+  VaultMonitor,
+  WorldPackRegistry,
+  initVault,
+  probeVault,
+  vaultSummary,
+  vaultWritable,
+  type RegistryVault,
+} from '@worldview/offline';
 import {
   CameraHub,
   CameraRelay,
@@ -236,6 +245,8 @@ export class RuntimeCore {
   feed!: FeedBuilder;
   watchZones!: WatchZoneEvaluator;
   packs!: WorldPackRegistry;
+  /** Health of the operator's data vaults (external drives), re-checked every 30 s. */
+  vaults!: VaultMonitor;
   connection!: ConnectionMonitor;
   cameras!: CameraHub;
   cameraSecrets!: SecretStore;
@@ -573,7 +584,13 @@ export class RuntimeCore {
   }
 
   private async buildOffline(): Promise<void> {
+    this.vaults = new VaultMonitor({
+      vaults: () => this.settings.get().storage?.vaults ?? [],
+      logger: this.loggerHub.logger('offline'),
+    });
+    await this.vaults.check();
     this.packs = new WorldPackRegistry({
+      vaults: () => this.registryVaults(),
       dataDir: this.dirs.root,
       appVersion: this.version,
       clock: this.clock,
@@ -861,6 +878,13 @@ export class RuntimeCore {
                 : 'starts on the first camera stream request',
             },
           ];
+          for (const v of this.vaults.current())
+            out.push({
+              id: `vault:${v.label}`,
+              status:
+                v.state === 'absent' ? 'stopped' : v.state === 'foreign' || v.state === 'error' ? 'error' : 'running',
+              message: `${v.state}: ${v.message}${v.freeBytes !== undefined ? ` (${(v.freeBytes / 1024 ** 3).toFixed(1)} GB free)` : ''} — ${v.path}`,
+            });
           return out;
         },
         updater: () => this.updater.state(),
@@ -918,6 +942,20 @@ export class RuntimeCore {
         this.providerHost.setOnline(snapshot.state !== 'OFFLINE');
         this.emitter.emit('connection.changed', snapshot);
         this.emitter.emit('offline.changed', this.offlineStatus());
+      }),
+    );
+    this.detach.push(
+      // A drive pulled or plugged in: its packs leave or come back.
+      this.vaults.on('changed', () => {
+        void this.packs
+          .refresh()
+          .then(() => {
+            this.emitter.emit('offline.changed', this.offlineStatus());
+            void this.reloadPackDefinitions('vault changed');
+          })
+          .catch((err: unknown) =>
+            this.log.warn('pack refresh after a vault change failed', { error: errorText(err) }),
+          );
       }),
     );
     this.detach.push(
@@ -1223,6 +1261,7 @@ export class RuntimeCore {
     this.started = true;
     await this.providerHost.start();
     this.connection.start();
+    this.vaults.start();
     await this.connection.tick().catch(() => undefined);
     await this.timeline
       .refreshAvailability()
@@ -1320,6 +1359,7 @@ export class RuntimeCore {
     }
     this.detach = [];
     this.connection.stop();
+    this.vaults.stop();
     await this.providerHost.dispose().catch(() => undefined);
     this.events.dispose();
     this.state.dispose();
@@ -1398,7 +1438,67 @@ export class RuntimeCore {
   }
 
   offlineStatus(): OfflineStatus {
-    return this.packs.status(this.connectionSnapshot());
+    return { ...this.packs.status(this.connectionSnapshot()), vaults: this.vaults.current().map(vaultSummary) };
+  }
+
+  /** The configured vaults with what their last check said, for the pack registry. */
+  private registryVaults(): RegistryVault[] {
+    return (this.settings.get().storage?.vaults ?? []).map((v) => ({
+      id: v.id,
+      label: v.label,
+      root: v.path,
+      state: this.vaults.get(v.id)?.state ?? 'absent',
+    }));
+  }
+
+  /**
+   * Make a folder the operator chose a data vault (marking it, or adopting the vault already
+   * there) and add it to settings. Never creates the folder.
+   */
+  async addVault(
+    folder: string,
+    label: string,
+  ): Promise<{ ok: true; adopted: boolean } | { ok: false; reason: string }> {
+    const current = this.settings.get().storage?.vaults ?? [];
+    if (current.length >= 8) return { ok: false, reason: 'at most 8 data vaults' };
+    const r = await initVault(folder, label, { appDataDir: this.dirs.root, now: () => this.clock.now() });
+    if (!r.ok) return r;
+    if (current.some((v) => v.id === r.vault.id))
+      return { ok: false, reason: `"${r.vault.label}" is already a vault here` };
+    await this.settings.patch({ storage: { vaults: [...current, r.vault] } });
+    await this.refreshVaults();
+    this.log.info('vault added', { id: r.vault.id, label: r.vault.label, adopted: r.adopted });
+    return { ok: true, adopted: r.adopted };
+  }
+
+  /** Stop using a vault. Its files, marker included, are left exactly as they are. */
+  async removeVault(id: string): Promise<boolean> {
+    const current = this.settings.get().storage?.vaults ?? [];
+    if (!current.some((v) => v.id === id)) return false;
+    await this.settings.patch({ storage: { vaults: current.filter((v) => v.id !== id) } });
+    await this.refreshVaults();
+    this.log.info('vault removed', { id });
+    return true;
+  }
+
+  /** Install a pack onto a vault, re-checking the vault before writing and before activating. */
+  async installPackToVault(file: string, vaultId: string): ReturnType<WorldPackRegistry['install']> {
+    const setting = (this.settings.get().storage?.vaults ?? []).find((v) => v.id === vaultId);
+    const vault = this.registryVaults().find((v) => v.id === vaultId);
+    if (!setting || !vault) throw new Error('no such data vault');
+    const recheck = async (): Promise<string | undefined> => {
+      const h = await probeVault(setting, { probeWrite: true });
+      return vaultWritable(h.state) ? undefined : h.message;
+    };
+    return this.packs.install(file, { vault, recheck });
+  }
+
+  /** Re-check the vaults now, re-read packs, and tell the page. */
+  async refreshVaults(): Promise<void> {
+    await this.vaults.check();
+    await this.packs.refresh();
+    this.emitter.emit('offline.changed', this.offlineStatus());
+    void this.reloadPackDefinitions('vaults changed');
   }
 
   async allLenses(): Promise<LensDefinition[]> {

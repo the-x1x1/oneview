@@ -41,6 +41,8 @@ const voidSchema: Schema<void> = {
 
 const id = s.string({ min: 1, max: 512 });
 const shortId = s.string({ min: 1, max: 128, pattern: /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/ });
+/** A data vault's id: the 128-bit random id in its marker file (packages/offline vault.ts). */
+const vaultId = s.string({ min: 32, max: 32, pattern: /^[0-9a-f]{32}$/ });
 /** "HH:MM", 24-hour. */
 const clockTime = s.string({ min: 5, max: 5, pattern: /^([01]\d|2[0-3]):[0-5]\d$/ });
 const providerId = s.string({ min: 1, max: 64, pattern: /^[a-z0-9][a-z0-9-]*$/ });
@@ -388,6 +390,9 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
     { strict: true },
   ),
   'offline.setRequireTrusted': s.object({ required: s.boolean() }, { strict: true }),
+  'offline.addVault': voidSchema,
+  'offline.removeVault': s.object({ id: vaultId }, { strict: true }),
+  'offline.installPackTo': s.object({ vaultId }, { strict: true }),
 
   'export.objects': s.object(
     { query: worldQuerySchema, format: s.enum(['geojson', 'json', 'csv', 'kml'] as const) },

@@ -47,8 +47,17 @@ All per-user, all under the XDG base directories Electron resolves:
 
 `XDG_CONFIG_HOME` moves all of it. The `@worldview/desktop` name is the same as Windows
 (`%APPDATA%\@worldview\desktop`); renaming it is an open operator decision tracked for both.
-Large data on the external SSD is Phase 2 (operator-granted data roots); nothing is written
-to removable media today.
+
+**Data vaults (external SSD).** Settings → Offline packs → **Add a data vault…** makes a folder
+you choose — typically on the external SSD, e.g. a `worldview` folder on it — a vault, and packs
+can then be installed onto it (**Install pack onto it**). WorldView writes a marker file
+(`.worldview-vault.json`) and a `worldpacks/` folder there, and recognises the vault only by that
+marker: when the drive is not mounted, its mount point under `/media/<you>/` is an empty folder
+on the internal disk, and WorldView treats it as "Not connected" and writes nothing to it. Mount
+the drive at the same place each time (GNOME does, by its label). Packs on a vault that is not
+connected stay listed as such and come back when it is. WorldView never deletes anything on a
+vault; "Stop using" leaves every file there. Settings, keys, history and search indexes stay in
+`~/.config/@worldview/desktop`.
 
 ## API keys and the keyring
 

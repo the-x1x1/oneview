@@ -500,6 +500,14 @@ function electronHostBridge(): HostBridge {
       const file = chosen.filePaths[0];
       return chosen.canceled || !file ? { cancelled: true } : { path: file };
     },
+    // A data vault: an existing folder (making one on the drive is allowed in the dialog).
+    pickFolder: async (opts) => {
+      const win = parent();
+      const options = { title: opts.title, properties: ['openDirectory' as const, 'createDirectory' as const] };
+      const chosen = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      const folder = chosen.filePaths[0];
+      return chosen.canceled || !folder ? { cancelled: true } : { path: folder };
+    },
     pickSaveFile: async (opts) => {
       const win = parent();
       const options = {

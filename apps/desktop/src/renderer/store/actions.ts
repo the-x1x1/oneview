@@ -1459,6 +1459,42 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Pack setting not changed', err);
       }
     },
+    /** Choose a folder (an external drive, usually) and make it a data vault; the result is also returned. */
+    async addDataVault(): Promise<{ added: string | null; issues: string[] }> {
+      try {
+        const r = await client.request('offline.addVault', undefined);
+        dispatch({ type: 'offline/status', status: r.status });
+        const issues = r.issues.filter((i) => i !== 'cancelled');
+        if (r.added) notify('Data vault added', [r.added, ...issues.slice(0, 1)].join(' — '));
+        else if (issues.length) notify('Data vault not added', issues.slice(0, 2).join('; '), 'MINOR');
+        return { added: r.added, issues };
+      } catch (err) {
+        fail('Data vault not added', err);
+        return { added: null, issues: [err instanceof Error ? err.message : String(err)] };
+      }
+    },
+    /** Stop using a data vault; its files stay exactly as they are. */
+    async removeDataVault(id: string): Promise<void> {
+      try {
+        dispatch({ type: 'offline/status', status: await client.request('offline.removeVault', { id }) });
+      } catch (err) {
+        fail('Data vault not removed', err);
+      }
+    },
+    /** Install a pack file onto a data vault; the result is also returned, for the line under the vault. */
+    async installPackToVault(vaultId: string): Promise<{ installed: string | null; issues: string[] }> {
+      try {
+        const r = await client.request('offline.installPackTo', { vaultId });
+        const issues = r.issues.filter((i) => i !== 'cancelled');
+        if (r.installed) notify('Offline pack installed', [r.installed.name, ...issues.slice(0, 2)].join(' — '));
+        else if (issues.length) notify('Pack not installed', issues.slice(0, 3).join('; '), 'MINOR');
+        dispatch({ type: 'offline/status', status: await client.request('offline.status', undefined) });
+        return { installed: r.installed?.name ?? null, issues };
+      } catch (err) {
+        fail('Pack not installed', err);
+        return { installed: null, issues: [err instanceof Error ? err.message : String(err)] };
+      }
+    },
     async removePack(id: string): Promise<void> {
       try {
         dispatch({ type: 'offline/status', status: await client.request('offline.removePack', { id }) });

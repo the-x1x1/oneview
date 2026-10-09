@@ -1954,6 +1954,57 @@
   color: var(--wv-danger);
 }
 
+/* Data vaults (dialogs/data-vaults.tsx): folders on an external drive that hold packs. */
+.wv-vaults {
+  display: grid;
+  gap: var(--wv-space-2);
+  margin-top: var(--wv-space-3);
+  justify-items: start;
+}
+
+.wv-vaults__title {
+  margin: 0;
+  font-size: var(--wv-text-sm);
+}
+
+.wv-vaults__list {
+  display: grid;
+  gap: var(--wv-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+}
+
+.wv-vaults__vault {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wv-space-1) var(--wv-space-2);
+}
+
+.wv-vaults__vault > p {
+  flex-basis: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.wv-vaults__state {
+  font-size: var(--wv-text-xs);
+}
+
+.wv-vaults__state--ok {
+  color: var(--wv-success);
+}
+
+.wv-vaults__state--muted {
+  color: var(--wv-text-muted);
+}
+
+.wv-vaults__state--bad {
+  color: var(--wv-danger);
+}
+
 .wv-pack-publishers {
   display: grid;
   gap: var(--wv-space-2);

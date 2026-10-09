@@ -158,6 +158,48 @@ gh run list --workflow build-desktop.yml --branch feature/linux-cyberdeck-readin
 Artifacts `worldview-linux-x64` (the `.deb`, `SHA256SUMS.txt`, SBOM, verification report,
 `linux-smoke-*.json`, `.deb` contents) and `worldview-windows-x64`. Nothing is released.
 
+## M2 — data vaults (container, 2026-10-08)
+
+| Gate                    | Result                                                   |
+| ----------------------- | -------------------------------------------------------- |
+| format / boundary-check | **PASS** (Prettier 3.9.8 clean; 984 files, 0 violations) |
+| typecheck               | **same 19 shim-only errors as baseline, none new**       |
+| stage:resources --check | **PASS**                                                 |
+| test (whole suite)      | **PASS**: 330 files, **2,158 pass, 0 fail, 16 skipped**  |
+| lint                    | **BLOCKED** in the container                             |
+
+The first full run failed one test (2,157 pass, 1 fail): the runtime vault scenario, with
+`ENOENT` renaming `state.json` — two pack-registry refreshes (the monitor's change event and the
+explicit refresh) wrote `state.json` through the same temporary name in the same millisecond. It
+had passed alone. Fixed by serialising refreshes and adding a random part to `writeFileAtomic`'s
+temporary names; the scenario then passed 5 runs in a row and in the full suite.
+
+What the tests prove, on real folders standing in for the SSD (SIMULATED: no USB drive, no
+real unmount):
+
+- `vault.test.ts` (10): a vault is made only in an existing folder; adopted again by its marker;
+  `ready` → folder renamed away → `absent` → empty folder at the mount point → `absent` **with
+  nothing written into it** → folder back → `ready`; another vault's marker → `foreign`; a corrupt
+  or alien marker → `error`, never adopted; low space readable but not writable;
+  EROFS/EACCES/EPERM → `read-only`, ENOSPC → full, EIO → `error` (injected — the container runs as
+  root, where permissions do not bite); the monitor reports pull and re-plug once each, stays quiet
+  otherwise and write-probes on first check, on change and every 10 minutes.
+- `registry-vault.test.ts` (8): install onto a vault (state in the app folder, staging on the
+  vault, cleaned); pull → listed "not connected", not searched; re-plug → back, with the
+  enabled/disabled choice kept, files byte-for-byte untouched; read-only and low-space refuse
+  installs; a drive pulled between the two re-checks is not activated; delete refused; a duplicate
+  listed once; a vault removed from settings forgotten, files left; reading a vault without a
+  `worldpacks/` folder creates nothing.
+- `offline.test.ts` (runtime, offline group, network off): the whole runtime — add a vault through
+  the folder dialog, install the Hawaii pack onto it, search "Honolulu" from it, the page cannot
+  delete it or set vaults through settings, pull → missing and not searched, empty mount point →
+  install refused and nothing written, re-plug → searched again, Diagnostics shows the vault,
+  "Stop using" → gone from the list with every file and the marker left; zero network calls.
+- `data-vaults.test.ts` (2): the page's wording for each state (green only when writable).
+
+Not verified: a real USB SSD on the P16s (H8 below) — mount, `udisks` unmount, yank while
+reading, `ro` remount, ext4/exFAT; the Settings section in a real window (renderer unbuilt here).
+
 ## Hardware test matrix
 
 | #   | Test                                                                                           | Environment                      | Evidence wanted                                      | Status          |

@@ -96,6 +96,20 @@ const settingsShape = {
   search: s.optional(s.object({ online: s.boolean(), service: s.optional(s.enum(['nominatim', 'photon'] as const)) })),
   // Optional (additive): absent means not working offline.
   network: s.optional(s.object({ workOffline: s.boolean() })),
+  // Optional (additive, 2026-10-08): data vaults (packages/offline vault.ts). Absent: none. The
+  // id is the vault marker's; a path whose marker differs is never used as this vault.
+  storage: s.optional(
+    s.object({
+      vaults: s.array(
+        s.object({
+          id: s.string({ min: 32, max: 32, pattern: /^[0-9a-f]{32}$/ }),
+          label: s.string({ min: 1, max: 80 }),
+          path: s.string({ min: 1, max: 1024 }),
+        }),
+        { max: 8 },
+      ),
+    }),
+  ),
   home: s.optional(
     s.object({
       view: s.nullable(
@@ -149,6 +163,7 @@ export const appSettingsPatchSchema: Schema<Partial<AppSettings>> = s.object(
     display: s.optional(settingsShape.display),
     search: settingsShape.search,
     network: settingsShape.network,
+    storage: settingsShape.storage,
     home: settingsShape.home,
     martin: settingsShape.martin,
     passAlerts: settingsShape.passAlerts,
@@ -171,6 +186,7 @@ export function cloneSettings(settings: AppSettings): AppSettings {
     display: { ...settings.display },
     ...(settings.search ? { search: { ...settings.search } } : {}),
     ...(settings.network ? { network: { ...settings.network } } : {}),
+    ...(settings.storage ? { storage: { vaults: settings.storage.vaults.map((v) => ({ ...v })) } } : {}),
     ...(settings.martin ? { martin: { ...settings.martin } } : {}),
     ...(settings.home
       ? { home: { ...settings.home, view: settings.home.view ? { ...settings.home.view } : null } }
@@ -210,6 +226,7 @@ export function applySettingsPatch(current: AppSettings, patch: Partial<AppSetti
   if (patch.display !== undefined) next.display = { ...patch.display };
   if (patch.search !== undefined) next.search = { ...patch.search };
   if (patch.network !== undefined) next.network = { ...patch.network };
+  if (patch.storage !== undefined) next.storage = { vaults: patch.storage.vaults.map((v) => ({ ...v })) };
   if (patch.martin !== undefined) next.martin = { ...patch.martin };
   if (patch.home !== undefined) next.home = { ...patch.home, view: patch.home.view ? { ...patch.home.view } : null };
   if (patch.passAlerts !== undefined)
