@@ -5,6 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { hardwareLines, scanLocalHardware } from './local-hardware.js';
 
+/**
+ * The fake sysfs uses the kernel's own names, and USB interfaces are named with a colon
+ * (`1-2:1.0`), which Windows does not allow in a file name. The scanner reads Linux's /sys and is
+ * used only on Linux; on Windows these tests are skipped, not faked.
+ */
+const linuxNames = { skip: process.platform === 'win32' ? 'sysfs names contain ":"' : false };
+
 /** A fake /sys and /dev laid out the way the Linux kernel lays them out. */
 async function fakeMachine(opts: {
   rtl?: { usbId?: string; driver?: string; node?: boolean };
@@ -70,7 +77,7 @@ test('hardware: nothing plugged in reads as "no RTL-SDR", and an empty machine i
   });
 });
 
-test('hardware: an RTL-SDR the DVB-T driver holds says so, with the blacklist line', async () => {
+test('hardware: an RTL-SDR the DVB-T driver holds says so, with the blacklist line', linuxNames, async () => {
   const roots = await fakeMachine({ rtl: { driver: 'dvb_usb_rtl28xxu' }, dvbLoaded: true });
   const scan = await scanLocalHardware({ ...roots, canOpen: async () => true });
   assert.equal(scan.rtlSdr.length, 1);
@@ -103,23 +110,27 @@ test('hardware: other USB devices are not mistaken for an RTL-SDR', async () => 
   assert.deepEqual((await scanLocalHardware(roots)).rtlSdr, []);
 });
 
-test('hardware: a USB-serial port is named by its bridge, never assumed to be a T-Beam; dialout advice when closed', async () => {
-  const serial = {
-    usbId: '10c4:ea60',
-    tty: 'ttyUSB0',
-    byId: 'usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0',
-  };
-  const roots = await fakeMachine({ serial });
-  const open = await scanLocalHardware({ ...roots, canOpen: async () => true });
-  assert.equal(open.serial.length, 1);
-  const s = open.serial[0]!;
-  assert.equal(s.path, path.join(roots.devRoot, 'ttyUSB0'));
-  assert.equal(s.usbId, '10c4:ea60');
-  assert.equal(s.bridge, 'Silicon Labs CP210x USB-serial');
-  const line = hardwareLines(open).find((l) => l.id === 'serial:ttyUSB0');
-  assert.equal(line?.status, 'running');
-  assert.doesNotMatch(line?.message ?? '', /T-Beam/i);
-  assert.match(line?.message ?? '', /Node plugged in by USB: \/dev\/serial\/by-id\/usb-/);
-  const closed = await scanLocalHardware({ ...roots, canOpen: async () => false });
-  assert.match(hardwareLines(closed).find((l) => l.id === 'serial:ttyUSB0')?.message ?? '', /dialout/);
-});
+test(
+  'hardware: a USB-serial port is named by its bridge, never assumed to be a T-Beam; dialout advice when closed',
+  linuxNames,
+  async () => {
+    const serial = {
+      usbId: '10c4:ea60',
+      tty: 'ttyUSB0',
+      byId: 'usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0',
+    };
+    const roots = await fakeMachine({ serial });
+    const open = await scanLocalHardware({ ...roots, canOpen: async () => true });
+    assert.equal(open.serial.length, 1);
+    const s = open.serial[0]!;
+    assert.equal(s.path, path.join(roots.devRoot, 'ttyUSB0'));
+    assert.equal(s.usbId, '10c4:ea60');
+    assert.equal(s.bridge, 'Silicon Labs CP210x USB-serial');
+    const line = hardwareLines(open).find((l) => l.id === 'serial:ttyUSB0');
+    assert.equal(line?.status, 'running');
+    assert.doesNotMatch(line?.message ?? '', /T-Beam/i);
+    assert.match(line?.message ?? '', /Node plugged in by USB: \/dev\/serial\/by-id\/usb-/);
+    const closed = await scanLocalHardware({ ...roots, canOpen: async () => false });
+    assert.match(hardwareLines(closed).find((l) => l.id === 'serial:ttyUSB0')?.message ?? '', /dialout/);
+  },
+);

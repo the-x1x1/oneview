@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { WorldPackBuilder, regionPreset, seedPolicies } from '@worldview/offline';
 import { BUNDLE_MANIFEST, BUNDLE_SUMS, checkBundle, makeBundle, sha256OfFile, writeBundle } from './bundle.js';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const fixture = (...p: string[]) => path.join(root, 'fixtures', ...p);
 
 /** Two small Oahu packs from the bundled seed fixtures: places, and airports. */
