@@ -1,9 +1,18 @@
 # electron-builder configuration (ADR-004, ADR-012).
 #
-# Outputs (apps/desktop/release/):
+# `pnpm release:package` builds for the machine it runs on (scripts/platform.mjs).
+#
+# Outputs on Windows (apps/desktop/release/):
 #   WorldView-Setup-<version>.exe       NSIS installer (per-user, no admin)
 #   WorldView-Portable-<version>.zip    unpacked build as a zip (run WorldView.exe from any folder)
 #   latest.yml + *.blockmap             electron-updater metadata (only meaningful once published)
+#
+# Outputs on Linux x86_64 (apps/desktop/release/):
+#   worldview_<version>_amd64.deb       Debian/Ubuntu package: /opt/WorldView, /usr/bin/worldview,
+#                                       a menu entry, and an AppArmor profile so Chromium's
+#                                       sandbox works on Ubuntu 24.04+ without --no-sandbox
+#   WorldView-<version>-x86_64.AppImage single-file build for other distributions
+#   latest-linux.yml                    electron-updater metadata for the AppImage
 #
 # Publishing is MANUAL until a Windows code-signing certificate exists
 # (SIGNING_REQUIRED blocker): `pnpm release:package` runs with `--publish never`;
@@ -78,6 +87,47 @@ nsis:
   uninstallDisplayName: WorldView
   # `license:` (the installer EULA page) is added once the project's own licence text exists
   # at the repository root — a legal decision tracked in docs/legal/COMMERCIAL-DISTRIBUTION-REVIEW.md.
+
+linux:
+  target:
+    - target: deb
+      arch: [x64]
+    - target: AppImage
+      arch: [x64]
+  # The command, the .deb's /usr/bin link and the AppArmor profile's name. Without it
+  # electron-builder derives "worldview-desktop" from the package name.
+  executableName: worldview
+  # Electron uses package.json desktopName as the Wayland app_id / X11 WM_CLASS; this makes the
+  # installed menu entry's file name and StartupWMClass the same, so the dock groups the window
+  # under its own icon instead of a generic one.
+  syncDesktopName: true
+  # 512 px source; electron-builder generates the hicolor sizes from it.
+  icon: build/icon.png
+  category: Science
+  synopsis: A local-first browser for the physical world — live, historical and offline.
+  description: >-
+    WORLDVIEW shows aircraft, ships, satellites, earthquakes, weather and infrastructure from
+    documented sources, each labelled with its freshness and provenance, and keeps working
+    offline from installed packs and recorded history.
+  desktop:
+    entry:
+      Name: WorldView
+      GenericName: World map
+      Categories: Science;Geography;Education;
+      Keywords: map;globe;aircraft;ships;satellites;offline;
+  # No mimeTypes / fileAssociations: nothing is opened by double-click yet. .worldpack import
+  # goes through Settings → Offline packs, which checks the publisher before anything is read.
+
+deb:
+  artifactName: worldview_${version}_amd64.${ext}
+  # electron-builder's default Depends (libgtk-3-0, libnss3, libsecret-1-0 …) resolve on Ubuntu
+  # 24.04 through the t64 packages' Provides. libsecret talks to whatever Secret Service the
+  # desktop runs (GNOME Keyring, KWallet); without one, API keys are refused, never stored in
+  # plain text (src/main/credential-store.ts).
+  maintainer: WorldView contributors
+
+appImage:
+  artifactName: WorldView-${version}-x86_64.${ext}
 
 publish:
   provider: github

@@ -19,8 +19,9 @@
  */
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { linuxSandboxProblem } from './platform.mjs';
 import { appDir } from './renderer-assets.mjs';
 
 const require = createRequire(import.meta.url);
@@ -47,6 +48,39 @@ function shutdown(code) {
   process.exit(code);
 }
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => shutdown(0));
+
+// Resolved from node_modules: the `electron` package exports the path to its binary, and
+// the .bin shim is not reliably spawnable on Windows (the same trap that made `pnpm
+// typecheck` exit 1 in silence).
+const electronPath = require('electron');
+
+// --- Linux: will Electron's sandbox start? ---------------------------------
+// On Ubuntu 24.04+ it aborts at once unless chrome-sandbox is setuid root (or an AppArmor
+// profile covers this binary, which this check cannot see — so it warns and carries on, and
+// the fix is on screen right above Electron's own one-line abort if it comes).
+if (process.platform === 'linux') {
+  const sandboxPath = path.join(path.dirname(electronPath), 'chrome-sandbox');
+  const read = (file) => {
+    try {
+      return readFileSync(file, 'utf8');
+    } catch {
+      return undefined;
+    }
+  };
+  let sandbox;
+  try {
+    const s = statSync(sandboxPath);
+    sandbox = { uid: s.uid, mode: s.mode };
+  } catch {
+    sandbox = undefined;
+  }
+  const problem = linuxSandboxProblem({
+    restrictUserns: read('/proc/sys/kernel/apparmor_restrict_unprivileged_userns'),
+    sandboxPath,
+    sandbox,
+  });
+  if (problem) console.warn(`[dev] ${problem.split('\n').join('\n[dev] ')}`);
+}
 
 // --- main + preload, rebuilt on change -------------------------------------
 const watcher = spawn(process.execPath, [path.join(appDir, 'scripts', 'build-main.mjs'), '--watch'], {
@@ -84,10 +118,6 @@ if (bound !== trusted) {
 console.log(`[dev] renderer on ${bound}`);
 
 // --- Electron --------------------------------------------------------------
-// Resolved from node_modules: the `electron` package exports the path to its binary, and
-// the .bin shim is not reliably spawnable on Windows (the same trap that made `pnpm
-// typecheck` exit 1 in silence).
-const electronPath = require('electron');
 const electron = spawn(electronPath, ['.'], {
   cwd: appDir,
   stdio: 'inherit',

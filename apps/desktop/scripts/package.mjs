@@ -27,6 +27,11 @@
  * electron-builder reads. It then finds the cache populated and never downloads or extracts
  * anything, so the privilege never comes up. Developer Mode still works if you have it —
  * this just stops it being required.
+ *
+ * It packages for the machine it runs on (scripts/platform.mjs): Windows → NSIS installer +
+ * portable zip, Linux x86_64 → AppImage + .deb. The signing-tool seed and the locked-exe
+ * probe are Windows-only steps; the build, the emptied output folders and the manual
+ * publish gate are the same on both.
  */
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
@@ -35,8 +40,17 @@ import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, statSy
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { appDir, workspaceRoot } from './renderer-assets.mjs';
+import { packageTargetFor } from './platform.mjs';
 
 const require = createRequire(import.meta.url);
+
+const host = packageTargetFor(process.platform, process.arch);
+if (!host.ok) {
+  console.error(`[package] ${host.reason}`);
+  process.exit(1);
+}
+const TARGET = host.target;
+console.log(`[package] target ${TARGET.label}`);
 
 /** The exact artifact electron-builder itself fetches — same URL, same version. */
 const ARTIFACT = 'winCodeSign-2.6.0';
@@ -138,6 +152,9 @@ try {
  * before anything is spent.
  */
 function assertPreviousBuildNotRunning() {
+  // Linux does not lock a running executable against deletion: electron-builder removes and
+  // recreates release/linux-unpacked under a running copy without error.
+  if (TARGET.platform !== 'win32') return;
   const exe = path.join(appDir, 'release', 'win-unpacked', 'WorldView.exe');
   if (!existsSync(exe)) return;
   try {
@@ -251,7 +268,7 @@ function electronBuilderEntry() {
 
 const result = spawnSync(
   process.execPath,
-  [electronBuilderEntry(), '--config', 'electron-builder.yml', '--win', '--publish', 'never'],
+  [electronBuilderEntry(), '--config', 'electron-builder.yml', TARGET.flag, '--publish', 'never'],
   { cwd: appDir, stdio: 'inherit', env: { ...process.env, ELECTRON_BUILDER_CACHE: CACHE_ROOT } },
 );
 if (result.error) {
@@ -265,7 +282,7 @@ if (result.error) {
  * source, so if it ignored the seed and fetched its own copy, this listing says so outright
  * instead of costing another round of guessing.
  */
-if (result.status !== 0) {
+if (result.status !== 0 && TARGET.platform === 'win32') {
   const parent = path.join(CACHE_ROOT, 'winCodeSign');
   console.error(`\n[package] signing-tool cache under ${parent}:`);
   try {

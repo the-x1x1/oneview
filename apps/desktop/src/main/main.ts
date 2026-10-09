@@ -124,7 +124,12 @@ async function bootstrap(): Promise<void> {
   hardenSession(DEV, security);
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
-  const credentials = new CredentialStore({ file: dirs.credentialsFile, safeStorage, logger: hub.logger('security') });
+  const credentials = new CredentialStore({
+    file: dirs.credentialsFile,
+    safeStorage,
+    logger: hub.logger('security'),
+    platform: process.platform,
+  });
   const credentialCheck: StartupCheck = {
     name: 'credentials',
     area: 'credentials',
@@ -142,7 +147,12 @@ async function bootstrap(): Promise<void> {
         findings.push({
           area: 'credentials' as const,
           severity: 'warn' as const,
-          message: 'OS secure storage unavailable; API keys cannot be saved on this system',
+          message: `OS secure storage unavailable; API keys cannot be saved on this system (${credentials.unavailableReason()})`,
+        });
+      if (process.platform === 'linux')
+        security.info('secure storage', {
+          backend: credentials.storageBackend ?? 'not reported',
+          usable: credentials.encryptionAvailable,
         });
       return findings;
     },

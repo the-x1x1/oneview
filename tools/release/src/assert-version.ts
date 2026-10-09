@@ -26,16 +26,22 @@ export interface AssertVersionOptions {
   commit?: string;
   /** Fail when no tag is given (a tagged release build). */
   requireTag?: boolean;
+  /** Which platform's package is being checked; Windows unless given (the original release line). */
+  platform?: ReleasePlatform;
 }
+
+/** `pnpm release:package` packages for the host it runs on (apps/desktop/scripts/platform.mjs). */
+export type ReleasePlatform = 'win32' | 'linux';
 
 export interface AssertVersionResult {
   version: string;
+  platform: ReleasePlatform;
   ok: boolean;
   problems: string[];
   checked: string[];
 }
 
-const ARTIFACT = /\.(exe|zip|blockmap|msi|7z)$/i;
+const ARTIFACT = /\.(exe|zip|blockmap|msi|7z|AppImage|deb|rpm|snap)$/i;
 
 export function expectedArtifacts(version: string): {
   installer: string;
@@ -48,6 +54,53 @@ export function expectedArtifacts(version: string): {
     blockmap: `WorldView-Setup-${version}.exe.blockmap`,
     portable: `WorldView-Portable-${version}.zip`,
     sbom: `WorldView-${version}.sbom.json`,
+  };
+}
+
+/** The Linux x86_64 package names (electron-builder.yml `deb` and `appImage` artifactName). */
+export function expectedLinuxArtifacts(version: string): {
+  deb: string;
+  appImage: string;
+  appImageBlockmap: string;
+  sbom: string;
+} {
+  return {
+    deb: `worldview_${version}_amd64.deb`,
+    appImage: `WorldView-${version}-x86_64.AppImage`,
+    appImageBlockmap: `WorldView-${version}-x86_64.AppImage.blockmap`,
+    sbom: `WorldView-${version}.sbom.json`,
+  };
+}
+
+/** What a release of `version` for `platform` must contain, may contain, and where the updater points. */
+interface ReleasePlan {
+  allowed: Set<string>;
+  required: string[];
+  /** electron-updater's feed file and the artifact it must name. */
+  updater: { file: string; path: string };
+  /** The file the verification report must hash: proof it ran after packaging. */
+  primary: string;
+  sbom: string;
+}
+
+function releasePlan(version: string, platform: ReleasePlatform): ReleasePlan {
+  if (platform === 'linux') {
+    const l = expectedLinuxArtifacts(version);
+    return {
+      allowed: new Set([l.deb, l.appImage, l.appImageBlockmap]),
+      required: [l.deb, l.appImage],
+      updater: { file: 'latest-linux.yml', path: l.appImage },
+      primary: l.deb,
+      sbom: l.sbom,
+    };
+  }
+  const w = expectedArtifacts(version);
+  return {
+    allowed: new Set([w.installer, w.blockmap, w.portable]),
+    required: [w.installer, w.portable],
+    updater: { file: 'latest.yml', path: w.installer },
+    primary: w.installer,
+    sbom: w.sbom,
   };
 }
 
@@ -72,15 +125,17 @@ export function assertReleaseVersion(opts: AssertVersionOptions): AssertVersionR
   const checked: string[] = [];
   const desktop = readJson<{ version?: string }>(path.join(opts.root, 'apps', 'desktop', 'package.json'));
   const version = desktop?.version ?? '';
+  const platform = opts.platform ?? 'win32';
   if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
     return {
       version,
+      platform,
       ok: false,
       problems: [`apps/desktop/package.json version "${version}" is not a semver`],
       checked,
     };
   }
-  const want = expectedArtifacts(version);
+  const plan = releasePlan(version, platform);
 
   // The tag.
   if (opts.tag) {
@@ -88,36 +143,36 @@ export function assertReleaseVersion(opts: AssertVersionOptions): AssertVersionR
     if (opts.tag !== `v${version}`) problems.push(`tag ${opts.tag} is not v${version} (apps/desktop/package.json)`);
   } else if (opts.requireTag) problems.push(`no release tag given for version ${version}`);
 
-  // Installer, portable zip, blockmap: exactly this version's, nothing else.
+  // Installers and packages: exactly this version's, for this platform, nothing else.
   const releaseDir = path.join(opts.root, 'apps', 'desktop', 'release');
   const built = list(releaseDir).filter((f) => ARTIFACT.test(f));
-  const allowed = new Set([want.installer, want.blockmap, want.portable]);
+  const allowed = plan.allowed;
   for (const f of built) if (!allowed.has(f)) problems.push(`stale or foreign artifact apps/desktop/release/${f}`);
-  for (const f of [want.installer, want.portable])
-    if (!built.includes(f)) problems.push(`missing apps/desktop/release/${f}`);
+  for (const f of plan.required) if (!built.includes(f)) problems.push(`missing apps/desktop/release/${f}`);
   checked.push(`apps/desktop/release: ${built.length} artifact(s)`);
 
-  // latest.yml.
-  const latestFile = path.join(releaseDir, 'latest.yml');
+  // The updater feed (latest.yml on Windows, latest-linux.yml for the AppImage).
+  const feed = plan.updater.file;
+  const latestFile = path.join(releaseDir, feed);
   if (existsSync(latestFile)) {
     const latest = readFileSync(latestFile, 'utf8');
     const v = /^version:\s*(\S+)\s*$/m.exec(latest)?.[1];
-    if (v !== version) problems.push(`latest.yml version ${v ?? '(none)'} is not ${version}`);
+    if (v !== version) problems.push(`${feed} version ${v ?? '(none)'} is not ${version}`);
     const p = /^path:\s*(\S+)\s*$/m.exec(latest)?.[1];
-    if (p !== want.installer) problems.push(`latest.yml path ${p ?? '(none)'} is not ${want.installer}`);
-    checked.push('latest.yml');
-  } else if (built.includes(want.installer)) problems.push('missing apps/desktop/release/latest.yml');
+    if (p !== plan.updater.path) problems.push(`${feed} path ${p ?? '(none)'} is not ${plan.updater.path}`);
+    checked.push(feed);
+  } else if (built.includes(plan.updater.path)) problems.push(`missing apps/desktop/release/${feed}`);
 
   // SBOM: this version's only, naming this version and commit.
   const outDir = path.join(opts.root, 'artifacts', 'release');
   const sboms = list(outDir).filter((f) => f.endsWith('.sbom.json'));
-  for (const f of sboms) if (f !== want.sbom) problems.push(`stale or foreign SBOM artifacts/release/${f}`);
+  for (const f of sboms) if (f !== plan.sbom) problems.push(`stale or foreign SBOM artifacts/release/${f}`);
   const sbom = readJson<{
     metadata?: { component?: { version?: string }; properties?: Array<{ name: string; value: string }> };
-  }>(path.join(outDir, want.sbom));
-  if (!sbom) problems.push(`missing artifacts/release/${want.sbom}`);
+  }>(path.join(outDir, plan.sbom));
+  if (!sbom) problems.push(`missing artifacts/release/${plan.sbom}`);
   else {
-    checked.push(want.sbom);
+    checked.push(plan.sbom);
     if (sbom.metadata?.component?.version !== version)
       problems.push(`SBOM names version ${sbom.metadata?.component?.version ?? '(none)'}, not ${version}`);
     const sbomCommit = sbom.metadata?.properties?.find((p) => /commit/i.test(p.name))?.value;
@@ -138,8 +193,8 @@ export function assertReleaseVersion(opts: AssertVersionOptions): AssertVersionR
     for (const h of report.artifactHashes ?? [])
       if (ARTIFACT.test(h.file) && !allowed.has(path.basename(h.file)))
         problems.push(`verification report hashes another version's file ${h.file}`);
-    if (!(report.artifactHashes ?? []).some((h) => path.basename(h.file) === want.installer))
-      problems.push(`verification report does not hash ${want.installer} (was it written before packaging?)`);
+    if (!(report.artifactHashes ?? []).some((h) => path.basename(h.file) === plan.primary))
+      problems.push(`verification report does not hash ${plan.primary} (was it written before packaging?)`);
   }
   const sumsFile = path.join(outDir, 'SHA256SUMS.txt');
   if (existsSync(sumsFile)) {
@@ -151,11 +206,22 @@ export function assertReleaseVersion(opts: AssertVersionOptions): AssertVersionR
     }
   } else problems.push('missing artifacts/release/SHA256SUMS.txt');
 
-  return { version, ok: problems.length === 0, problems, checked };
+  return { version, platform, ok: problems.length === 0, problems, checked };
 }
 
 /** The files a release of `version` uploads, by exact path from the repository root. */
-export function releaseAssetPaths(version: string): string[] {
+export function releaseAssetPaths(version: string, platform: ReleasePlatform = 'win32'): string[] {
+  if (platform === 'linux') {
+    const l = expectedLinuxArtifacts(version);
+    return [
+      `apps/desktop/release/${l.deb}`,
+      `apps/desktop/release/${l.appImage}`,
+      'apps/desktop/release/latest-linux.yml',
+      `artifacts/release/${l.sbom}`,
+      'artifacts/release/SHA256SUMS.txt',
+      'artifacts/release/verification-report.json',
+    ];
+  }
   const want = expectedArtifacts(version);
   return [
     `apps/desktop/release/${want.installer}`,
@@ -168,13 +234,13 @@ export function releaseAssetPaths(version: string): string[] {
 }
 
 export function formatAssertVersion(r: AssertVersionResult): string {
-  const lines = [`[release:assert-version] ${r.version}`];
+  const lines = [`[release:assert-version] ${r.version} (${r.platform})`];
   for (const c of r.checked) lines.push(`  checked  ${c}`);
   for (const p of r.problems) lines.push(`  FAIL     ${p}`);
   if (r.ok) {
     lines.push('  → PASS: every artifact is this version and this commit');
     lines.push('  upload exactly these (plus THIRD_PARTY_NOTICES.md as THIRD_PARTY_NOTICES.txt):');
-    for (const f of releaseAssetPaths(r.version)) lines.push(`    ${f}`);
+    for (const f of releaseAssetPaths(r.version, r.platform)) lines.push(`    ${f}`);
   } else lines.push(`  → FAIL (${r.problems.length})`);
   return lines.join('\n');
 }
