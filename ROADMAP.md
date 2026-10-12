@@ -28,7 +28,11 @@ prerelease) is a security release on top of it: Electron 39 → 44. 0.2.2 (2026-
 prerelease) adds the map as an instrument, offline work with history in DuckDB by default,
 and emergencies and distress beacons as events (CHANGELOG). 0.3.0 (2026-10-09) adds Linux
 and the cyberdeck (docs/cyberdeck/ROADMAP.md): released to `main` on the operator's decision
-before the installer checklist and the hardware checks (docs/cyberdeck/READINESS.md).
+before the installer checklist and the hardware checks (docs/cyberdeck/READINESS.md). 0.4.0
+(2026-10-12) draws the selected aircraft's and satellite's lines at altitude, asks adsb.lol for
+the emergency squawk lists once a minute, adds NASA's Black Marble as Night lights, fixes the
+always-stale high-apogee satellites, and adds a test notification (CHANGELOG); the 0.3.0
+checklist and hardware checks are still open.
 
 The acceleration directive: a source is a JSON definition, the code that runs it is a
 connector written once. Landed on `develop` from `feature/connector-architecture`:

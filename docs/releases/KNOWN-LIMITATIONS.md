@@ -1,4 +1,4 @@
-# Known limitations — 0.3.0
+# Known limitations — 0.4.0
 
 Each line is a limitation a user or operator can run into. Classification follows the
 directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQUIRED`,
@@ -353,6 +353,23 @@ directive's blocker taxonomy: `SIGNING_REQUIRED`, `AUTH_REQUIRED`, `HARDWARE_REQ
   licence record, which is not in the registry until you confirm its terms (use
   `--pmtiles-only` meanwhile). A Martin server can be read by the tool, not chosen as the
   app's basemap.
+
+## 0.4.0
+
+- The selected aircraft's and satellite's trail, predicted path and route are drawn at their
+  heights on the globe (the 2D map keeps the ground track); a position with no height takes its
+  neighbour's. With a terrain source chosen, an aircraft on the ground at 0 m barometric is drawn
+  at the ellipsoid, under high ground, as its marker already was.
+- adsb.lol's emergency squawk lists are one request a minute out of the view's own, so a point
+  or circle query is refreshed one poll in six less often than in 0.3.0; a 7600 or 7500 is seen
+  within about four minutes, a 7700 within about two.
+- Night lights is NASA's 2016 Black Marble composite (2012 by setting), a still picture, not
+  tonight's: a blackout or a new town is not in it.
+- An element set whose perigee is below the surface is now refused; an object that has in fact
+  come down is gone from the map as soon as CelesTrak's elements say so, rather than drawn
+  somewhere meaningless.
+- A test notification says whether the operating system showed one, not whether the operator
+  saw it: Windows' Focus assist and notification settings still decide that.
 
 ## Linux and the cyberdeck (0.3.0)
 
