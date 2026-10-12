@@ -1,5 +1,5 @@
 import type { GeoBounds, GeoPosition, GeoRegion, WorldEvent, WorldObject } from '@worldview/world-model';
-import { boundsContain, circleBounds } from '@worldview/world-model';
+import { boundsContain, circleBounds, haversineMeters } from '@worldview/world-model';
 import type { FeatureUpdate, RenderFeature, RenderGeometry, RenderMotion, RenderStyle, ViewState } from './contract.js';
 import { worldGeometryParts, worldGeometryToRender } from './contract.js';
 import { deadReckonedMotion } from './motion.js';
@@ -594,8 +594,15 @@ export function presentObjects(input: PresentationInput): PresentationResult {
   for (const ev of input.events ?? [])
     if (EPISODE_EVENTS.has(ev.type) && ev.objectIds[0]) followed.set(ev.objectIds[0], undefined);
 
+  // The selected object's type and height, for how its trail and route are drawn.
+  let selectedType: string | undefined;
+  let selectedAltitudeM: number | undefined;
   for (const obj of input.objects) {
     stats.objects++;
+    if (obj.id === input.selectedId) {
+      selectedType = obj.type;
+      selectedAltitudeM = obj.position?.altitudeM;
+    }
     if (followed.size && obj.position && followed.has(obj.id)) followed.set(obj.id, obj.position);
     // The selected object is drawn even with its layer switched off: chosen from search (the
     // ISS with Space off), it had a panel and an orbit line but no marker, and Follow had
@@ -793,9 +800,24 @@ export function presentObjects(input: PresentationInput): PresentationResult {
 
   // Selected trail, and a predicted path after it.
   if (input.selectedId && input.selectedTrack && input.selectedTrack.length > 1)
-    upsert.push(...trailFeatures(input.selectedId, input.selectedTrack));
+    upsert.push(
+      ...trailFeatures(
+        input.selectedId,
+        input.selectedTrack,
+        selectedType === 'aircraft' || selectedType === 'satellite' ? 'absolute' : 'clamp',
+      ),
+    );
   // The selected flight's route: what is left of it, and its airports.
-  if (input.selectedId && input.selectedRoute) upsert.push(...routeFeatures(input.selectedId, input.selectedRoute));
+  if (input.selectedId && input.selectedRoute)
+    upsert.push(
+      ...routeFeatures(
+        input.selectedId,
+        input.selectedRoute,
+        selectedType === 'aircraft' && selectedAltitudeM !== undefined && selectedAltitudeM > 0
+          ? selectedAltitudeM
+          : undefined,
+      ),
+    );
 
   for (const z of input.zones ?? []) {
     const geometry = zoneGeometry(z.region);
@@ -879,12 +901,32 @@ type TrackLike = { latitude: number; longitude: number; altitudeM?: number; pred
  * path: each one line feature per piece between antimeridian crossings (`splitAtAntimeridian`),
  * so an orbit that crosses ±180° is not drawn back across the whole flat map. The predicted
  * path starts at the last observed point, so the two lines meet.
+ *
+ * `heightMode` 'absolute' draws the trail at its recorded altitudes on the globe (an
+ * aircraft's and a satellite's, so it starts at the marker rather than on the ground below
+ * it — a satellite's predicted path is then its orbit in space, not a ground track 400 km
+ * under the marker); a point with no altitude takes its neighbour's (`fillAltitudes`), and a
+ * track with none at all stays clamped. 'clamp' (the default) is a ground track: anything
+ * whose `altitudeM` is not a height above the ground (an earthquake's is minus its depth).
+ * The 2D map ignores the height either way, so there it is a ground track still.
  */
-export function trailFeatures(selectedId: string, track: ReadonlyArray<TrackLike>): RenderFeature[] {
-  const observed: GeoPosition[] = [];
-  const predicted: GeoPosition[] = [];
+export function trailFeatures(
+  selectedId: string,
+  track: ReadonlyArray<TrackLike>,
+  heightMode: 'absolute' | 'clamp' = 'clamp',
+): RenderFeature[] {
+  let observed: GeoPosition[] = [];
+  let predicted: GeoPosition[] = [];
   for (const p of track) (p.predicted ? predicted : observed).push(toPosition(p));
   if (predicted.length && observed.length) predicted.unshift(observed[observed.length - 1]!);
+  let mode = heightMode;
+  if (mode === 'absolute') {
+    const all = fillAltitudes([...observed, ...predicted]);
+    if (all) {
+      observed = all.slice(0, observed.length);
+      predicted = all.slice(observed.length);
+    } else mode = 'clamp';
+  }
   const out: RenderFeature[] = [];
   const add = (positions: GeoPosition[], suffix: string, styleClass: string, lineStyle: 'trail' | 'dashed') => {
     splitAtAntimeridian(positions).forEach((piece, i) => {
@@ -893,7 +935,7 @@ export function trailFeatures(selectedId: string, track: ReadonlyArray<TrackLike
         id: `trail:${selectedId}${suffix}${i ? `:${i}` : ''}`,
         objectId: selectedId,
         geometry: { kind: 'line', positions: piece },
-        style: { styleClass, lineStyle, size: 2 },
+        style: { styleClass, lineStyle, size: 2, ...(mode === 'absolute' ? { heightMode: 'absolute' as const } : {}) },
         interactive: false,
         priority: 90,
         layer: 'trail',
@@ -917,16 +959,23 @@ export interface PresentedRoute {
  * predicted-path style (`trail.route`, a planned route and not an observation), cut at the
  * antimeridian like every trail, and each airport as a small labelled point
  * (`route.airport`; the destination a little larger). None of it is a pick target.
+ *
+ * With `fromAltitudeM` (the aircraft's height) the line starts at the aircraft on the globe
+ * and comes down to the ground at the end of the path, evenly by distance (`descendingPath`):
+ * a planned path drawn on the ground began a little below a marker drawn at altitude, where
+ * the trail now ends (seen on the test laptop, 2026-10-12). Without it, a ground track.
  */
-export function routeFeatures(selectedId: string, route: PresentedRoute): RenderFeature[] {
+export function routeFeatures(selectedId: string, route: PresentedRoute, fromAltitudeM?: number): RenderFeature[] {
   const out: RenderFeature[] = [];
-  splitAtAntimeridian(route.remaining).forEach((piece, i) => {
+  const remaining = fromAltitudeM !== undefined ? descendingPath(route.remaining, fromAltitudeM) : route.remaining;
+  const height = fromAltitudeM !== undefined ? { heightMode: 'absolute' as const } : {};
+  splitAtAntimeridian(remaining).forEach((piece, i) => {
     if (piece.length < 2) return;
     out.push({
       id: `route:${selectedId}${i ? `:${i}` : ''}`,
       objectId: selectedId,
       geometry: { kind: 'line', positions: piece },
-      style: { styleClass: 'trail.route', lineStyle: 'dashed', size: 2 },
+      style: { styleClass: 'trail.route', lineStyle: 'dashed', size: 2, ...height },
       interactive: false,
       priority: 89,
       layer: 'trail',
@@ -948,6 +997,39 @@ export function routeFeatures(selectedId: string, route: PresentedRoute): Render
     });
   });
   return out;
+}
+
+/**
+ * The path with altitudes from `fromAltitudeM` at its first point down to 0 at its last,
+ * in proportion to the distance along it; a path of one point or no length keeps the height.
+ */
+export function descendingPath(path: ReadonlyArray<GeoPosition>, fromAltitudeM: number): GeoPosition[] {
+  const along: number[] = [0];
+  for (let i = 1; i < path.length; i++) along.push(along[i - 1]! + haversineMeters(path[i - 1]!, path[i]!));
+  const total = along[along.length - 1] ?? 0;
+  return path.map((p, i) => ({
+    ...p,
+    altitudeM: total > 0 ? Math.round(fromAltitudeM * (1 - along[i]! / total)) : Math.round(fromAltitudeM),
+  }));
+}
+
+/**
+ * The positions with every missing or non-finite altitude taken from the nearest earlier
+ * point that has one (or, before the first, the first that does), so a report without an
+ * altitude does not pull a line drawn at altitude down to the ground and back. Undefined when
+ * no point has an altitude.
+ */
+export function fillAltitudes(positions: ReadonlyArray<GeoPosition>): GeoPosition[] | undefined {
+  const first = positions.find((p) => p.altitudeM !== undefined && Number.isFinite(p.altitudeM));
+  if (!first) return undefined;
+  let last = first.altitudeM!;
+  return positions.map((p) => {
+    if (p.altitudeM !== undefined && Number.isFinite(p.altitudeM)) {
+      last = p.altitudeM;
+      return p;
+    }
+    return { ...p, altitudeM: last };
+  });
 }
 
 function toPosition(p: TrackLike): GeoPosition {

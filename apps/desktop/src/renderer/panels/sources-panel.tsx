@@ -15,6 +15,7 @@ import {
 } from '@worldview/ui';
 import type { JsonValue } from '@worldview/world-model';
 import type { ProviderSettingDefinition } from '@worldview/provider-sdk';
+import { settingUnavailableNote } from './setting-platform.js';
 import { useActions, useAppState, useClient } from '../store/store.js';
 import { getByPath } from '../store/actions.js';
 import { useNow } from '../hooks/use-now.js';
@@ -425,6 +426,15 @@ function ProviderSettingField({
   const actions = useActions();
   const id = `setting-${providerId}-${def.key.replace(/\./g, '-')}`;
   const set = (next: JsonValue | undefined) => void actions.setProviderSetting(providerId, def.key, next);
+  // A setting for another platform (a USB serial port on Windows): its label and why, no control.
+  const unavailable = settingUnavailableNote(def, window.worldview?.platform);
+  if (unavailable)
+    return (
+      <div className="wv-setting wv-setting--unavailable">
+        <span className="wv-field">{def.label}</span>
+        <span className="wv-credential__state">{unavailable}</span>
+      </div>
+    );
 
   const help = (
     <span className="wv-credential__state">

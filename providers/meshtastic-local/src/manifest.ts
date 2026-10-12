@@ -59,6 +59,7 @@ export const MESHTASTIC_LOCAL_MANIFEST: ProviderManifest = {
       key: 'serialPort',
       label: 'Node plugged in by USB',
       kind: 'string',
+      platforms: ['linux'],
       placeholder: '/dev/serial/by-id/usb-…',
       defaultLabel: 'None (use the network settings below)',
       description:

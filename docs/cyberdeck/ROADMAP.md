@@ -154,6 +154,8 @@ merged, tagged or published without the operator. Status words are defined in
   Meshtastic mesh never; tracks only where history is allowed too; vault paths never.
 - Bounded and validated; contract fixtures in `fixtures/local-api/v1/`; a dependency-free
   example consumer in `tools/local-api-client/`; LOCAL-API.md for the operator.
+- A Diagnostics line (`local-api` under Sidecars): off, Linux only, or where it listens with
+  how many requests it has answered and refused and when the last came — never what was asked.
 
 ## Later — offline topographic map style
 

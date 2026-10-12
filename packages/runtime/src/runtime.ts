@@ -26,6 +26,42 @@ class ComposedRuntime implements WorldRuntime {
     private readonly socketPath: string | undefined,
   ) {
     this.handlers = createHandlers(core);
+    core.extraDiagnostics.push(() => this.localApiLine());
+  }
+
+  /**
+   * The local API's line in Diagnostics (docs/cyberdeck M6 follow-up): off, Linux only, where
+   * its socket is, and how much it has answered and refused — never what was asked.
+   */
+  localApiLine(): { id: string; status: 'not-configured' | 'stopped' | 'running' | 'error'; message: string } {
+    const id = 'local-api';
+    const wanted = this.core.settings.get().localApi?.enabled === true;
+    if (this.core.platform !== 'linux')
+      return {
+        id,
+        status: 'not-configured',
+        message: 'Linux only (a Unix socket in the login session’s runtime folder)',
+      };
+    if (!wanted) return { id, status: 'not-configured', message: 'off (Settings → Local API)' };
+    const server = this.localApi;
+    if (!server?.listening)
+      return {
+        id,
+        status: 'stopped',
+        message: this.socketPath
+          ? `on in Settings but not listening at ${this.socketPath} (see the log: "local API not started")`
+          : 'on in Settings but no XDG_RUNTIME_DIR for its socket',
+      };
+    const s = server.stats();
+    const last =
+      s.lastRequestMs !== undefined
+        ? `, last ${Math.max(0, Math.round((this.core.clock.now() - s.lastRequestMs) / 1000))} s ago`
+        : ', none yet';
+    return {
+      id,
+      status: 'running',
+      message: `${server.socketPath} (0600, this user only): ${s.answered} answered, ${s.refused} refused${last}`,
+    };
   }
 
   /** What the API reads, all of it read-only views of the running app. */

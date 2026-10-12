@@ -46,6 +46,7 @@ export function basemapLabel(entry: Pick<ResolvedMapProvider, 'id' | 'name'>): s
 /** A short name for a full-cover imagery layer on the bar. */
 export function imageryLabel(o: Pick<RasterOverlay, 'providerId' | 'name'>): string {
   if (/noaa-?20/i.test(o.providerId)) return 'True colour · NOAA-20';
+  if (/black-marble/i.test(o.providerId)) return 'Night lights';
   if (/snpp|suomi/i.test(o.providerId)) return 'True colour · Suomi NPP';
   return o.name.length > 28 ? `${o.name.slice(0, 27)}…` : o.name;
 }

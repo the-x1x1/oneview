@@ -538,12 +538,13 @@ function electronHostBridge(): HostBridge {
       return true;
     },
     showNotification: (n) => {
-      if (!Notification.isSupported()) return;
+      if (!Notification.isSupported()) return false;
       new Notification({
         title: n.title.slice(0, 120),
         body: n.body.slice(0, 400),
         silent: n.severity === 'INFO',
       }).show();
+      return true;
     },
     appPaths: () => ({ downloads: app.getPath('downloads') }),
   };

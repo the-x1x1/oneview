@@ -30,6 +30,7 @@ test('the Map choices: usable basemaps for the mode, sources’ maps, then image
     overlay('gibs-viirs-noaa20-true-colour', 'Corrected Reflectance (True Color)', { id: 'another-frame' }),
     overlay('gibs-goes-east-infrared', 'Clean Infrared'),
     overlay('usgs-topo', 'USGS Topo', { role: 'basemap' }),
+    overlay('gibs-black-marble', 'Black Marble (VIIRS, Suomi NPP)'),
   ];
   assert.deepEqual(
     mapChoices(basemaps, overlays, '3D').map((c) => [c.id, c.label]),
@@ -38,6 +39,7 @@ test('the Map choices: usable basemaps for the mode, sources’ maps, then image
       ['basemap:esri-world-imagery', 'Satellite HD'],
       ['imagery:gibs-viirs-noaa20-true-colour', 'True colour · NOAA-20'],
       [`basemap:${sourceBasemapId(overlays[3]!)}`, 'USGS Topo'],
+      ['imagery:gibs-black-marble', 'Night lights'],
     ],
   );
   assert.deepEqual(

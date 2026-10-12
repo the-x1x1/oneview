@@ -997,6 +997,28 @@ export function createHandlers(core: RuntimeCore): RequestHandlers {
       return { path: choice.path, redacted: true };
     },
 
+    // A test notification (ADR-004 amendment 2026-10-12): the in-app toast through the same
+    // event a watch zone's or a pass alert's takes, and the host's desktop notification, so the
+    // operator sees both arrive before a real one is due.
+    'notifications.test': async () => {
+      const at = new Date(core.clock.now());
+      const body = `Sent from Diagnostics at ${at.toISOString().slice(11, 19)} UTC. A watch zone's or a pass alert's notice arrives this way.`;
+      core.emitter.emit('notification', {
+        id: `notification:test:${at.getTime()}`,
+        title: 'WorldView test notification',
+        body,
+        severity: 'INFO',
+      });
+      let desktop = false;
+      try {
+        desktop =
+          core.hostBridge.showNotification({ title: 'WorldView test notification', body, severity: 'INFO' }) !== false;
+      } catch {
+        desktop = false;
+      }
+      return { inApp: true, desktop };
+    },
+
     // ---- updater -------------------------------------------------------------------
     'updater.state': async () => core.updater.state(),
     'updater.check': async () => core.updater.check(),

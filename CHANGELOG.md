@@ -5,6 +5,54 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **An aircraft emergency anywhere raises its event.** Once a minute, whatever the view, the
+  adsb.lol provider asks for every aircraft squawking one of the emergency codes (`/v2/sqk/`
+  7700, 7600 and 7500 in turn, 7700 every other time), so the aircraft-emergency event and
+  its notification come for an emergency over the Atlantic while the map is on Hawaii. Still
+  one request a poll: the view's own query gives up one poll in six, and the first emergency
+  list comes a minute after the first poll so the view's own aircraft are drawn first. Source
+  Health says when such a list recently had an aircraft in it.
+- **Night lights.** NASA's Black Marble — the Earth at night, a cloud-free composite of a year
+  of VIIRS night-time passes (2016; the 2012 composite by setting) — as an imagery view on the
+  view bar beside the two true-colour layers (`gibs-black-marble`, NASA GIBS, off by default).
+  A still picture, not tonight's: a blackout or a new town is not in it.
+
+### Changed
+
+- **A test notification** (Help → Diagnostics → Notifications → Send a test notification):
+  the toast here and, on the desktop, an operating-system notification, the way a watch zone's
+  or a pass alert's notice arrives — and it says when the desktop showed none.
+- **Diagnostics has a line for the local API** (Help → Diagnostics, under Sidecars): off,
+  Linux only, or where it listens with how many requests it has answered and refused and
+  when the last came — never what was asked.
+- **A setting for another platform says so.** A provider setting can name the platforms it
+  works on; on any other the Sources panel shows its label with "Not available on Windows:
+  this works on Linux only" instead of a field. The first is the Meshtastic source's "Node
+  plugged in by USB", which was editable on Windows with only its description saying Linux
+  (seen on the test laptop, 2026-10-12).
+
+### Fixed
+
+- **The selected aircraft's trail is drawn at its recorded altitudes on the globe**, so it now
+  meets the aircraft's marker instead of running along the ground below it. A report without
+  an altitude takes its neighbour's, so the line does not drop to the ground and back; a track
+  with no altitude at all stays on the ground. The selected satellite's trail and predicted
+  path are drawn the same way, so its orbit is up where its marker is instead of a ground
+  track 400 km beneath it; the 2D map is unchanged. The planned route onward now starts at
+  the aircraft too and comes down to the ground at the destination, so the two lines meet at
+  the marker.
+- **High-apogee satellites no longer freeze and count as stale.** A satellite propagated above
+  100,000 km (Chandra and INTEGRAL reach ~140,000 km every orbit; TESS ~375,000 km) was
+  rejected as out of range, so the last position below that line stayed on the map for days
+  and the Sky panel counted it stale from most of the planet. A position may now be as high
+  as the Moon's orbit and a little more (500,000 km), so such a satellite keeps moving.
+- **An element set whose perigee is below the Earth's surface is refused** before it is
+  propagated: it describes an object that has come down, or elements gone bad, and SGP4
+  still answers for it with a position that means nothing. Said in the log like the other
+  skipped sets.
+
 ## [0.3.0] — 2026-10-09
 
 WORLDVIEW on Linux and the cyberdeck: an installable `.deb` for x86_64 Linux beside the Windows

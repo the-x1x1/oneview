@@ -733,6 +733,14 @@ export class DemoClient implements WorldClient {
 
       case 'diagnostics.get':
         return this.diagnostics(nowMs);
+      case 'notifications.test':
+        this.emit('notification', {
+          id: `notification:test:${nowMs}`,
+          title: 'WorldView test notification',
+          body: 'Sent from Diagnostics. In the browser demo there is no desktop notification.',
+          severity: 'INFO',
+        });
+        return { inApp: true, desktop: false };
       case 'diagnostics.renderer':
         this.rendererReport = { ...(request as RequestOf<'diagnostics.renderer'>) };
         return undefined;

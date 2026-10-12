@@ -11,9 +11,10 @@ import type { ProviderManifest } from '@worldview/provider-sdk';
  * on a 429 and silent until its Retry-After. What it asks: the view's point query; for a
  * regional view the 250 nm circles covering it, busiest first (tiles.ts, coverage.ts); for a
  * wider view a point query one poll in three and otherwise a worldwide type query
- * (`/v2/type/{type}`) or, once a minute, the worldwide military list (`/v2/mil`). Query
- * centres sit on a fixed grid or are quantised, so viewport jitter does not create new
- * endpoints. The app identifies itself with its own User-Agent (`WorldView/<version>`, set
+ * (`/v2/type/{type}`) or, once a minute, the worldwide military list (`/v2/mil`); and in every
+ * view, once a minute, the aircraft squawking one of the emergency codes (`/v2/sqk/{code}`,
+ * 7700, 7600 and 7500 in turn) so an emergency anywhere raises its event. Query centres sit
+ * on a fixed grid or are quantised, so viewport jitter does not create new endpoints. The app identifies itself with its own User-Agent (`WorldView/<version>`, set
  * by the host for every provider).
  *
  * `adsb.lol` itself (not the API host) serves the tar1090 map's trace files, the recent history
@@ -33,7 +34,7 @@ export const ADSB_LOL_MANIFEST: ProviderManifest = {
   name: 'adsb.lol',
   version: '0.1.0',
   description:
-    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft over the view (one 250 nm query zoomed in; 250 nm circles in turn, busiest first, over a region), or zoomed out further military aircraft and the commonest types worldwide, at a request rate that adapts to adsb.lol. A selected aircraft gets its recent track and planned route, asked for ahead of the positions.',
+    'Aircraft positions from the adsb.lol community ADS-B aggregator: every aircraft over the view (one 250 nm query zoomed in; 250 nm circles in turn, busiest first, over a region), or zoomed out further military aircraft and the commonest types worldwide, and once a minute every aircraft squawking an emergency anywhere, at a request rate that adapts to adsb.lol. A selected aircraft gets its recent track and planned route, asked for ahead of the positions.',
   objectTypes: ['aircraft'],
   categories: ['aviation'],
   transport: 'http',

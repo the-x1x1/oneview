@@ -418,16 +418,37 @@ function answers(socketPath: string): Promise<boolean> {
   });
 }
 
+/** What the API has done since it started, for Diagnostics (never what was asked, only how much). */
+export interface LocalApiStats {
+  /** Requests answered 2xx. */
+  answered: number;
+  /** Requests answered 4xx or 5xx (a refusal, the rate limit, an error). */
+  refused: number;
+  /** When the last request of either kind came, ms since the epoch. */
+  lastRequestMs?: number;
+}
+
 export class LocalApiServer {
   private server: http.Server | undefined;
   private inode: number | undefined;
   private window: number[] = [];
   private closing = false;
+  private readonly counts: LocalApiStats = { answered: 0, refused: 0 };
 
   constructor(private readonly opts: LocalApiServerOptions) {}
 
   get listening(): boolean {
     return this.server?.listening === true;
+  }
+
+  stats(): LocalApiStats {
+    return { ...this.counts };
+  }
+
+  private count(status: number): void {
+    if (status >= 400) this.counts.refused++;
+    else this.counts.answered++;
+    this.counts.lastRequestMs = Date.now();
   }
 
   get socketPath(): string {
@@ -557,6 +578,7 @@ export class LocalApiServer {
         status = 500;
         text = JSON.stringify({ error: { code: 'too-large', message: 'answer too large; ask for less' } });
       }
+      this.count(status);
       res.writeHead(status, {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',

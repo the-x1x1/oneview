@@ -435,6 +435,7 @@ export const REQUEST_SCHEMAS: RequestSchemas = {
 
   'diagnostics.get': voidSchema,
   'diagnostics.export': voidSchema,
+  'notifications.test': voidSchema,
 
   'updater.state': voidSchema,
   'updater.check': voidSchema,

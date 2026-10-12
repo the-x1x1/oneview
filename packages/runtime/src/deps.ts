@@ -41,8 +41,10 @@ export interface HostBridge {
   /**
    * An operating-system notification: a watch zone's, when the zone asks for one on the
    * desktop. The only way the runtime raises one; `severity` INFO is shown without a sound.
+   * (2026-10-12) May answer whether one was shown (`false`: no support on this host); a host
+   * that answers nothing is taken as having shown it.
    */
-  showNotification(notification: { title: string; body: string; severity?: SeverityClass }): void;
+  showNotification(notification: { title: string; body: string; severity?: SeverityClass }): boolean | void;
   appPaths(): { downloads?: string };
   /** (2026-10-08) The OS folder dialog, for a data vault. Hosts without one cannot add vaults. */
   pickFolder?(opts: { title: string }): Promise<FileChoice>;
@@ -53,7 +55,7 @@ export const inProcessHostBridge: HostBridge = {
   pickOpenFile: async () => ({ cancelled: true }),
   pickSaveFile: async () => ({ cancelled: true }),
   openExternal: async () => false,
-  showNotification: () => {},
+  showNotification: () => false,
   appPaths: () => ({}),
 };
 

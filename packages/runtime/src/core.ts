@@ -243,6 +243,11 @@ export class RuntimeCore {
   private sourcesTimer: ReturnType<typeof setInterval> | undefined;
   /** What the page last said it draws with (`diagnostics.renderer`). */
   rendererReport: { active: '2D' | '3D'; webgl2: boolean; gpu?: string; fps?: number } | undefined;
+  /**
+   * Diagnostics lines added by what is composed around the core (the local API lives on the
+   * composed runtime, runtime.ts): each answers one `sidecars` entry, or nothing to say.
+   */
+  readonly extraDiagnostics: Array<() => DiagnosticsSnapshot['sidecars'][number] | undefined> = [];
   state!: WorldState;
   history!: HistoryStore;
   timeline!: TimelineController;
@@ -900,6 +905,10 @@ export class RuntimeCore {
                   },
                 ])),
             );
+          for (const line of this.extraDiagnostics) {
+            const entry = line();
+            if (entry) out.push(entry);
+          }
           for (const v of this.vaults.current())
             out.push({
               id: `vault:${v.label}`,

@@ -1422,6 +1422,14 @@ export function createActions({ client, dispatch, getState, hosts, now }: Action
         fail('Export failed', err);
       }
     },
+    async testNotification(): Promise<{ inApp: true; desktop: boolean } | null> {
+      try {
+        return await client.request('notifications.test', undefined);
+      } catch (err) {
+        fail('Test notification failed', err);
+        return null;
+      }
+    },
     async checkForUpdates(): Promise<void> {
       try {
         dispatch({ type: 'updater/state', state: await client.request('updater.check', undefined) });

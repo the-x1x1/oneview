@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { haversineMeters } from '@worldview/world-model';
+import { haversineMeters, type WorldObject } from '@worldview/world-model';
 import {
   MIN_ETA_SPEED_MPS,
   estimateArrivalMs,
@@ -110,6 +110,45 @@ test('routeFeatures: a dashed line cut at the antimeridian and a labelled point 
   );
   assert.equal(themeEntry('route.airport.origin').color, themeEntry('route.airport').color);
   assert.notEqual(themeEntry('trail.route').color, themeEntry('trail.predicted').color);
+});
+
+test('routeFeatures: from an aircraft at altitude the route comes down from it to the ground at the end', () => {
+  const at = { ...greatCirclePoint(LHR, JFK, 0.5), altitudeM: 11_000 };
+  const remaining = remainingPath(at, [LHR, JFK], 0);
+  const [line] = routeFeatures('aircraft:icao24:abc123', { remaining, airports: [] }, 11_000);
+  assert.ok(line && line.geometry.kind === 'line');
+  const alts = line.geometry.positions.map((p) => p.altitudeM!);
+  assert.equal(line.style.heightMode, 'absolute');
+  assert.equal(alts[0], 11_000, 'starts at the aircraft');
+  assert.equal(alts[alts.length - 1], 0, 'on the ground at the destination');
+  for (let i = 1; i < alts.length; i++) assert.ok(alts[i]! <= alts[i - 1]!, 'never climbs');
+  // Without a height it is the ground track it was.
+  const [ground] = routeFeatures('aircraft:icao24:abc123', { remaining, airports: [] });
+  assert.equal(ground!.style.heightMode, undefined, 'clamped to the ground whatever its points say');
+  // Through presentObjects: an aircraft at altitude gets it, one on the ground does not.
+  const view = { center: LHR, altitudeM: 1e7, zoom: 3, headingDegrees: 0, pitchDegrees: -90 };
+  const plane = (altitudeM: number): WorldObject => ({
+    id: 'aircraft:icao24:abc123',
+    type: 'aircraft',
+    sourceRefs: [{ observationId: 'x', providerId: 'p', observedAt: '2026-10-12T00:00:00.000Z' }],
+    position: { ...at, altitudeM },
+    observedAt: '2026-10-12T00:00:00.000Z',
+    updatedAt: '2026-10-12T00:00:00.000Z',
+    freshness: 'LIVE',
+    confidence: 0.9,
+    labels: {},
+    properties: {},
+    provenance: { providerId: 'p', sourceName: 'p', origin: 'live', receivedAt: '2026-10-12T00:00:00.000Z' },
+  });
+  const drawn = (altitudeM: number) =>
+    presentObjects({
+      objects: [plane(altitudeM)],
+      view,
+      selectedId: 'aircraft:icao24:abc123',
+      selectedRoute: { remaining, airports: [] },
+    }).upsert.find((f) => f.id === 'route:aircraft:icao24:abc123')!.style.heightMode;
+  assert.equal(drawn(11_000), 'absolute');
+  assert.equal(drawn(0), undefined);
 });
 
 test('presentObjects draws the route only for the selected object', () => {

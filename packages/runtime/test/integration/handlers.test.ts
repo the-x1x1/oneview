@@ -138,6 +138,7 @@ const BENIGN: { [C in RequestChannel]: RequestOf<C> } = {
   'camera.list': undefined,
   'diagnostics.get': undefined,
   'diagnostics.export': undefined,
+  'notifications.test': undefined,
   'updater.state': undefined,
   'updater.check': undefined,
   'updater.install': undefined,

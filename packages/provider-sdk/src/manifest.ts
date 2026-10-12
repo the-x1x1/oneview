@@ -197,6 +197,12 @@ export interface ProviderSettingDefinition {
   placeholder?: string;
   /** Where to read more (an API's own documentation, say). */
   helpUrl?: string;
+  /**
+   * The platforms the setting works on (Node's `process.platform` names), when not all: a
+   * USB serial port is Linux only. The interface shows it greyed, with why, elsewhere; the
+   * provider still refuses the value on its own (an UNSUPPORTED error), this is only the sign.
+   */
+  platforms?: Array<'linux' | 'win32' | 'darwin'>;
 }
 
 const kebab = /^[a-z0-9][a-z0-9-]*$/;
@@ -253,6 +259,7 @@ export const providerSettingSchema: Schema<ProviderSettingDefinition> = s.object
   ),
   placeholder: s.optional(s.string({ max: 200 })),
   helpUrl: s.optional(s.string({ max: 2048 })),
+  platforms: s.optional(s.array(s.enum(['linux', 'win32', 'darwin'] as const), { min: 1, max: 3 })),
 }) as Schema<ProviderSettingDefinition>;
 
 export const manifestSchema: Schema<ProviderManifest> = s.refine(

@@ -614,3 +614,27 @@ test('integration: a large world.subscribe snapshot arrives in pages, each once,
     await h.dispose();
   }
 });
+
+test('integration: a test notification takes the same paths a real one would, and says whether the desktop showed it', async () => {
+  const h = await startRuntime();
+  try {
+    const notifications: Array<WorldEvents['notification']> = [];
+    h.runtime.on('notification', (n) => notifications.push(n));
+    const r = await h.client.request('notifications.test', undefined);
+    assert.deepEqual(
+      r,
+      { inApp: true, desktop: true },
+      'the fake host shows one (it answers nothing, which counts as shown)',
+    );
+    assert.equal(notifications.length, 1, 'the in-app event');
+    assert.equal(notifications[0]!.title, 'WorldView test notification');
+    assert.equal(notifications[0]!.severity, 'INFO');
+    assert.equal(h.host.notifications.length, 1, 'the host was asked for one');
+    assert.equal(h.host.notifications[0]!.title, 'WorldView test notification');
+    // A host without notifications says so.
+    h.host.showNotification = () => false;
+    assert.deepEqual(await h.client.request('notifications.test', undefined), { inApp: true, desktop: false });
+  } finally {
+    await h.dispose();
+  }
+});

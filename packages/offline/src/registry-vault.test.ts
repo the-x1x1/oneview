@@ -242,7 +242,8 @@ test('vault: a packs folder that is a link off the drive is neither read nor wri
   const elsewhere = path.join(s.dir, 'elsewhere');
   await fs.mkdir(elsewhere);
   await fs.rm(path.join(s.drive, VAULT_PACKS_DIR), { recursive: true });
-  await fs.symlink(elsewhere, path.join(s.drive, VAULT_PACKS_DIR));
+  // A junction on Windows (see vault.test.ts): no privilege needed, and lstat calls it a link.
+  await fs.symlink(elsewhere, path.join(s.drive, VAULT_PACKS_DIR), 'junction');
   await s.reg.refresh();
   const r = await s.reg.install(s.file, s.target());
   assert.equal(r.installed, null);

@@ -359,6 +359,7 @@ const settingSchema = s.object({
   options: s.optional(s.array(s.object({ value: s.string({ max: 120 }), label: s.string({ max: 120 }) }), { max: 64 })),
   placeholder: s.optional(s.string({ max: 120 })),
   helpUrl: s.optional(s.string({ max: 2048 })),
+  platforms: s.optional(s.array(s.enum(['linux', 'win32', 'darwin'] as const), { min: 1, max: 3 })),
 });
 
 export const OBJECT_TYPE_VALUES: readonly string[] = Object.freeze(Object.values(ObjectTypes));

@@ -1,0 +1,54 @@
+{
+  "_fixture": "INVENTED in the shape of adsb.lol /v2/sqk/7700 (OpenAPI V2Response_Model): hex codes, callsigns and registrations are made up; nothing here was recorded from the live API.",
+  "ac": [
+    {
+      "hex": "e0e0e1",
+      "type": "adsb_icao",
+      "flight": "TST7700 ",
+      "r": "N7700T",
+      "t": "B738",
+      "alt_baro": 24000,
+      "alt_geom": 23800,
+      "gs": 380.0,
+      "track": 95.0,
+      "baro_rate": -1800,
+      "squawk": "7700",
+      "emergency": "general",
+      "category": "A3",
+      "lat": 48.1,
+      "lon": -28.4,
+      "seen_pos": 2.1,
+      "seen": 2.0,
+      "rssi": -19.2,
+      "messages": 640
+    },
+    {
+      "hex": "e0e0e2",
+      "type": "mlat",
+      "flight": "TST7701 ",
+      "t": "C172",
+      "alt_baro": 3500,
+      "gs": 95.0,
+      "track": 200.0,
+      "emergency": "general",
+      "category": "A1",
+      "lat": -33.9,
+      "lon": 151.2,
+      "seen_pos": 4.8,
+      "seen": 4.8,
+      "messages": 120
+    },
+    {
+      "hex": "e0e0e3",
+      "type": "mode_s",
+      "squawk": "7700",
+      "seen": 9.0,
+      "messages": 30
+    }
+  ],
+  "msg": "No error",
+  "now": 1790496000000,
+  "total": 3,
+  "ctime": 1790496000000,
+  "ptime": 0
+}

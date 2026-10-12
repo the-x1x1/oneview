@@ -1691,6 +1691,9 @@
   padding: var(--wv-space-2) 0;
   border-top: 1px solid var(--wv-border);
 }
+.wv-setting--unavailable {
+  opacity: 0.6;
+}
 
 .wv-setting__options {
   display: grid;

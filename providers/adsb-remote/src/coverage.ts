@@ -42,6 +42,17 @@ import { PRIOR_BASELINE, priorAircraft, type Tile } from './tiles.js';
  * view is wide one of the non-point turns a minute (MIL_REFRESH_MS) goes to that list instead
  * of a type — still one request a poll, and the list is kept like a type's answer.
  *
+ * An aircraft squawking an emergency is the one thing worth a request whatever the view:
+ * the event engine's aircraft-emergency rule raises an event for 7700, 7600 and 7500 from
+ * whatever reports reach it, and a view over Hawaii hears nothing of an emergency over the
+ * Atlantic. adsb.lol lists every aircraft squawking one code (`/v2/sqk/{code}`), so once a
+ * minute (EMERGENCY_REFRESH_MS, the first a minute after the first poll, so the view's own
+ * aircraft come first) a poll — in every view, the one disc, the circles and the worldwide
+ * rotation alike — asks for one of the three codes instead of what it would have asked:
+ * 7700 (general emergency, by far the commonest) every other turn, 7600 and 7500 in the
+ * turns between (EMERGENCY_SQUAWKS). Still one request a poll, so the view's own query gives
+ * up one poll in six at the ten-second cadence; the answer is kept like a type's.
+ *
  * Which type next: one never asked for, in list order (commonest first); otherwise the one
  * whose answer is oldest weighted by the square root of how many aircraft it had — the
  * refresh interval that keeps the average age of all the aircraft shown lowest when fetches
@@ -120,6 +131,18 @@ export const TYPE_KEEP_MS = 600_000;
  * between refreshes (dead reckoning carries them in between) without starving the types.
  */
 export const MIL_REFRESH_MS = 60_000;
+/**
+ * One emergency-squawk list is asked for this often, in every view. The lists are tiny (a
+ * handful of aircraft worldwide, usually none), and at the ten-second cadence a minute is one
+ * poll in six given up by the view's own query.
+ */
+export const EMERGENCY_REFRESH_MS = 60_000;
+/**
+ * The codes asked for, in turn: 7700 (general emergency) every other time, 7600 (radio
+ * failure) and 7500 (unlawful interference) between, so 7700 is refreshed every two minutes
+ * and the two rarer codes every four.
+ */
+export const EMERGENCY_SQUAWKS: readonly string[] = Object.freeze(['7700', '7600', '7700', '7500']);
 
 /**
  * The most circles a view is covered by. Beyond it (a view much wider than Europe or the
@@ -149,7 +172,8 @@ export type CoverageRequest =
   | { kind: 'point'; query: PointQuery }
   | { kind: 'circle'; tile: Tile }
   | { kind: 'type'; type: string }
-  | { kind: 'mil' };
+  | { kind: 'mil' }
+  | { kind: 'sqk'; squawk: string };
 
 /** The circles over the view and the point it is centred on. */
 export interface CircleView {
@@ -166,6 +190,10 @@ export class CoveragePlanner {
   private turn = 0;
   private readonly types = new Map<string, TypeState>();
   private mil: TypeState | undefined;
+  /** The last emergency-squawk request: when, and which of EMERGENCY_SQUAWKS it was. */
+  private sqk: { fetchedAtMs: number; turn: number } | undefined;
+  /** When an emergency list last answered with at least one aircraft, and how many. */
+  private sqkAnswer: TypeState | undefined;
   private readonly circles = new Map<string, TypeState & { answeredAtMs: number | undefined }>();
   private readonly priors = new Map<string, number>();
 
@@ -178,6 +206,9 @@ export class CoveragePlanner {
    */
   next(point: PointQuery | undefined, nowMs: number, circles?: CircleView): CoverageRequest | undefined {
     if (!point) return undefined;
+    // The first minute is the view's: its own aircraft come before the world's emergencies.
+    if (!this.sqk) this.sqk = { fetchedAtMs: nowMs, turn: -1 };
+    if (this.emergencyDue(nowMs)) return { kind: 'sqk', squawk: this.nextEmergencySquawk() };
     if (!point.clipped) return { kind: 'point', query: point };
     if (circles && circles.tiles.length > 0 && circles.tiles.length <= MAX_CIRCLES) {
       const tile = this.nextCircle(circles, nowMs);
@@ -319,8 +350,36 @@ export class CoveragePlanner {
     this.mil = { fetchedAtMs: nowMs, count: this.mil?.count ?? 0 };
   }
 
-  /** How many types have an answer, the oldest answer's age, and whether the military list is current. */
-  summary(nowMs: number): { types: number; oldestAgeMs: number | undefined; military: boolean } {
+  /** Whether an emergency-squawk list is due: EMERGENCY_REFRESH_MS since the last one, or since the first poll. */
+  emergencyDue(nowMs: number): boolean {
+    return !!this.sqk && nowMs - this.sqk.fetchedAtMs >= EMERGENCY_REFRESH_MS;
+  }
+
+  /** The code the next emergency request asks for (EMERGENCY_SQUAWKS, in turn). */
+  nextEmergencySquawk(): string {
+    return EMERGENCY_SQUAWKS[this.nextEmergencyTurn()]!;
+  }
+
+  private nextEmergencyTurn(): number {
+    return this.sqk ? (this.sqk.turn + 1) % EMERGENCY_SQUAWKS.length : 0;
+  }
+
+  /** The emergency list asked for arrived: `count` aircraft with a position squawking it. */
+  recordEmergency(count: number, nowMs: number): void {
+    this.sqk = { fetchedAtMs: nowMs, turn: this.nextEmergencyTurn() };
+    if (count > 0) this.sqkAnswer = { fetchedAtMs: nowMs, count };
+  }
+
+  /** The emergency list's request failed: the next code waits its minute like an answer. */
+  deferredEmergency(nowMs: number): void {
+    this.sqk = { fetchedAtMs: nowMs, turn: this.nextEmergencyTurn() };
+  }
+
+  /**
+   * How many types have an answer, the oldest answer's age, whether the military list is
+   * current, and whether an emergency list recently had an aircraft in it.
+   */
+  summary(nowMs: number): { types: number; oldestAgeMs: number | undefined; military: boolean; emergencies: boolean } {
     let oldest: number | undefined;
     let n = 0;
     for (const s of this.types.values()) {
@@ -330,7 +389,8 @@ export class CoveragePlanner {
       if (oldest === undefined || age > oldest) oldest = age;
     }
     const military = !!this.mil && this.mil.count > 0 && nowMs - this.mil.fetchedAtMs <= TYPE_KEEP_MS;
-    return { types: n, oldestAgeMs: oldest, military };
+    const emergencies = !!this.sqkAnswer && nowMs - this.sqkAnswer.fetchedAtMs <= TYPE_KEEP_MS;
+    return { types: n, oldestAgeMs: oldest, military, emergencies };
   }
 }
 
@@ -343,4 +403,10 @@ export function typeQueryUrl(base: string, type: string): string {
 /** adsb.lol's military list: every aircraft its database marks military, worldwide. */
 export function militaryQueryUrl(base: string): string {
   return `${base}/mil`;
+}
+
+/** adsb.lol's squawk list: every aircraft squawking one four-digit code, worldwide. */
+export function squawkQueryUrl(base: string, squawk: string): string {
+  if (!/^[0-7]{4}$/.test(squawk)) throw new Error(`not a squawk code: ${squawk}`);
+  return `${base}/sqk/${squawk}`;
 }

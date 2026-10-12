@@ -168,6 +168,9 @@ function DiagnosticsBody({ snap }: { snap: DiagnosticsSnapshot }) {
           ]}
         />
       </Section>
+      <Section title="Notifications">
+        <TestNotification />
+      </Section>
       <Section title="Sidecars">
         {snap.sidecars.length ? (
           <FieldList
@@ -264,4 +267,37 @@ export function memoryTrend(history: ReadonlyArray<{ at: string; totalMB: number
   const span = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
   const delta = Math.round(last.totalMB - first.totalMB);
   return `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} MB over ${span} after warm-up (${settled.length} samples)`;
+}
+
+/**
+ * A test notification on demand, so the operator can see one arrive before a watch zone's or
+ * a pass alert's is due: the in-app toast always, and the operating system's where the host
+ * has one (not in the browser demo).
+ */
+function TestNotification() {
+  const actions = useActions();
+  const [result, setResult] = useState<string | null>(null);
+  return (
+    <div className="wv-setting">
+      <Button
+        size="sm"
+        onClick={() =>
+          void actions.testNotification().then((r) => {
+            if (!r) return;
+            setResult(
+              r.desktop
+                ? 'Sent: the toast here, and a desktop notification from the operating system.'
+                : 'Sent: the toast here. No desktop notification: this host has none (the browser demo), or the operating system refused it.',
+            );
+          })
+        }
+      >
+        Send a test notification
+      </Button>
+      <span className="wv-credential__state">
+        {result ??
+          'Shows a toast here and, on the desktop, an operating-system notification, the way a watch zone or a pass alert would.'}
+      </span>
+    </div>
+  );
 }

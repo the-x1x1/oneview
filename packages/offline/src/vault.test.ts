@@ -226,7 +226,10 @@ test('initVault: a folder on the same drive as the app data is refused — an em
 test('initVault and vaultPacksDir: a worldpacks link off the drive is refused', async () => {
   const drive = await tmp();
   const elsewhere = await tmp();
-  await fs.symlink(elsewhere, path.join(drive, VAULT_PACKS_DIR));
+  // A junction on Windows: it needs no privilege (a plain directory symlink is EPERM for an
+  // ordinary account, as on the test laptop) and it is what a crafted drive would carry there;
+  // lstat reports it as a link. The type is ignored elsewhere.
+  await fs.symlink(elsewhere, path.join(drive, VAULT_PACKS_DIR), 'junction');
   const r = await initVault(drive, 'SSD');
   assert.equal(r.ok, false);
   assert.match(!r.ok ? r.reason : '', /is a link/);

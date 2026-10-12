@@ -57,9 +57,20 @@ test(
     const h = await startRuntime({ platform: 'linux', localApiSocket: socket });
     try {
       assert.equal(await exists(socket), false, 'off by default: no socket');
+      const line = async () =>
+        (await h.client.request('diagnostics.get', undefined)).sidecars.find((x) => x.id === 'local-api')!;
+      assert.deepEqual(await line(), {
+        id: 'local-api',
+        status: 'not-configured',
+        message: 'off (Settings → Local API)',
+      });
       const settings = await h.client.request('settings.get', undefined);
       await h.client.request('settings.set', { localApi: { enabled: true } });
       await until(() => h.runtime.localApi?.listening === true, 'the API to listen');
+      // Diagnostics says where it listens and that nothing has asked yet.
+      const fresh = await line();
+      assert.equal(fresh.status, 'running');
+      assert.equal(fresh.message, `${socket} (0600, this user only): 0 answered, 0 refused, none yet`);
 
       // Only this user: the folder 0700, the socket 0600, and nothing on any network port.
       assert.equal((await fs.stat(path.dirname(socket))).mode & 0o777, 0o700);
@@ -83,6 +94,8 @@ test(
       // Refused, and the client says so (exit 1): own position not allowed, a write, too much.
       assert.equal((await client('/v1/own-position', socket)).code, 1);
       assert.equal((await client('/v1/objects?limit=100000', socket)).code, 1);
+      // Diagnostics counts them: two answered (the index and the page), two refused.
+      assert.match((await line()).message ?? '', /: 2 answered, 2 refused, last \d+ s ago$/);
 
       // Another user on this computer cannot open the socket at all (run as root: needs a user).
       if (process.getuid?.() === 0) {
@@ -109,6 +122,7 @@ test(
       const gone = await client('/v1', socket);
       assert.equal(gone.code, 2);
       assert.match(gone.err, /not running, or its local API is off/);
+      assert.equal((await line()).status, 'not-configured');
       void settings;
     } finally {
       await h.dispose();
@@ -184,6 +198,9 @@ test('local API: not offered off Linux', async () => {
     await wait(200);
     assert.equal(h.runtime.localApi, undefined);
     assert.equal(await exists(socket), false);
+    const line = (await h.client.request('diagnostics.get', undefined)).sidecars.find((x) => x.id === 'local-api');
+    assert.equal(line?.status, 'not-configured');
+    assert.match(line?.message ?? '', /^Linux only/);
   } finally {
     await h.dispose();
     await fs.rm(runtimeDir, { recursive: true, force: true });

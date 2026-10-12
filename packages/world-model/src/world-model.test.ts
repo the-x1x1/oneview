@@ -20,6 +20,8 @@ import {
   Ids,
   isAuthoritativeId,
   observationSchema,
+  positionSchema,
+  MAX_ALTITUDE_M,
   worldQuerySchema,
   s,
   stableStringify,
@@ -135,6 +137,15 @@ test('identifiers are deterministic and never display names', () => {
   assert.equal(isAuthoritativeId('camera:fintraffic:C0150201'), false);
   assert.throws(() => makeObjectId('aircraft', 'icao24', 'United Airlines 123'));
   assert.equal(parseObjectId('nope'), undefined);
+});
+
+test('a position may be as high as the Moon, and no higher', () => {
+  assert.equal(MAX_ALTITUDE_M, 500_000_000);
+  const at = (altitudeM: number) => positionSchema.parse({ latitude: 0, longitude: 0, altitudeM }).ok;
+  assert.equal(at(375_000_000), true, 'TESS at apogee');
+  assert.equal(at(MAX_ALTITUDE_M), true);
+  assert.equal(at(MAX_ALTITUDE_M + 1), false);
+  assert.equal(at(-1_000_001), false);
 });
 
 test('observation schema accepts a valid USGS-style observation and rejects malformed ones', () => {

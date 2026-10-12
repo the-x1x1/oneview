@@ -89,8 +89,11 @@ const INFRARED_SLICES = [
   'eumetsat-iodc-infrared',
   'gibs-himawari-infrared',
 ];
-/** NASA GIBS daily true colour (VIIRS): the same licence as GIBS above, but off until turned on. */
-const TRUE_COLOUR = ['gibs-viirs-snpp-true-colour', 'gibs-viirs-noaa20-true-colour'];
+/**
+ * NASA GIBS whole-Earth pictures (VIIRS): the daily true colour of each satellite and the Black
+ * Marble night-lights composite — the same licence as GIBS above, but off until turned on.
+ */
+const TRUE_COLOUR = ['gibs-viirs-snpp-true-colour', 'gibs-viirs-noaa20-true-colour', 'gibs-black-marble'];
 /** nowCOAST lightning: a NOAA-derived product released for public distribution, credited with its derivation. */
 const LIGHTNING = ['nowcoast-strike-density'];
 /** Raster overlays: their switch is the source itself, not an object type. */
@@ -161,7 +164,7 @@ test('licence: the public-domain US sources start enabled and open their policy;
     assert.equal(m.enabledByDefault, false, `${id}: an opaque picture of the Earth is turned on for a purpose`);
     assert.equal(m.dataPolicy.commercialUseAllowed, true, id);
     assert.equal(m.dataPolicy.attributionRequired, true, id);
-    assert.match(m.attribution.text, /VIIRS .*NASA GIBS/, id);
+    assert.match(m.attribution.text, /VIIRS.*NASA GIBS/, id);
     assert.equal(m.attribution.licenseId, 'US-PD', id);
     assert.deepEqual(m.allowedHosts, ['gibs.earthdata.nasa.gov'], id);
   }

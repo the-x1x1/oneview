@@ -1,4 +1,10 @@
-import { isValidLatLon, stableStringify, type JsonValue, type Observation } from '@worldview/world-model';
+import {
+  MAX_ALTITUDE_M,
+  isValidLatLon,
+  stableStringify,
+  type JsonValue,
+  type Observation,
+} from '@worldview/world-model';
 import { buildObservation, type ObservationDraft } from '@worldview/provider-sdk';
 import { CELESTRAK_MANIFEST, ELEMENT_VALIDITY_MS } from './manifest.js';
 import { orbitSummary, type GpElements } from './elements.js';
@@ -34,8 +40,9 @@ export interface NormalizeResult {
 }
 
 const DEFAULT_MAX_ELEMENT_AGE_MS = 30 * 24 * 3600_000;
+/** A perigee below this (km above the equatorial radius) is under the surface: the object is down. */
+const DECAYED_PERIGEE_KM = 0;
 const AGING_AFTER_MS = 3 * 24 * 3600_000;
-const MAX_ALTITUDE_M = 100_000_000; // world-model position schema bound
 
 /**
  * Propagate every element set to `nowMs` and emit one satellite observation each.
@@ -82,6 +89,10 @@ export function elementsToDraft(e: GpElements, opts: NormalizeOptions): Observat
   const age = opts.nowMs - epochMs;
   if (age > (opts.maxElementAgeMs ?? DEFAULT_MAX_ELEMENT_AGE_MS)) return 'element set too old to propagate';
   if (age < -ELEMENT_VALIDITY_MS) return 'element set epoch too far in the future';
+  // An element set whose perigee is below the Earth's surface describes an object that has
+  // come down, or elements gone bad: SGP4 still answers for it, with a position that means
+  // nothing (satellite.js 7's checkForDecay refuses these by the same measure).
+  if (orbitSummary(e).perigeeKm < DECAYED_PERIGEE_KM) return 'element set decayed (perigee below the surface)';
   let state;
   try {
     state = opts.propagator.propagate(e, opts.nowMs);

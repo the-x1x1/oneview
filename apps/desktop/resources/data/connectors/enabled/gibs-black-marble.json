@@ -1,0 +1,65 @@
+{
+  "schema": "oneview.connector.v1",
+  "id": "gibs-black-marble",
+  "name": "Night lights, worldwide (Black Marble, VIIRS on Suomi NPP, NASA GIBS)",
+  "description": "The Earth at night: NASA's Black Marble, a cloud-free composite of a year of night-time passes by the VIIRS day/night band on Suomi NPP, rendered by NASA GIBS. City lights, roads, gas flares and fishing fleets; dark sea and empty land. A still picture (2016, with 2012 for comparison), not tonight's — a blackout or a new town is not in it. Off by default: chosen from the view bar as an imagery view, it covers the basemap.",
+  "connector": "wmts",
+  "objectType": "place",
+  "categories": ["weather"],
+  "endpoint": {
+    "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?LAYER=VIIRS_Black_Marble",
+    "query": {
+      "layer": "VIIRS_Black_Marble",
+      "tileMatrixSet": "GoogleMapsCompatible_Level8",
+      "format": "image/png",
+      "time": "2016-01-01",
+      "opacity": 1,
+      "role": "overlay"
+    },
+    "intervalSeconds": 86400,
+    "timeoutSeconds": 30
+  },
+  "mapping": {
+    "externalId": "id"
+  },
+  "sourceQuality": "authoritative",
+  "attribution": {
+    "text": "Imagery: NASA Black Marble (VIIRS, Suomi NPP) via NASA GIBS (ESDIS)",
+    "url": "https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api",
+    "licenseId": "US-PD"
+  },
+  "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+  "dataPolicy": {
+    "cacheAllowed": true,
+    "rawPayloadRetentionAllowed": true,
+    "normalizedRetentionAllowed": true,
+    "redistributionAllowed": true,
+    "offlinePackAllowed": true,
+    "exportAllowed": true,
+    "commercialUseAllowed": true,
+    "attributionRequired": true,
+    "attributionText": "Imagery: NASA Black Marble (VIIRS, Suomi NPP) via NASA GIBS (ESDIS)",
+    "termsUrl": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy"
+  },
+  "review": "commercially-reviewed",
+  "enabled": false,
+  "settings": [
+    {
+      "key": "time",
+      "label": "Composite year",
+      "description": "2016-01-01 (the default) is the newer of the two composites NASA GIBS serves; 2012-01-01 the earlier one.",
+      "kind": "string",
+      "defaultLabel": "2016",
+      "placeholder": "2012-01-01"
+    },
+    {
+      "key": "opacity",
+      "label": "Opacity",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "defaultLabel": "100%"
+    }
+  ]
+}

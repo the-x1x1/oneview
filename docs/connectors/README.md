@@ -44,31 +44,32 @@ The definitions in [`connectors/enabled/`](../../connectors/enabled/) ship with 
 in [hazards.md](hazards.md). Definitions waiting for review to replace a bespoke provider
 are in `connectors/enabled/pending-review/` and do not ship.
 
-| Definition                                                                                        | Connector        | Source                                                               | On by default |
-| ------------------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------- | ------------- |
-| [gdacs-droughts.json](../../connectors/enabled/gdacs-droughts.json)                               | `geojson`        | GDACS drought alerts (global)                                        | no            |
-| [gdacs-earthquakes.json](../../connectors/enabled/gdacs-earthquakes.json)                         | `geojson`        | GDACS earthquake alerts (global)                                     | no            |
-| [gdacs-floods.json](../../connectors/enabled/gdacs-floods.json)                                   | `geojson`        | GDACS flood alerts (global)                                          | no            |
-| [gdacs-tropical-cyclones.json](../../connectors/enabled/gdacs-tropical-cyclones.json)             | `geojson`        | GDACS tropical cyclone alerts (global)                               | no            |
-| [gdacs-volcanoes.json](../../connectors/enabled/gdacs-volcanoes.json)                             | `geojson`        | GDACS volcanic alerts (global)                                       | no            |
-| [gdacs-wildfires.json](../../connectors/enabled/gdacs-wildfires.json)                             | `geojson`        | GDACS forest fire alerts (global)                                    | no            |
-| [gibs-goes-east-infrared.json](../../connectors/enabled/gibs-goes-east-infrared.json)             | `wmts`           | Satellite infrared, Americas and Atlantic (GOES-East, NASA GIBS)     | yes           |
-| [gibs-goes-west-infrared.json](../../connectors/enabled/gibs-goes-west-infrared.json)             | `wmts`           | Satellite infrared, eastern Pacific (GOES-West, NASA GIBS)           | yes           |
-| [gibs-himawari-infrared.json](../../connectors/enabled/gibs-himawari-infrared.json)               | `wmts`           | Satellite infrared, western Pacific and Asia (Himawari-9, NASA GIBS) | yes           |
-| [gibs-imerg-precipitation.json](../../connectors/enabled/gibs-imerg-precipitation.json)           | `wmts`           | Precipitation rate, worldwide (NASA GPM IMERG, 30-minute)            | yes           |
-| [gibs-viirs-noaa20-true-colour.json](../../connectors/enabled/gibs-viirs-noaa20-true-colour.json) | `wmts`           | True colour, worldwide (VIIRS on NOAA-20, NASA GIBS, daily)          | no            |
-| [gibs-viirs-snpp-true-colour.json](../../connectors/enabled/gibs-viirs-snpp-true-colour.json)     | `wmts`           | True colour, worldwide (VIIRS on Suomi NPP, NASA GIBS, daily)        | no            |
-| [nhc-forecast-cones.json](../../connectors/enabled/nhc-forecast-cones.json)                       | `arcgis-feature` | NHC forecast cones (active tropical cyclones)                        | yes           |
-| [nhc-forecast-tracks.json](../../connectors/enabled/nhc-forecast-tracks.json)                     | `arcgis-feature` | NHC forecast tracks (active tropical cyclones)                       | yes           |
-| [nhc-forecast-points.json](../../connectors/enabled/nhc-forecast-points.json)                     | `arcgis-feature` | NHC forecast positions (active tropical cyclones)                    | yes           |
-| [nhc-past-track.json](../../connectors/enabled/nhc-past-track.json)                               | `arcgis-feature` | NHC past track (active tropical cyclones)                            | yes           |
-| [nhc-wind-field.json](../../connectors/enabled/nhc-wind-field.json)                               | `arcgis-feature` | NHC wind field (active tropical cyclones)                            | yes           |
-| [nifc-wildfire-perimeters.json](../../connectors/enabled/nifc-wildfire-perimeters.json)           | `arcgis-feature` | Wildfire perimeters, US (NIFC WFIGS, current)                        | yes           |
-| [nowcoast-goes-infrared.json](../../connectors/enabled/nowcoast-goes-infrared.json)               | `wms`            | Satellite infrared, North America (NOAA nowCOAST GOES)               | no            |
-| [nowcoast-radar.json](../../connectors/enabled/nowcoast-radar.json)                               | `wms`            | Weather radar, US (NOAA nowCOAST MRMS)                               | yes           |
-| [nowcoast-strike-density.json](../../connectors/enabled/nowcoast-strike-density.json)             | `wms`            | Lightning, Americas and Pacific (NOAA nowCOAST strike density)       | yes           |
-| [nws-storm-reports.json](../../connectors/enabled/nws-storm-reports.json)                         | `arcgis-feature` | Storm reports, US (NWS local storm reports: tornado, hail, wind)     | yes           |
-| [spc-day1-outlook.json](../../connectors/enabled/spc-day1-outlook.json)                           | `arcgis-feature` | Severe weather outlook today, US (SPC day 1 categorical)             | yes           |
+| Definition                                                                                        | Connector        | Source                                                                | On by default |
+| ------------------------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------- | ------------- |
+| [gdacs-droughts.json](../../connectors/enabled/gdacs-droughts.json)                               | `geojson`        | GDACS drought alerts (global)                                         | no            |
+| [gdacs-earthquakes.json](../../connectors/enabled/gdacs-earthquakes.json)                         | `geojson`        | GDACS earthquake alerts (global)                                      | no            |
+| [gdacs-floods.json](../../connectors/enabled/gdacs-floods.json)                                   | `geojson`        | GDACS flood alerts (global)                                           | no            |
+| [gdacs-tropical-cyclones.json](../../connectors/enabled/gdacs-tropical-cyclones.json)             | `geojson`        | GDACS tropical cyclone alerts (global)                                | no            |
+| [gdacs-volcanoes.json](../../connectors/enabled/gdacs-volcanoes.json)                             | `geojson`        | GDACS volcanic alerts (global)                                        | no            |
+| [gdacs-wildfires.json](../../connectors/enabled/gdacs-wildfires.json)                             | `geojson`        | GDACS forest fire alerts (global)                                     | no            |
+| [gibs-black-marble.json](../../connectors/enabled/gibs-black-marble.json)                         | `wmts`           | Night lights, worldwide (Black Marble, VIIRS on Suomi NPP, NASA GIBS) | no            |
+| [gibs-goes-east-infrared.json](../../connectors/enabled/gibs-goes-east-infrared.json)             | `wmts`           | Satellite infrared, Americas and Atlantic (GOES-East, NASA GIBS)      | yes           |
+| [gibs-goes-west-infrared.json](../../connectors/enabled/gibs-goes-west-infrared.json)             | `wmts`           | Satellite infrared, eastern Pacific (GOES-West, NASA GIBS)            | yes           |
+| [gibs-himawari-infrared.json](../../connectors/enabled/gibs-himawari-infrared.json)               | `wmts`           | Satellite infrared, western Pacific and Asia (Himawari-9, NASA GIBS)  | yes           |
+| [gibs-imerg-precipitation.json](../../connectors/enabled/gibs-imerg-precipitation.json)           | `wmts`           | Precipitation rate, worldwide (NASA GPM IMERG, 30-minute)             | yes           |
+| [gibs-viirs-noaa20-true-colour.json](../../connectors/enabled/gibs-viirs-noaa20-true-colour.json) | `wmts`           | True colour, worldwide (VIIRS on NOAA-20, NASA GIBS, daily)           | no            |
+| [gibs-viirs-snpp-true-colour.json](../../connectors/enabled/gibs-viirs-snpp-true-colour.json)     | `wmts`           | True colour, worldwide (VIIRS on Suomi NPP, NASA GIBS, daily)         | no            |
+| [nhc-forecast-cones.json](../../connectors/enabled/nhc-forecast-cones.json)                       | `arcgis-feature` | NHC forecast cones (active tropical cyclones)                         | yes           |
+| [nhc-forecast-tracks.json](../../connectors/enabled/nhc-forecast-tracks.json)                     | `arcgis-feature` | NHC forecast tracks (active tropical cyclones)                        | yes           |
+| [nhc-forecast-points.json](../../connectors/enabled/nhc-forecast-points.json)                     | `arcgis-feature` | NHC forecast positions (active tropical cyclones)                     | yes           |
+| [nhc-past-track.json](../../connectors/enabled/nhc-past-track.json)                               | `arcgis-feature` | NHC past track (active tropical cyclones)                             | yes           |
+| [nhc-wind-field.json](../../connectors/enabled/nhc-wind-field.json)                               | `arcgis-feature` | NHC wind field (active tropical cyclones)                             | yes           |
+| [nifc-wildfire-perimeters.json](../../connectors/enabled/nifc-wildfire-perimeters.json)           | `arcgis-feature` | Wildfire perimeters, US (NIFC WFIGS, current)                         | yes           |
+| [nowcoast-goes-infrared.json](../../connectors/enabled/nowcoast-goes-infrared.json)               | `wms`            | Satellite infrared, North America (NOAA nowCOAST GOES)                | no            |
+| [nowcoast-radar.json](../../connectors/enabled/nowcoast-radar.json)                               | `wms`            | Weather radar, US (NOAA nowCOAST MRMS)                                | yes           |
+| [nowcoast-strike-density.json](../../connectors/enabled/nowcoast-strike-density.json)             | `wms`            | Lightning, Americas and Pacific (NOAA nowCOAST strike density)        | yes           |
+| [nws-storm-reports.json](../../connectors/enabled/nws-storm-reports.json)                         | `arcgis-feature` | Storm reports, US (NWS local storm reports: tornado, hail, wind)      | yes           |
+| [spc-day1-outlook.json](../../connectors/enabled/spc-day1-outlook.json)                           | `arcgis-feature` | Severe weather outlook today, US (SPC day 1 categorical)              | yes           |
 
 A phase adds its connector's row at the end of the connectors table (this file is a shared
 file in `docs/roadmap/phases/ownership.json`); a shipped definition gets its row from the

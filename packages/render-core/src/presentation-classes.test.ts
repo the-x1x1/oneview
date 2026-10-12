@@ -7,6 +7,7 @@ import {
   WEATHER_ALERT_SUFFIXES,
   resolveStyle,
   presentObjects,
+  fillAltitudes,
   splitAtAntimeridian,
   themeEntry,
   trailFeatures,
@@ -145,6 +146,71 @@ test('trail: observed points one trail, predicted ones a dashed line from the la
     ],
   });
   assert.ok(out.upsert.some((f) => f.id === 'trail:satellite:norad:1:predicted'));
+});
+
+test('trail: aircraft and satellite trails are drawn at their recorded altitudes, gaps filled; others stay ground tracks', () => {
+  const track = [
+    { latitude: 20, longitude: -157, altitudeM: 3000 },
+    { latitude: 20.1, longitude: -157.1 },
+    { latitude: 20.2, longitude: -157.2, altitudeM: 3600 },
+  ];
+  const view = { objects: [] as WorldObject[], view: local, selectedTrack: track };
+  const trail = (o: WorldObject) =>
+    presentObjects({ ...view, objects: [o], selectedId: o.id }).upsert.find((f) => f.id === `trail:${o.id}`)!;
+  const plane = trail(obj('aircraft:icao24:000009', 'aircraft', {}));
+  assert.equal(plane.style.heightMode, 'absolute');
+  assert.deepEqual(
+    plane.geometry.kind === 'line' ? plane.geometry.positions.map((p) => p.altitudeM) : [],
+    [3000, 3000, 3600],
+  );
+  // A satellite's too (its predicted path is its orbit, up where the marker is); an
+  // earthquake's altitude is minus its depth, so its trail stays on the ground.
+  assert.equal(trail(obj('satellite:norad:9', 'satellite', {})).style.heightMode, 'absolute');
+  assert.equal(trail(obj('earthquake:us:9', 'earthquake', {})).style.heightMode, undefined);
+  // A track with no altitude at all stays on the ground rather than at 0 m 'absolute'.
+  const flat = trailFeatures(
+    'aircraft:icao24:00000a',
+    [
+      { latitude: 0, longitude: 0 },
+      { latitude: 1, longitude: 1 },
+    ],
+    'absolute',
+  );
+  assert.equal(flat[0]!.style.heightMode, undefined);
+  // The predicted part gets the same treatment and still starts at the last observed point.
+  const both = trailFeatures(
+    'aircraft:icao24:00000b',
+    [
+      { latitude: 0, longitude: 0, altitudeM: 1000 },
+      { latitude: 1, longitude: 1, altitudeM: 1200 },
+      { latitude: 2, longitude: 2, predicted: true },
+    ],
+    'absolute',
+  );
+  assert.deepEqual(
+    both.map((f) => [
+      f.style.heightMode,
+      f.geometry.kind === 'line' ? f.geometry.positions.map((p) => p.altitudeM) : [],
+    ]),
+    [
+      ['absolute', [1000, 1200]],
+      ['absolute', [1200, 1200]],
+    ],
+  );
+});
+
+test('fillAltitudes: a gap takes the earlier altitude, a leading gap the first known; none known is undefined', () => {
+  assert.deepEqual(
+    fillAltitudes([
+      { latitude: 0, longitude: 0 },
+      { latitude: 0, longitude: 1, altitudeM: 500 },
+      { latitude: 0, longitude: 2, altitudeM: Number.NaN },
+      { latitude: 0, longitude: 3, altitudeM: 700 },
+    ])?.map((p) => p.altitudeM),
+    [500, 500, 500, 700],
+  );
+  assert.equal(fillAltitudes([{ latitude: 0, longitude: 0 }]), undefined);
+  assert.equal(fillAltitudes([]), undefined);
 });
 
 test('splitAtAntimeridian: a crossing ends one piece on ±180 and starts the next there, interpolated', () => {

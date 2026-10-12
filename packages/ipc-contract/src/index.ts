@@ -1105,6 +1105,13 @@ export interface WorldRequests {
 
   'diagnostics.get': { request: void; response: DiagnosticsSnapshot };
   'diagnostics.export': { request: void; response: { path: string; redacted: true } | { cancelled: true } };
+  /**
+   * (2026-10-12) A test notification, so the operator can see that notifications reach them
+   * before a real one is due: the in-app toast is always raised; `desktop` says whether the
+   * host showed an operating-system notification too (false in the browser demo, and on a
+   * desktop without notification support).
+   */
+  'notifications.test': { request: void; response: { inApp: true; desktop: boolean } };
   /** The page telling the runtime what it draws with, for Diagnostics and the exported bundle. */
   'diagnostics.renderer': {
     request: { active: '2D' | '3D'; webgl2: boolean; gpu?: string; fps?: number };
@@ -1258,6 +1265,7 @@ export const REQUEST_CHANNELS: readonly RequestChannel[] = Object.freeze([
   'diagnostics.get',
   'diagnostics.export',
   'diagnostics.renderer',
+  'notifications.test',
   'updater.state',
   'updater.check',
   'updater.install',

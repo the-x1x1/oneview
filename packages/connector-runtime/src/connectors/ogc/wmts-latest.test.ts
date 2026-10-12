@@ -463,3 +463,18 @@ test('wmts latest (VIIRS true colour, a daily mosaic): the last finished day is 
     /previous: 2026-10-02, the frame before the newest \(2026-10-03\)/,
   );
 });
+
+test('wmts pinned time (Black Marble, a yearly composite): the 2016 picture, zoom 0-8, no time domain read', async () => {
+  const caps = read('fixtures/connectors/hazards/gibs-black-marble-wmts-capabilities.xml');
+  const doc = JSON.parse(read('connectors/enabled/gibs-black-marble.json')) as Record<string, unknown>;
+  const { overlay, requests } = await overlayOf(() => ({ status: 200, body: caps }), { doc });
+  // A pinned time is a setting, not a frame the source moves: the descriptor carries none.
+  assert.equal(overlay.frame, undefined);
+  assert.match(overlay.url, /VIIRS_Black_Marble\/default\/2016-01-01\/GoogleMapsCompatible_Level8\//);
+  assert.match(overlay.url, /\.png$/);
+  assert.equal(overlay.maxZoom, 8);
+  assert.equal(requests.length, 1, 'the capabilities only: a pinned time reads no domain');
+  // The 2012 composite, from the setting.
+  const earlier = await overlayOf(() => ({ status: 200, body: caps }), { doc, settings: { time: '2012-01-01' } });
+  assert.match(earlier.overlay.url, /\/2012-01-01\//);
+});

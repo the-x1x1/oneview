@@ -16,6 +16,10 @@ Settings → **Local API** (Linux):
 
 Nothing listens on any network port, loopback included.
 
+Help → **Diagnostics** → Sidecars has a `local-api` line: off, Linux only, or the socket it
+listens on with how many requests it has answered and refused and when the last came. It never
+says what was asked.
+
 ## Reading it
 
 ```bash

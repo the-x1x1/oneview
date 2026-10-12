@@ -30,11 +30,17 @@ export const geometrySchema: Schema<WorldGeometry> = s.union([
   }),
 ]) as Schema<WorldGeometry>;
 
+/** The highest `altitudeM` a position may carry (m): past the Moon's orbit (384,400 km). */
+export const MAX_ALTITUDE_M = 500_000_000;
+
 export const positionSchema: Schema<GeoPosition> = s.refine(
   s.object({
     latitude: s.number({ min: -90, max: 90 }),
     longitude: s.number({ min: -180, max: 180 }),
-    altitudeM: s.optional(s.number({ min: -1_000_000, max: 100_000_000 })), // deep-focus earthquakes reach ~700 km; GEO orbit ~36,000 km
+    // Deep-focus earthquakes reach ~700 km down. Up: GEO is ~36,000 km, but the catalogue's
+    // high-apogee science satellites (Chandra ~139,000 km, INTEGRAL ~145,000 km, TESS
+    // ~375,000 km) go far beyond, so the bound is the Moon's distance and some: 500,000 km.
+    altitudeM: s.optional(s.number({ min: -1_000_000, max: MAX_ALTITUDE_M })),
     altitudeDatum: s.optional(s.enum(['ellipsoid', 'msl', 'barometric', 'ground', 'sea-surface', 'orbit'] as const)),
     accuracyM: s.optional(s.number({ min: 0 })),
   }),

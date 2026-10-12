@@ -6,16 +6,19 @@ import {
   CIRCLE_KEEP_MS,
   CIRCLE_MIN_REFRESH_MS,
   CoveragePlanner,
+  EMERGENCY_REFRESH_MS,
+  EMERGENCY_SQUAWKS,
   MAX_CIRCLES,
   MIL_REFRESH_MS,
   POINT_EVERY,
   TYPE_KEEP_MS,
   TYPE_MIN_REFRESH_MS,
   militaryQueryUrl,
+  squawkQueryUrl,
   typeQueryUrl,
 } from './coverage.js';
 import { pointQueryForBounds } from './bounds.js';
-import { AdsbLolProvider } from './index.js';
+import { AdsbLolProvider, circleNote } from './index.js';
 import { RequestBudget } from './budget.js';
 import { PRIOR_BASELINE, priorAircraft, tileContains, tilesForBounds, type Tile } from './tiles.js';
 
@@ -36,16 +39,20 @@ test('CoveragePlanner: a wide view alternates the point query with types, common
     asked.push(r.kind === 'type' ? r.type : r.kind);
     if (r.kind === 'type') p.record(r.type, r.type === 'A320' ? 1600 : r.type === 'B738' ? 1400 : 16, now);
     if (r.kind === 'mil') p.recordMilitary(300, now);
+    if (r.kind === 'sqk') p.recordEmergency(0, now);
     now += 10_000;
   }
   assert.deepEqual(
     asked,
-    ['point', 'mil', 'A320', 'point', 'B738', 'C172', 'point'],
-    `one in ${POINT_EVERY} is the point; the military list first, then types; all refreshed within a minute → point`,
+    ['point', 'mil', 'A320', 'point', 'B738', 'C172', 'sqk'],
+    `one in ${POINT_EVERY} is the point; the military list first, then types; a minute in, an emergency list`,
   );
-  // Ten minutes on, every answer is old: the military list is due, then the commonest types
-  // score highest (age × √count).
+  // Ten minutes on, every answer is old: the emergency list, then the military list, then
+  // the commonest types score highest (age × √count).
   now = 600_000;
+  assert.equal(p.next(disc, now)!.kind, 'sqk', 'an emergency list is due (it takes no turn of the rotation)');
+  p.recordEmergency(0, now);
+  assert.equal(p.next(disc, now)!.kind, 'point', 'turn 6: the point query');
   assert.equal(p.next(disc, now)!.kind, 'mil', 'turn 7: the military list is due again');
   p.recordMilitary(300, now);
   const r = p.next(disc, now)!;
@@ -55,7 +62,7 @@ test('CoveragePlanner: a wide view alternates the point query with types, common
   p.record('A320', 1600, now);
   p.record('B738', 1400, now);
   assert.equal(p.nextType(now + TYPE_MIN_REFRESH_MS), 'C172', 'and wins once the big ones are fresh');
-  assert.deepEqual(p.summary(now), { types: 3, oldestAgeMs: 550_000, military: true });
+  assert.deepEqual(p.summary(now), { types: 3, oldestAgeMs: 550_000, military: true, emergencies: false });
   assert.equal(p.summary(now + TYPE_KEEP_MS + 1).types, 0);
 });
 
@@ -68,6 +75,7 @@ test('CoveragePlanner: the military list is asked for once a minute while wide, 
     kinds.push(r.kind);
     if (r.kind === 'mil') p.recordMilitary(250, t);
     if (r.kind === 'type') p.record(r.type, 1600, t);
+    if (r.kind === 'sqk') p.recordEmergency(0, t);
   }
   assert.equal(
     kinds.filter((k) => k === 'mil').length,
@@ -87,6 +95,67 @@ test('CoveragePlanner: the military list is asked for once a minute while wide, 
 
 test('militaryQueryUrl: the documented /v2/mil list', () => {
   assert.equal(militaryQueryUrl('https://api.adsb.lol/v2'), 'https://api.adsb.lol/v2/mil');
+});
+
+test('CoveragePlanner: an emergency list once a minute in every view, 7700 every other turn; the first a minute in', () => {
+  assert.deepEqual([...EMERGENCY_SQUAWKS], ['7700', '7600', '7700', '7500']);
+  const asked: Array<[number, string]> = [];
+  const run = (p: CoveragePlanner, request: (t: number) => ReturnType<CoveragePlanner['next']>) => {
+    asked.length = 0;
+    for (let t = 0; t < 5 * 60_000; t += 10_000) {
+      const r = request(t);
+      if (r?.kind === 'sqk') {
+        asked.push([t, r.squawk]);
+        p.recordEmergency(0, t);
+      } else if (r?.kind === 'mil') p.recordMilitary(1, t);
+      else if (r?.kind === 'type') p.record(r.type, 1, t);
+      else if (r?.kind === 'circle') p.recordCircle(r.tile.id, 1, t);
+    }
+    return asked;
+  };
+  const expected: Array<[number, string]> = [
+    [60_000, '7700'],
+    [120_000, '7600'],
+    [180_000, '7700'],
+    [240_000, '7500'],
+  ];
+  // One disc covering the view, the worldwide rotation, and a view covered circle by circle.
+  const one = new CoveragePlanner(['A320']);
+  assert.deepEqual(
+    run(one, (t) => one.next({ ...disc, clipped: false }, t)),
+    expected,
+    `every ${EMERGENCY_REFRESH_MS} ms, the view's own query otherwise`,
+  );
+  const wide = new CoveragePlanner(['A320']);
+  assert.deepEqual(
+    run(wide, (t) => wide.next(disc, t)),
+    expected,
+  );
+  const tiles = tilesForBounds(CONUS, MAX_CIRCLES)!;
+  const circles = new CoveragePlanner(['A320']);
+  assert.deepEqual(
+    run(circles, (t) => circles.next(pointQueryForBounds(CONUS, 250, KANSAS)!, t, { tiles, centre: KANSAS })),
+    expected,
+  );
+  // A failed request waits its minute like an answer, and the rotation moves on.
+  const q = new CoveragePlanner(['A320']);
+  q.next({ ...disc, clipped: false }, 0);
+  assert.equal(q.emergencyDue(59_000), false);
+  assert.equal(q.nextEmergencySquawk(), '7700');
+  q.deferredEmergency(60_000);
+  assert.equal(q.emergencyDue(100_000), false);
+  assert.equal(q.nextEmergencySquawk(), '7600');
+  // The health note says so only while a list recently had an aircraft in it.
+  assert.equal(q.summary(100_000).emergencies, false);
+  q.recordEmergency(2, 120_000);
+  assert.equal(q.summary(130_000).emergencies, true);
+  assert.equal(q.summary(120_000 + TYPE_KEEP_MS + 1).emergencies, false);
+});
+
+test('squawkQueryUrl: the documented /v2/sqk/{code} list, four octal digits only', () => {
+  assert.equal(squawkQueryUrl('https://api.adsb.lol/v2', '7700'), 'https://api.adsb.lol/v2/sqk/7700');
+  assert.throws(() => squawkQueryUrl('https://api.adsb.lol/v2', '7800'));
+  assert.throws(() => squawkQueryUrl('https://api.adsb.lol/v2', '../mil'));
 });
 
 test('typeQueryUrl: only ICAO type designators', () => {
@@ -220,7 +289,7 @@ test('CoveragePlanner: a regional view is asked for circle by circle — the cen
   });
 });
 
-test('CoveragePlanner + RequestBudget, 20 virtual minutes over the contiguous US: within budget, busy circles first and most often', () => {
+test('CoveragePlanner + RequestBudget, 30 virtual minutes over the contiguous US: within budget, busy circles first and most often', () => {
   const tiles = tilesForBounds(CONUS, MAX_CIRCLES)!;
   const q = pointQueryForBounds(CONUS, 250, KANSAS)!;
   const view = { tiles, centre: KANSAS };
@@ -236,11 +305,23 @@ test('CoveragePlanner + RequestBudget, 20 virtual minutes over the contiguous US
       .reduce((a, t) => a + truth.get(t.id)!, 0) / total;
   const coverageAt: Record<string, number> = {};
   let sent = 0;
-  for (let now = 0; now < 20 * 60_000; now += 10_000) {
+  let emergencies = 0;
+  // Thirty minutes: an emergency list takes one request in six, and over twenty the busiest
+  // circle's lead over an empty one (3× to 2×) is within the pass-to-pass noise.
+  for (let now = 0; now < 30 * 60_000; now += 10_000) {
     for (const m of [1, 2, 3, 5, 10, 15, 19]) if (now === m * 60_000) coverageAt[`${m} min`] = shown(now);
     if (!budget.mayPoll(now)) continue;
     const r = planner.next(q, now, view);
     if (!r) continue;
+    if (r.kind === 'sqk') {
+      // Once a minute the poll goes to an emergency list instead (its own test above).
+      budget.sending(now);
+      sent++;
+      emergencies++;
+      planner.recordEmergency(0, now);
+      budget.answered(now);
+      continue;
+    }
     assert.equal(r.kind, 'circle');
     const t = (r as { tile: Tile }).tile;
     budget.sending(now);
@@ -253,9 +334,10 @@ test('CoveragePlanner + RequestBudget, 20 virtual minutes over the contiguous US
     budget.answered(now);
   }
   // Budget: 4 a minute rising to 6, never more than one a ten-second poll.
-  assert.ok(sent <= 20 * 6, `${sent} requests in 20 min`);
-  assert.ok(sent >= 20 * 4, `${sent} requests in 20 min: the budget is used`);
-  // Every circle answered within the twenty minutes; the busy ones far more often than the empty ones.
+  assert.ok(sent <= 30 * 6, `${sent} requests in 30 min`);
+  assert.ok(sent >= 30 * 4, `${sent} requests in 30 min: the budget is used`);
+  assert.equal(emergencies, 29, 'one emergency list a minute from the first minute on');
+  // Every circle answered within the thirty minutes; the busy ones far more often than the empty ones.
   for (const t of tiles) assert.ok(asks.has(t.id), `circle ${t.id} never asked`);
   const busiest = Math.max(...[...truth.values()]);
   const busyAsks = Math.min(...tiles.filter((t) => truth.get(t.id) === busiest).map((t) => asks.get(t.id)!.length));
@@ -377,4 +459,14 @@ test('provider: a 429 fails the poll as RATE_LIMITED, halves the budget, and not
   assert.equal((await p.query(q)).length, 1);
   assert.equal(ctx.http.requests.length, 2);
   assert.equal((await p.health()).status, 'LIVE');
+});
+
+test('circleNote: says when an emergency list recently had an aircraft in it, like the wide note', () => {
+  const c = { circles: 9, answered: 9, recent: 9, oldestAgeMs: 60_000 };
+  const budget = { perMinute: 5.8 };
+  assert.doesNotMatch(circleNote(c, budget), /emergency/);
+  assert.match(
+    circleNote(c, budget, { emergencies: true }),
+    /the oldest 1 min ago, and aircraft squawking an emergency worldwide\. adsb\.lol is asked 5\.8 times a minute/,
+  );
 });

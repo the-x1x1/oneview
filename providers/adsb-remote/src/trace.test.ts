@@ -11,6 +11,7 @@ const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 /** INVENTED fixtures in the published shapes (fixtures/adsb-lol/README.md). */
 const traceBody = readFileSync(path.join(fixtures, 'trace-full.json'), 'utf8');
 const milBody = readFileSync(path.join(fixtures, 'mil.json'), 'utf8');
+const sqkBody = readFileSync(path.join(fixtures, 'sqk-7700.json'), 'utf8');
 const NOW = 1790496000000; // the fixtures' reference time, 2026-09-27T08:00:00Z
 const START = NOW - 3600_000; // the trace's `timestamp`
 
@@ -74,6 +75,9 @@ function provider() {
     responder: (req) => {
       if (req.url.includes('/data/traces/')) return { body: traceBody };
       if (req.url.endsWith('/v2/mil')) return { body: milBody };
+      if (req.url.endsWith('/v2/sqk/7700')) return { body: sqkBody };
+      if (req.url.includes('/v2/sqk/'))
+        return { body: JSON.stringify({ ac: [], now: NOW, total: 0, msg: 'No error' }) };
       if (req.url.includes('/v2/lat/'))
         return { body: JSON.stringify({ ac: [], now: NOW, total: 0, msg: 'No error' }) };
       return { status: 404, body: '' };
@@ -153,4 +157,56 @@ test('the /v2/mil fixture normalises with every aircraft tagged military', async
   assert.equal(mil.length, 3, 'the Mode S row without a position is not an aircraft on the map');
   assert.ok(mil.every((o) => o.payload['military'] === true));
   assert.equal(mil.find((o) => o.externalId === 'ae5f03')?.payload['category'], 'A7');
+});
+
+test('the /v2/sqk/7700 fixture: an emergency anywhere reaches the map a minute in, whatever the view', async () => {
+  const { ctx, p } = provider();
+  await p.initialize(ctx);
+  await p.start();
+  // A view one point query covers, over Hawaii: its own (empty) disc every poll for a minute.
+  const q = () =>
+    p.query({
+      signal: new AbortController().signal,
+      background: true,
+      bounds: { west: -158.5, south: 20.9, east: -157.3, north: 21.8 },
+      center: { latitude: 21.3, longitude: -157.9 },
+    });
+  await q();
+  for (let i = 0; i < 3; i++) {
+    ctx.clock.advance(15_000);
+    await q();
+  }
+  assert.ok(
+    ctx.http.requests.every((r) => r.url.includes('/v2/lat/')),
+    "the first minute is the view's",
+  );
+  ctx.clock.advance(15_000);
+  const withEmergencies = await q();
+  assert.equal(ctx.http.requests.at(-1)!.url, 'https://api.adsb.lol/v2/sqk/7700');
+  const listed = withEmergencies
+    .filter((o) => o.externalId?.startsWith('e0e0e'))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  assert.deepEqual(
+    listed.map((o) => [o.externalId, o.payload['squawk'], o.payload['emergency']]),
+    [
+      ['e0e0e1', '7700', 'general'],
+      ['e0e0e2', '7700', 'general'],
+    ],
+    'the Atlantic airliner and the Sydney light aircraft, far from the view; the Mode S row has no position',
+  );
+  assert.ok(listed[0]!.quality.flags?.includes('emergency:general'));
+  const said = ctx.logger.entries.filter((e) => e.message === 'adsb.lol emergency squawk list');
+  assert.deepEqual(
+    said.map((e) => [e.fields?.['squawk'], e.fields?.['count']]),
+    [['7700', 2]],
+    'the log says so once, with the count',
+  );
+  // A minute on, the next code; the 7700 answer is kept meanwhile.
+  for (let i = 0; i < 4; i++) {
+    ctx.clock.advance(15_000);
+    await q();
+  }
+  assert.equal(ctx.http.requests.at(-1)!.url, 'https://api.adsb.lol/v2/sqk/7600');
+  const stillThere = await q();
+  assert.ok(stillThere.some((o) => o.externalId === 'e0e0e1'));
 });
