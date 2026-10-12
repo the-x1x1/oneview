@@ -5,6 +5,17 @@ Versioning: [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-12
+
+The map at altitude and the world's emergencies: the selected aircraft's and satellite's lines
+drawn up where their markers are, adsb.lol's emergency squawk lists once a minute whatever the
+view, NASA's Black Marble as a night-lights view, the high-apogee satellites that were always
+stale, and a test notification. Released to `main` on the operator's decision; the Windows
+installer checklist and the P16s hardware checks from 0.3.0 are still open
+(docs/cyberdeck/READINESS.md), and the Linux `.deb` is attached untested as before. Checked on
+the Windows test laptop (Radeon 740M): the laptop gate 16/16 at `eae8c04`, and the trail, the
+route, the satellites, Night lights and the status strip on screen.
+
 ### Added
 
 - **An aircraft emergency anywhere raises its event.** Once a minute, whatever the view, the
